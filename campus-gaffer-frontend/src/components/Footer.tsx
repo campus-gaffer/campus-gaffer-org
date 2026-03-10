@@ -1,4 +1,3 @@
-import * as React from "react"
 import logo from "@/assets/CG-updated.png"
 
 export default function Footer() {

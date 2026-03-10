@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Button } from "@/components/ui/button"
 import HeroImage from "@/assets/campus-gaffer-hero.jpeg"
 

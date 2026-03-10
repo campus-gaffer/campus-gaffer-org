@@ -1,4 +1,3 @@
-import * as React from "react"
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Button } from "@/components/ui/button"
 import logo from "@/assets/CG-updated.png"
