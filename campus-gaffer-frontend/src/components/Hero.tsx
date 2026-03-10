@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import HeroImage from "@/assets/campus-gaffer-hero.jpg"
+import HeroImage from "@/assets/campus-gaffer-hero.jpeg"
 
 export default function Hero() {
   return (
@@ -44,15 +44,19 @@ export default function Hero() {
           {/* Abstract background shape */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-primary/5 blur-[150px] rounded-full pointer-events-none animate-pulse" />
           
-          <div className="relative w-full max-w-xl scale-[0.95] transform-gpu group">
-             <div className="aspect-[4/5] bg-gradient-to-t from-background via-zinc-900/50 to-zinc-800/30 border border-white/10 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-background to-transparent z-20" />
+          <div className="relative w-full max-w-3xl scale-[1.1] transform-gpu group translate-x-12">
+             <div className="aspect-[4/3] relative overflow-hidden">
+                {/* Multi-directional blending masks */}
+                <div className="absolute inset-0 z-20 pointer-events-none shadow-[inset_0_0_120px_rgba(2,2,2,1)]" />
+                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-background via-background/80 to-transparent z-20" />
+                <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-background to-transparent z-20" />
+                <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-background to-transparent z-20" />
                 
                 {/* Neon scanline effect */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent h-20 w-full -translate-y-full animate-[scanline_4s_linear_infinite] z-30 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/10 to-transparent h-40 w-full -translate-y-full animate-[scanline_6s_linear_infinite] z-30 pointer-events-none opacity-50" />
 
                 <div className="absolute inset-0 flex items-center justify-center z-10">
-                   <div className="w-full h-full flex items-center justify-center contrast-110 transition-all duration-1000">
+                   <div className="w-full h-full flex items-center justify-center contrast-110 saturate-[0.8] brightness-90 transition-all duration-1000">
                       <img 
                         src={HeroImage}
                         alt="Student Athletes" 
@@ -61,17 +65,16 @@ export default function Hero() {
                    </div>
                 </div>
 
-                {/* HUD Elements */}
-                <div className="absolute bottom-12 right-0 p-6 border-r-4 border-primary bg-black/60 backdrop-blur-md z-30 transform translate-x-2">
-                   <div className="font-mono text-[10px] text-primary mb-1 tracking-[0.3em] uppercase">SYSTEM ANALYSIS</div>
-                   <div className="font-heading font-black text-3xl italic text-foreground tracking-tighter">PLAYER_SYNC</div>
-                </div>
-                
                 <div className="absolute top-8 left-8 p-4 bg-primary/10 border border-primary/20 backdrop-blur-sm z-30">
+                   <div className="font-mono text-[10px] text-primary mb-1 tracking-[0.3em] uppercase">SYSTEM STATUS</div>
+                   <div className="font-heading font-black text-2xl italic text-foreground tracking-tighter uppercase">LEGEND ACTIVE</div>
+                </div>
+
+                <div className="absolute bottom-8 left-8 p-4 bg-black/40 backdrop-blur-sm z-30 border-l-2 border-primary">
                    <div className="flex gap-2">
                       <div className="w-2 h-2 bg-primary animate-pulse" />
-                      <div className="w-2 h-2 bg-primary/40" />
-                      <div className="w-2 h-2 bg-primary/20" />
+                      <div className="w-2 h-2 bg-primary/60" />
+                      <div className="w-2 h-2 bg-primary/30" />
                    </div>
                 </div>
              </div>
