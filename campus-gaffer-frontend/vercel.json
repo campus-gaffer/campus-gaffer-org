@@ -1,8 +1,7 @@
 {
-  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(?!src|assets|public|node_modules).*",
+      "source": "/((?!api|static|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
