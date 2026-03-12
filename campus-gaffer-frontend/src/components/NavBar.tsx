@@ -52,7 +52,7 @@ export default function Navbar() {
 
       <div className="flex items-center gap-4">
         <SignedOut>
-          <SignInButton mode="modal">
+          <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
             <Button variant="crimsonOutline" size="sm" className="font-mono px-6 border-primary text-primary hover:shadow-[0_0_15px_rgba(255,22,68,0.4)]">
               LOGIN
             </Button>
