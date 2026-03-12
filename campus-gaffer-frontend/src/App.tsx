@@ -9,6 +9,7 @@ import Leagues from '@/pages/Leagues'
 import Transfers from '@/pages/Transfers'
 import Fixtures from '@/pages/Fixtures'
 import Rules from '@/pages/Rules'
+import SyncUser from '@/components/auth/SyncUser'
 
 function LandingPage() {
   return (
@@ -27,6 +28,9 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
+        <SignedIn>
+          <SyncUser />
+        </SignedIn>
         <Routes>
           <Route path="/" element={
             <>
