@@ -15,6 +15,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/joho/godotenv"
+	"github.com/ringsaturn/tzf"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -33,20 +34,24 @@ type Attendance struct {
 	IsMVP      bool   `json:"isMVP"`
 }
 
+type GameData struct {
+	SportName                 string       `json:"sportName"`
+	Team1Name                 string       `json:"team1Name"`
+	Team2Name                 string       `json:"team2Name"`
+	KickoffTime               string       `json:"startDate"`
+	FacilityLat               string       `json:"facilityLat"`
+	FacilityLon               string       `json:"facilityLon"`
+	Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
+	Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
+	// The actual goals are hidden inside these raw HTML string fields!
+	Team1StatsHTML string `json:"team1PlayerStatsUC"`
+	Team2StatsHTML string `json:"team2PlayerStatsUC"`
+}
+
 type ViewGameResponse struct {
 	IsDone bool `json:"isDone"`
 	Code   int  `json:"code"`
-	Data   struct {
-		SportName                 string       `json:"sportName"`
-		Team1Name                 string       `json:"team1Name"`
-		Team2Name                 string       `json:"team2Name"`
-		KickoffTime               string       `json:"kickoffTime`
-		Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
-		Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
-		// The actual goals are hidden inside these raw HTML string fields!
-		Team1StatsHTML string `json:"team1PlayerStatsUC"`
-		Team2StatsHTML string `json:"team2PlayerStatsUC"`
-	} `json:"data"`
+	Data   GameData `json:"data"`
 }
 
 type IMLeagueScraper struct {
@@ -76,9 +81,9 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 		panic(err)
 	}
 
-	var data *ViewGameResponse
+	var gameResp *ViewGameResponse
 	if shouldUseMock {
-		data, err = fetchDataFromDisk("campus-gaffer-backend/internal/scraper/out.json", s)
+		gameResp, err = fetchDataFromDisk("campus-gaffer-backend/internal/scraper/out.json")
 	} else {
 		// apiResp, data, err := fetchLeagueGameData(ctx, s)
 		// if err != nil {
@@ -86,33 +91,46 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 		// }
 	}
 
-	if data == nil {
+	if gameResp == nil {
 		println("ERROR fetching data from disk")
 		return nil, err
 	}
+	data := gameResp.Data
 	// Populate the Players list in the Result
 	result := &Result{
 		Players: []models.PlayerData{},
 	}
 
 	team1Res, _ := s.extractTeamData(
-		data.Data.SportName,
-		data.Data.Team1Name,
-		data.Data.Team1MemberAttendanceList,
+		data.SportName,
+		data.Team1Name,
+		data.Team1MemberAttendanceList,
 	)
 
 	team2Res, _ := s.extractTeamData(
-		data.Data.SportName,
-		data.Data.Team2Name,
-		data.Data.Team2MemberAttendanceList,
+		data.SportName,
+		data.Team2Name,
+		data.Team2MemberAttendanceList,
 	)
-	kickoffTime, _ := parseKickoffTime(data.Data.KickoffTime)
-	perfs, _ := s.extractPerformanceData(
-		data.Data.Team2StatsHTML,
+
+	kickoffTime, _ := parseKickoffTime(
+		data.KickoffTime,
+		data.FacilityLat,
+		data.FacilityLon,
+	)
+	var perfs []models.PlayerPerformance
+	perfs1, _ := s.extractPerformanceData(
+		data.Team1StatsHTML,
 		kickoffTime,
 	)
+	perfs2, _ := s.extractPerformanceData(
+		data.Team2StatsHTML,
+		kickoffTime,
+	)
+	perfs = append(perfs, perfs1...)
+	perfs = append(perfs, perfs2...)
 	for _, perf := range perfs {
-		fmt.Printf("Results: %+v\n", perf)
+		fmt.Printf("Results: %s MVP(%t)\n", perf.Name, perf.MVP)
 	}
 	result.Players = append(result.Players, team1Res.Players...)
 	result.Players = append(result.Players, team2Res.Players...)
@@ -120,12 +138,27 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 	return result, nil
 }
 
-func parseKickoffTime(timeStr string) (time.Time, error) {
-	layout := "2006-01-02T15:04:05"
-	return time.Parse(layout, timeStr)
+func parseKickoffTime(timeStr string, latitude, longitude string) (time.Time, error) {
+	// Get the timezone name given geographic coordinates
+	finder, err := tzf.NewDefaultFinder()
+	if err != nil {
+		return time.Time{}, err
+	}
+	lon, _ := strconv.ParseFloat(longitude, 64)
+	lat, _ := strconv.ParseFloat(latitude, 64)
+
+	tzName := finder.GetTimezoneName(lon, lat)
+	layout := "1/2/2006 3:04:05 PM"
+
+	loc, err := time.LoadLocation(tzName)
+	if err != nil {
+		return time.Time{}, err
+	}
+	// Parse with given timezone
+	return time.ParseInLocation(layout, timeStr, loc)
 }
 
-func fetchDataFromDisk(filename string, s *IMLeagueScraper) (*ViewGameResponse, error) {
+func fetchDataFromDisk(filename string) (*ViewGameResponse, error) {
 	contents, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -251,9 +284,10 @@ func (s *IMLeagueScraper) extractTeamData(
 ) (*Result, error) {
 	var players []models.PlayerData
 	// Populate teams slice with appropriate data fields
+	caser := cases.Title(language.English, cases.NoLower)
 	for _, p := range teamList {
 		player := models.PlayerData{
-			Name:  p.MemberName,
+			Name:  caser.String(p.MemberName),
 			Team:  teamName,
 			Sport: sport,
 		}
