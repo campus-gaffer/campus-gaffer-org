@@ -31,5 +31,6 @@ func main(){
 
 	result.POST("/users", handlers.CreateUser)
 	result.GET("/users", handlers.GetUser)
+	result.POST("/auth/sync", handlers.SyncUser)
 	result.Run(":8081")
 }
