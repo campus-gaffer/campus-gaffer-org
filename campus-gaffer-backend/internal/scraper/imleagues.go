@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"strings"
 	"time"
 
@@ -15,9 +16,15 @@ import (
 )
 
 const (
-	GAME_DATA_URL = "https://www.imleagues.com/Services/AjaxRequestHandler.ashx?class=imLeagues.Web.Members.Services.BO.League.ViewGameBO&method=Initialize&paramType=imLeagues.Internal.API.VO.Input.League.ViewGameInVO&urlReferrer=https://www.imleagues.com/spa/league/7e83f99a1ab04a25a469fd50ad98fa94/viewgame?gameId=23413796&gameType=0"
-	COOKIES       = `ApiTokenForSPA=gAAAACZU1oBQN0urlibpaEMrjSHbcAq-2e3MjqpSNoSUr50TzS2DyCIDYEr-1grm1ahCoinuxiRsgfmcK9T2EwHnJOLBk7cxHUvARDchOYi-FvGs3ilfQ3RaQb03sfips4YaUfRQzqEDoLL903KTlXYgAxiXuwtrIWg0a2-5950851XWFAEAAIAAAABj1tsU0BtZ6ZfqD88uBC2mDXHl0lmwkTyAQVmMvPVba49dMDQBuvHmYY_BZIP-bPpxxIKRzXSVuK4TFJWUjbluG2UBej5ELy4BZf-z-zvHcbo85MyBmzOkVMZl0sLth5_bONYsOXXtz6oa6fmMApLfArh1ekHOI7A9geZgkczIPl9W7EcTF5h6KoSmGJ7Q_dt6GWDsFm0KP3ZbbLlJvV50XbiU6fkXwIKA9gm2OpYg6u1DgKDe0ml-Zsq6pOFjQBb0Yhqw-S6UnvWha0dYnNBS9ntD-JDxA9O8ENvbtQIeoTY2__cosvUvCM81YFRk5MP0eBfRCXP5_AsL4dNC83g0F0GAHLtn74OTyIex_6TN-g; ASP.NET_SessionId=i1kpbdbbbhmud0l5flpkkbd5`
-	USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	GAME_DATA_URL = "https://www.imleagues.com/Services/AjaxRequestHandler.ashx?" +
+		"class=imLeagues.Web.Members.Services.BO.League.ViewGameBO&" +
+		"method=Initialize&" +
+		"paramType=imLeagues.Internal.API.VO.Input.League.ViewGameInVO&" +
+		"urlReferrer=https://www.imleagues.com/spa/league/7e83f99a1ab04a25a469fd50ad98fa94/viewgame?gameId=23413796&gameType=0"
+	COOKIES = "ApiRefreshTokenForSPA=hqHg!gAAAAJJapeJTPsYnKu6IrXaQquLeg3ElipeQHPIVJ8x1fsPNLS3gig-SwGUA-nhU6nMJvWalLeI68lC3MO5LHM25rKVX_KbmeqwSneRNKRsMCWNlnrtJ-jKgLKQ3U8FyKJusUiGjJMRNAOLcciWui-sF8ys-dPKdQEnEva30l-bxqG9ZFAEAAIAAAABE5iWXJxivWinuVQrrvuVhxoP-lHgxV5FAYwNP40hJMaga7KixPPOmJEGLcmjvr2b4NqIkUpNzTusgjYLBSOJO9IrshVb_kkV7SS_DCl0KKpMRviN4m_sMFjgmqQIG-bY9CIy2VQBSOR7EkoEdx_zSEHSrjhBkOjggFKHS5fUEXvChxy0lW2jO1Q8gxOWGoiEd_caaj5dSx_Tnp5Uuz-4g9rswyZrQAwpa5W9rjPPVx-U3hSzY-cBTcQ2wO7xyd6oylbRwWllFu61Vd42L1yH3PFiK3LcdbBMsoUS51pg_RhcVvDuRMX2-tdxEDixAQqVsrrUt9u-oMgdP9Giz7pFiTj7kHTT_nplRwgtHCoiPfA;" +
+		"ASP.NET_SessionId=i1kpbdbbbhmud0l5flpkkbd5"
+	USER_AGENT      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	EXTERNAL_SOURCE = "imleagues"
 )
 
 type Attendance struct {
@@ -27,20 +34,21 @@ type Attendance struct {
 	MarkedPlay bool   `json:"markedPlay"`
 	IsMVP      bool   `json:"isMVP"`
 }
-
+type ViewGameData struct {
+	SportName                 string       `json:"sportName"`
+	Team1Name                 string       `json:"team1Name"`
+	Team2Name                 string       `json:"team2Name"`
+	Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
+	Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
+	// The actual goals are hidden inside these raw HTML string fields!
+	Team1StatsHTML string `json:"team1PlayerStatsUC"`
+	Team2StatsHTML string `json:"team2PlayerStatsUC"`
+	Team1Score     string `json:"team1Result"`
+	Team2Score     string `json:"team2Result"`
+}
 type ViewGameResponse struct {
-	IsDone bool `json:"isDone"`
-	Code   int  `json:"code"`
-	Data   struct {
-		SportName                 string       `json:"sportName"`
-		Team1Name                 string       `json:"team1Name"`
-		Team2Name                 string       `json:"team2Name"`
-		Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
-		Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
-		// The actual goals are hidden inside these raw HTML string fields!
-		Team1StatsHTML string `json:"team1PlayerStatsUC"`
-		Team2StatsHTML string `json:"team2PlayerStatsUC"`
-	} `json:"data"`
+	responseEnvelope
+	Data ViewGameData `json:"data"`
 }
 
 type IMLeagueScraper struct {
@@ -48,15 +56,28 @@ type IMLeagueScraper struct {
 }
 
 func NewIMLeagueScraper() *IMLeagueScraper {
+	jar, _ := cookiejar.New(nil)
 	return &IMLeagueScraper{
 		Client: &http.Client{
 			Timeout: time.Second * 10,
+			Jar:     jar,
 		},
 	}
 }
 
 func (s *IMLeagueScraper) Name() string {
 	return "IMLeagueScraper"
+}
+
+func (s *IMLeagueScraper) post(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	return s.Client.Do(req)
 }
 
 func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
@@ -108,11 +129,19 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 
 	var apiResp ViewGameResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		fmt.Errorf("Failed to decode JSON: %v", err)
+		decodeError := fmt.Errorf("failed to decode JSON: %v\n", err)
+		fmt.Println(decodeError)
 		return nil, err
 	}
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
+	if apiResp.Message != "" {
+		errMsg := fmt.Errorf("api error, Login may be required: %s", apiResp.Message)
+		fmt.Println(errMsg)
+		return nil, errMsg
+
+	}
+
 	// Populate the Players list in the Result
 	result := &Result{
 		Players: []models.PlayerData{},
