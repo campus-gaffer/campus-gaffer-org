@@ -35,6 +35,7 @@ type Attendance struct {
 	IsMVP      bool   `json:"isMVP"`
 }
 type ViewGameData struct {
+	Message                   *string      `json:"message,omitempty"`
 	SportName                 string       `json:"sportName"`
 	Team1Name                 string       `json:"team1Name"`
 	Team2Name                 string       `json:"team2Name"`
@@ -135,8 +136,8 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 	}
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
-	if apiResp.Message != "" {
-		errMsg := fmt.Errorf("api error, Login may be required: %s", apiResp.Message)
+	if apiResp.Data.Message != nil {
+		errMsg := fmt.Errorf("api error, Login may be required: %v", apiResp.Data.Message)
 		fmt.Println(errMsg)
 		return nil, errMsg
 
@@ -194,4 +195,11 @@ func (s *IMLeagueScraper) extractTeamData(
 
 	res := &Result{Players: players}
 	return res, nil
+}
+
+func (s Schedule) getScheduleMessage() string {
+	if s.Data.Message == nil {
+		return ""
+	}
+	return *s.Data.Message
 }

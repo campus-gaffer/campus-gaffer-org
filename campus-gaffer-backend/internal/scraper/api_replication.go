@@ -8,17 +8,7 @@ import (
 	"io"
 	"log"
 	"net/url"
-
-	"time"
 )
-
-type Game struct {
-	GameId      string `json:"gameId" gorm:"uniqueIndex"`
-	DivisionId  string `json:"divisionId"`
-	Status      string `json:"status"`
-	IsScraped   bool
-	KickoffTime time.Time `json:"kickoffTime"`
-}
 
 type ScrapedGameItem struct {
 	ExternalId       string
@@ -36,6 +26,7 @@ type ScrapedGameItem struct {
 }
 
 type ScheduleData struct {
+	Message      *string           `json:"message,omitempty"`
 	Id           string            `json:"id"`
 	Name         string            `json:"name"`
 	LeagueId     string            `json:"leagueId"`
@@ -46,10 +37,9 @@ type ScheduleData struct {
 }
 
 type responseEnvelope struct {
-	IsDone  bool            `json:"isDone"`
-	Code    int             `json:"code"`
-	Message string          `json:"message"`
-	Data    json.RawMessage `json:"data"`
+	IsDone bool            `json:"isDone"`
+	Code   int             `json:"code"`
+	Data   json.RawMessage `json:"data"`
 }
 
 type Schedule struct {
@@ -106,21 +96,24 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 	}
 
 	payload, err := json.Marshal(req_body)
-
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
 	headers := map[string]string{
 		"Accept":          "application/json, text/plain, */*",
 		"Content-Type":    "application/json;charset=UTF-8",
 		"Accept-Language": "en-US,en;q=0.8",
-		"User-Agent":      fmt.Sprintf("%s", USER_AGENT),
-		"Origin":          fmt.Sprintf("%s", IM_LEAGUES_URL),
+		"User-Agent":      USER_AGENT,
+		"Origin":          IM_LEAGUES_URL,
 		"Referer":         fmt.Sprintf("%s/spa/team/%s/home", IM_LEAGUES_URL, TEAM_ID),
-		"Cookie":          fmt.Sprintf("%s", COOKIES),
+		"Cookie":          COOKIES,
 	}
 
 	res, err := s.post(ctx, SCHEDULE_URL, payload, headers)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -135,9 +128,6 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 	if err := json.Unmarshal(resString, &envelope); err != nil {
 		fmt.Println(err)
 		return nil, err
-	} else if envelope.Code < 0 {
-		fmt.Println(envelope.Message, string(envelope.Data))
-		return nil, fmt.Errorf("api error: %s", envelope.Message)
 	}
 
 	apiResp := Schedule{
@@ -146,6 +136,7 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 			Code:   envelope.Code,
 		},
 	}
+
 	if len(envelope.Data) > 0 && string(envelope.Data) != "null" {
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
@@ -156,10 +147,14 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 		}
 	}
 
+	if apiResp.getScheduleMessage() != "" {
+		return nil, fmt.Errorf("[GET CURRENT SEASON GAMES] %s", apiResp.getScheduleMessage())
+	}
+
 	games := append(apiResp.Data.RegularGames, apiResp.Data.PlayOffGames...)
 	for i := range games {
 		games[i].LeagueId = apiResp.Data.LeagueId
-		games[i].ExternalId = apiResp.Data.Id
+		games[i].ExternalId = fmt.Sprintf("%d", games[i].GameId)
 		games[i].ExternalSource = EXTERNAL_SOURCE
 	}
 	return games, nil
@@ -198,6 +193,9 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 	}
 
 	res, err := s.post(ctx, gameUrl, payload, headers)
+	if err != nil {
+		return nil, err
+	}
 	log.Println("API Response status:", res.StatusCode)
 	defer res.Body.Close()
 
@@ -213,8 +211,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 		fmt.Println(err)
 		return nil, err
 	} else if envelope.Code < 0 {
-		fmt.Println(envelope.Message)
-		return nil, fmt.Errorf("api error, Login may be required")
+		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
 	}
 
 	apiResp := ViewGameResponse{}
@@ -272,10 +269,10 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 	headers := map[string]string{
 		"Accept":       "application/json, text/plain, */*",
 		"Content-Type": "application/json;charset=UTF-8",
-		"User-Agent":   fmt.Sprintf("%s", USER_AGENT),
+		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
 		"Referer":      fmt.Sprintf("%s/spa/member/%s/player", IM_LEAGUES_URL, playerId),
-		"Cookie":       fmt.Sprintf("%s", COOKIES),
+		"Cookie":       COOKIES,
 	}
 	res, err := s.post(ctx, player_info_url, payload, headers)
 
@@ -297,8 +294,7 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		fmt.Println(err)
 		return nil, err
 	} else if envelope.Code < 0 {
-		fmt.Println(envelope.Message)
-		return nil, fmt.Errorf("api error, Login may be required")
+		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
 	}
 
 	apiResp := ViewPlayerResponse{}
