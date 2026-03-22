@@ -9,11 +9,21 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+func LoadCookiesFromEnv() string {
+	api_token := os.Getenv("APITokenForSPA")
+	session_id := os.Getenv("ASP.NET_SessionId")
+	if api_token == "" || session_id == "" {
+		log.Fatal("APITokenForSPA and ASP.NET_SessionId environment variables must be set")
+	}
+	return fmt.Sprintf("ApiTokenForSPA=%s; ASP.NET_SessionId=%s", api_token, session_id)
+}
 
 const (
 	GAME_DATA_URL = "https://www.imleagues.com/Services/AjaxRequestHandler.ashx?" +
@@ -107,7 +117,6 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 		ctx,
 		http.MethodPost,
 		GAME_DATA_URL,
-		//strings.NewReader(payload.Encode()),
 		bytes.NewBuffer(payload),
 	)
 	if err != nil {
@@ -129,19 +138,16 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 	}
 	defer resp.Body.Close()
 
-	log.Println(resp.Status)
 
 	var apiResp ViewGameResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		decodeError := fmt.Errorf("failed to decode JSON: %v\n", err)
-		fmt.Println(decodeError)
-		return nil, err
+		return nil, decodeError
 	}
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
 	if apiResp.Data.Message != nil {
 		errMsg := fmt.Errorf("api error, Login may be required: %v", apiResp.Data.Message)
-		fmt.Println(errMsg)
 		return nil, errMsg
 
 	}

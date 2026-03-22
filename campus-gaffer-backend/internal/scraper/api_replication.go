@@ -80,7 +80,7 @@ const (
 		"class=imLeagues.Web.Members.Services.BO.Team.HomeBO&" +
 		"method=Initialize&" +
 		"paramType=imLeagues.Internal.API.VO.Input.ViewInVO&" +
-		"urlReferrer=https://www.imleagues.com/spa/team/zzz1459316985769754624/home"
+		"urlReferrer=https://www.imleagues.com/spa/team/" + TEAM_ID + "/home"
 )
 
 func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedGameItem, error) {
@@ -174,7 +174,11 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 		"clientType":     0,
 	}
 
-	payload, _ := json.Marshal(req_body)
+	payload, err := json.Marshal(req_body)
+	if err != nil {
+		log.P                                  rintln(err)
+		return nil, err
+	}
 
 	gameUrl := fmt.Sprintf("%s/Services/AjaxRequestHandler.ashx?"+
 		"class=imLeagues.Web.Members.Services.BO.League.ViewGameBO&"+
@@ -219,7 +223,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
 			if stringErr := json.Unmarshal(envelope.Data, &dataAsString); stringErr == nil {
-				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", apiResp.Code, dataAsString)
+				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", envelope.Code, dataAsString)
 			}
 			return nil, fmt.Errorf("failed to parse game data object: %w", err)
 		}
@@ -258,8 +262,13 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		"clientType":     0,
 	}
 
-	payload, _ := json.Marshal(req_body)
+	payload, err := json.Marshal(req_body)
 
+	if err != nil {
+		log.Printf("failed to marshal player data request body: %v", err)
+		return nil, err
+	}
+                                                       
 	player_info_url := fmt.Sprintf("%s/Services/AjaxRequestHandler.ashx?"+
 		"class=imLeagues.Web.Members.Services.BO.Member.PlayerBO&"+
 		"method=Initialize&"+
@@ -302,13 +311,17 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
 			if stringErr := json.Unmarshal(envelope.Data, &dataAsString); stringErr == nil {
-				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", apiResp.Code, dataAsString)
+				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", envelope.Code, dataAsString)
 			}
 			return nil, fmt.Errorf("failed to parse player data object: %w", err)
 		}
 	}
 
-	id, _ := url.ParseQuery(apiResp.Data.PlayerInfo.PlayerId)
+	id, err := url.ParseQuery(apiResp.Data.PlayerInfo.PlayerId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse player ID query string: %w", err)
+	}
+
 	info := apiResp.Data.PlayerInfo
 	info.PlayerId = id.Get("player")
 	info.ExternalId = info.PlayerId
