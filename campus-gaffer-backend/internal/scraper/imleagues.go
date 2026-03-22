@@ -57,7 +57,10 @@ type IMLeagueScraper struct {
 }
 
 func NewIMLeagueScraper() *IMLeagueScraper {
-	jar, _ := cookiejar.New(nil)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatal("Failed to create cookie jar:", err)
+	}
 	return &IMLeagueScraper{
 		Client: &http.Client{
 			Timeout: time.Second * 10,
