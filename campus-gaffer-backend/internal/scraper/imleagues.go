@@ -147,7 +147,7 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
 	if apiResp.Data.Message != nil {
-		errMsg := fmt.Errorf("api error, Login may be required: %v", apiResp.Data.Message)
+		errMsg := fmt.Errorf("api error, Login may be required: %s", apiResp.Data.Message)
 		return nil, errMsg
 
 	}
