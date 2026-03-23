@@ -1,34 +1,107 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { SignedIn, SignedOut } from '@clerk/clerk-react'
+import NavBar from '@/components/NavBar'
+import Hero from '@/components/Hero'
+import Features from '@/components/Features'
+import Footer from '@/components/Footer'
+import Dashboard from '@/pages/Dashboard'
+import Leagues from '@/pages/Leagues'
+import Transfers from '@/pages/Transfers'
+import Fixtures from '@/pages/Fixtures'
+import Rules from '@/pages/Rules'
+import SyncUser from '@/components/auth/SyncUser'
+
+function LandingPage() {
+  return (
+    <div className="flex flex-col min-h-screen">
+      <NavBar />
+      <main className="flex-grow">
+        <Hero />
+        <Features />
+      </main>
+      <Footer />
+    </div>
+  )
+}
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <BrowserRouter>
+      <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
+        <SignedIn>
+          <SyncUser />
+        </SignedIn>
+        <Routes>
+          <Route path="/" element={
+            <>
+              <SignedOut>
+                <LandingPage />
+              </SignedOut>
+              <SignedIn>
+                <Navigate to="/dashboard" replace />
+              </SignedIn>
+            </>
+          } />
+
+          <Route path="/dashboard" element={
+            <>
+              <SignedIn>
+                <Dashboard />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          } />
+
+          <Route path="/leagues" element={
+            <>
+              <SignedIn>
+                <Leagues />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          } />
+
+          <Route path="/transfers" element={
+            <>
+              <SignedIn>
+                <Transfers />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          } />
+
+          <Route path="/fixtures" element={
+            <>
+              <SignedIn>
+                <Fixtures />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          } />
+
+          <Route path="/rules" element={
+            <>
+              <SignedIn>
+                <Rules />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          } />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </BrowserRouter>
   )
 }
 
