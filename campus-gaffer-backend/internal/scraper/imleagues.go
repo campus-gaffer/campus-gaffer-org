@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,20 +49,26 @@ type Attendance struct {
 	MarkedPlay bool   `json:"markedPlay"`
 	IsMVP      bool   `json:"isMVP"`
 }
+type ViewGameData struct {
+	Message     *string `json:"message,omitempty"`
+	SportName   string  `json:"sportName"`
+	Team1Name   string  `json:"team1Name"`
+	Team2Name   string  `json:"team2Name"`
+	KickoffTime string  `json:"startDate"`
+	FacilityLat string  `json:"facilityLat"`
+	FacilityLon string  `json:"facilityLon"`
 
+	Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
+	Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
+	// The actual goals are hidden inside these raw HTML string fields!
+	Team1StatsHTML string `json:"team1PlayerStatsUC"`
+	Team2StatsHTML string `json:"team2PlayerStatsUC"`
+	Team1Score     string `json:"team1Result"`
+	Team2Score     string `json:"team2Result"`
+}
 type ViewGameResponse struct {
-	IsDone bool `json:"isDone"`
-	Code   int  `json:"code"`
-	Data   struct {
-		SportName                 string       `json:"sportName"`
-		Team1Name                 string       `json:"team1Name"`
-		Team2Name                 string       `json:"team2Name"`
-		Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
-		Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
-		// The actual goals are hidden inside these raw HTML string fields!
-		Team1StatsHTML string `json:"team1PlayerStatsUC"`
-		Team2StatsHTML string `json:"team2PlayerStatsUC"`
-	} `json:"data"`
+	responseEnvelope
+	Data ViewGameData `json:"data"`
 }
 
 type IMLeagueScraper struct {
@@ -199,7 +208,7 @@ func fetchDataFromDisk(filename string) (*ViewGameResponse, error) {
 	return &data, nil
 }
 
-func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*http.Response, *ViewGameResponse, error) {
+func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResponse, error) {
 	req_body := map[string]interface{}{
 		"entityType":     "league",
 		"entityId":       "7e83f99a1ab04a25a469fd50ad98fa94",
@@ -215,7 +224,7 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*http.Respons
 
 	payload, err := json.Marshal(req_body)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(
@@ -243,15 +252,19 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*http.Respons
 	}
 	defer resp.Body.Close()
 
-	log.Println(resp.Status)
-
 	var apiResp ViewGameResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		fmt.Errorf("Failed to decode JSON: %v", err)
-		return nil, err
+		decodeError := fmt.Errorf("failed to decode JSON: %v\n", err)
+		return nil, decodeError
 	}
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
+	if apiResp.Data.Message != nil {
+		errMsg := fmt.Errorf("api error, Login may be required: %s", apiResp.Data.Message)
+		return nil, errMsg
+
+	}
+
 	// Populate the Players list in the Result
 	result := &Result{
 		Players: []models.PlayerData{},

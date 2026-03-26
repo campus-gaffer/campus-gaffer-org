@@ -176,7 +176,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 
 	payload, err := json.Marshal(req_body)
 	if err != nil {
-		log.P                                  rintln(err)
+		log.Println(err)
 		return nil, err
 	}
 
@@ -268,7 +268,7 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		log.Printf("failed to marshal player data request body: %v", err)
 		return nil, err
 	}
-                                                       
+
 	player_info_url := fmt.Sprintf("%s/Services/AjaxRequestHandler.ashx?"+
 		"class=imLeagues.Web.Members.Services.BO.Member.PlayerBO&"+
 		"method=Initialize&"+
