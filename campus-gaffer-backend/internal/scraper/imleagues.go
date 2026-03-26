@@ -2,7 +2,6 @@ package scraper
 
 import (
 	"bytes"
-	"campus-gaffer-backend/internal/models"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -70,6 +69,19 @@ type ViewGameResponse struct {
 	responseEnvelope
 	Data ViewGameData `json:"data"`
 }
+type ScrapedPlayerData struct {
+	Name  string `json:"name"`
+	Team  string `json:"team"`
+	Sport string `json:"sport"`
+}
+
+type ScrapedPlayerStat struct {
+	Name        string
+	GamePlayed  bool
+	IsMVP       bool
+	KickoffTime time.Time
+	Goals       int
+}
 
 type IMLeagueScraper struct {
 	Client *http.Client
@@ -131,7 +143,7 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 	data := gameResp.Data
 	// Populate the Players list in the Result
 	result := &Result{
-		Players: []models.PlayerData{},
+		Players: []ScrapedPlayerData{},
 	}
 
 	team1Res, _ := s.extractTeamData(
@@ -151,7 +163,7 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 		data.FacilityLat,
 		data.FacilityLon,
 	)
-	var perfs []models.PlayerPerformance
+	var perfs []ScrapedPlayerStat
 	perfs1, _ := s.extractPerformanceData(
 		data.Team1StatsHTML,
 		kickoffTime,
@@ -163,7 +175,7 @@ func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
 	perfs = append(perfs, perfs1...)
 	perfs = append(perfs, perfs2...)
 	for _, perf := range perfs {
-		fmt.Printf("Results: %s MVP(%t)\n", perf.Name, perf.MVP)
+		fmt.Printf("Results: %s IsMVP(%t)\n", perf.Name, perf.IsMVP)
 	}
 	result.Players = append(result.Players, team1Res.Players...)
 	result.Players = append(result.Players, team2Res.Players...)
@@ -265,33 +277,14 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResp
 
 	}
 
-	// Populate the Players list in the Result
-	result := &Result{
-		Players: []models.PlayerData{},
-	}
-
-	team1Res, _ := s.extractTeamData(
-		apiResp.Data.SportName,
-		apiResp.Data.Team1Name,
-		apiResp.Data.Team1MemberAttendanceList,
-	)
-
-	team2Res, _ := s.extractTeamData(
-		apiResp.Data.SportName,
-		apiResp.Data.Team2Name,
-		apiResp.Data.Team2MemberAttendanceList,
-	)
-	result.Players = append(result.Players, team1Res.Players...)
-	result.Players = append(result.Players, team2Res.Players...)
-
-	return result, nil
+	return &apiResp, nil
 }
 
 func (s *IMLeagueScraper) ScrapeID(id string) (*Result, error) {
 	return nil, nil
 }
 
-func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime time.Time) ([]models.PlayerPerformance, error) {
+func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime time.Time) ([]ScrapedPlayerStat, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(statsHTML))
 	if err != nil {
 		return nil, nil
@@ -301,7 +294,7 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 		"Y": true,
 		"":  false,
 	}
-	var gameData []models.PlayerPerformance
+	var gameData []ScrapedPlayerStat
 
 	doc.Find("#gvGamePlayerStats tbody tr").
 		Each(func(i int, row *goquery.Selection) {
@@ -323,10 +316,10 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 				return
 			}
 
-			playerPerf := models.PlayerPerformance{
+			playerPerf := ScrapedPlayerStat{
 				Name:        name,
 				GamePlayed:  gp,
-				MVP:         mvp,
+				IsMVP:       mvp,
 				KickoffTime: kickoffTime,
 				Goals:       int(goals),
 			}
@@ -340,11 +333,11 @@ func (s *IMLeagueScraper) extractTeamData(
 	teamName string,
 	teamList []Attendance,
 ) (*Result, error) {
-	var players []models.PlayerData
+	var players []ScrapedPlayerData
 	// Populate teams slice with appropriate data fields
 	caser := cases.Title(language.English, cases.NoLower)
 	for _, p := range teamList {
-		player := models.PlayerData{
+		player := ScrapedPlayerData{
 			Name:  caser.String(p.MemberName),
 			Team:  teamName,
 			Sport: sport,

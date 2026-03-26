@@ -1,14 +1,13 @@
 package scraper
 
 import (
-	"campus-gaffer-backend/internal/models"
 	"context"
 	"fmt"
 	"log"
 )
 
 type Result struct {
-	Players []models.PlayerData
+	Players []ScrapedPlayerData
 	Score   string
 }
 
