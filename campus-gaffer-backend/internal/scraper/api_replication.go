@@ -189,10 +189,10 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 	headers := map[string]string{
 		"Accept":       "application/json, text/plain, */*",
 		"Content-Type": "application/json;charset=UTF-8",
-		"User-Agent":   fmt.Sprintf("%s", USER_AGENT),
+		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
 		"Referer":      fmt.Sprintf("%s/%s", IM_LEAGUES_URL, game.GameUrl),
-		"Cookie":       fmt.Sprintf("%s", COOKIES),
+		"Cookie":       COOKIES,
 	}
 
 	res, err := s.post(ctx, gameUrl, payload, headers)
@@ -246,7 +246,6 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 	result.Players = append(result.Players, team1Res.Players...)
 	result.Players = append(result.Players, team2Res.Players...)
 	return result, nil
-
 }
 
 func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error) {
