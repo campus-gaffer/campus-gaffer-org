@@ -2,7 +2,6 @@ package scraper
 
 import (
 	"bytes"
-	"campus-gaffer-backend/internal/models"
 	"context"
 	"encoding/json"
 	"fmt"
