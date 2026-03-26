@@ -1,23 +1,13 @@
 package models
 
-import (
-	"time"
-
-	"gorm.io/gorm"
-)
-
-type PlayerData struct {
-	Name  string `json:"name"`
-	Team  string `json:"team"`
-	Sport string `json:"sport"`
-}
-
-type PlayerPerformance struct {
-	gorm.Model
-	Name        string    `json:name`
-	GamePlayed  bool      `json:gp`
-	MVP         bool      `json:mvp`
-	KickoffTime time.Time `json:kickoff_time`
-	Goals       int       `json:"goals"`
-	// GoalsPerGame int `json:"goals_per_game"`
+type Player struct {
+	Id               string `gorm:"type:uuid; primaryKey; default:gen_random_uuid(); not null"`
+	ExternalPlayerId string `gorm:"type:string; not null"`
+	ExternalSource   string `gorm:"type:string; not null"`
+	Name             string `gorm:"type:string; not null"`
+	BirthDate        string `gorm:"type:string; not null"`
+	Age              uint   `gorm:"type:uint; not null"`
+	Gender           string `gorm:"type:string; not null"`
+	YearOfStudy      string `gorm:"type:string; not null"`
+	GraduationYear   string `gorm:"type:string; not null"`
 }

@@ -1,7 +1,6 @@
 package scraper
 
 import (
-	"campus-gaffer-backend/internal/models"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -230,7 +229,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 	}
 
 	result := &Result{
-		Players: []models.PlayerData{},
+		Players: []ScrapedPlayerData{},
 		Score:   fmt.Sprintf("%s - %s", apiResp.Data.Team1Score, apiResp.Data.Team2Score),
 	}
 
