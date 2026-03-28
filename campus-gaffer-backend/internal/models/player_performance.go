@@ -14,6 +14,6 @@ type PlayerPerformance struct {
 	Goals            uint       `gorm:"type:uint;not null;default:0"`
 	KickoffTime      *time.Time `gorm:"type:timestamp"`
 	GameId           uuid.UUID  `gorm:"type:uuid;not null;uniqueIndex:idx_player_performance_game_player"`
-	IsMVP            bool       `gorm:"type:boolean;default:false;not null"`
-	PlayedGame       bool       `gorm:"type:boolean;default:false;not null"`
+	IsMVP            bool       `gorm:"type:boolean;not null"`
+	PlayedGame       bool       `gorm:"type:boolean;not null"`
 }
