@@ -2,8 +2,6 @@ package scraper
 
 import (
 	"context"
-	"fmt"
-	"log"
 )
 
 
