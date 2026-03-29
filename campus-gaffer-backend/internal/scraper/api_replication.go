@@ -89,6 +89,11 @@ type ViewPlayerResponse struct {
 	} `json:"data"`
 }
 
+type gameMetadata struct {
+	GameType int
+	LeagueId string
+}
+
 const (
 	LEAGUE_ID      = "7e83f99a1ab04a25a469fd50ad98fa94"
 	TEAM_ID        = "zzz1459316985769754624" // Kennys Disciples Id team ID
@@ -170,15 +175,24 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 
 	games := append(apiResp.Data.RegularGames, apiResp.Data.PlayOffGames...)
 	for i := range games {
+		externalId := fmt.Sprintf("%d", games[i].GameId)
+		s.gameIndex[games[i].ExternalId] = gameMetadata{
+			GameType: games[i].GameType,
+			LeagueId: apiResp.Data.LeagueId,
+		}
+		games[i].ExternalId = externalId
 		games[i].LeagueId = apiResp.Data.LeagueId
-		games[i].ExternalId = fmt.Sprintf("%d", games[i].GameId)
 		games[i].ExternalSource = EXTERNAL_SOURCE
 		games[i].HomeTeamId = apiResp.Data.Id
 	}
 	return games, nil
 }
 
-func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem) (*ScrapedGame, error) {
+func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*ScrapedGame, error) {
+	game, ok := s.gameIndex[externalId]
+	if !ok {
+		return nil, fmt.Errorf("game not found with external ID: %s. Was GetCurrentSeasonGames called first?", externalId)
+	}
 	req_body := map[string]any{
 		"entityType":     "league",
 		"entityId":       game.LeagueId,
