@@ -7,13 +7,16 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"time"
 )
+
 
 type ScrapedGameItem struct {
 	ExternalId       string
 	ExternalSource   string // Always EXTERNAL_SOURCE
 	GameId           int    `json:"gameId"`
 	GameUrl          string `json:"gameUrl"`
+	HomeTeamId       string // Acquired from ScheduleData
 	OpponentTeamId   string `json:"opponentTeamId"`
 	OpponentTeamName string `json:"opponentTeamName"`
 	GameType         int    `json:"gameType"`
@@ -22,6 +25,21 @@ type ScrapedGameItem struct {
 	// gameIdWithType is prefixed with 'R'/'P' to mean regular game vs. playoff
 	GameIdWithType string `json:"gameIdWithType"`
 	LeagueId       string `json:"leagueId"`
+}
+
+type ScrapedGame struct {
+	ExternalId      string
+	ExternalSource  string
+	HomeTeamName    string
+	AwayTeamName    string
+	KickoffTime     time.Time
+	GameResultScore string
+	GameResultStr   string
+	GameCancelled   bool
+	GameCompleted   bool
+	Status          bool
+	Score           string
+	Players         []ScrapedPlayerStat
 }
 
 type ScheduleData struct {
@@ -155,11 +173,12 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 		games[i].LeagueId = apiResp.Data.LeagueId
 		games[i].ExternalId = fmt.Sprintf("%d", games[i].GameId)
 		games[i].ExternalSource = EXTERNAL_SOURCE
+		games[i].HomeTeamId = apiResp.Data.Id
 	}
 	return games, nil
 }
 
-func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem) (*Result, error) {
+func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem) (*ScrapedGame, error) {
 	req_body := map[string]any{
 		"entityType":     "league",
 		"entityId":       game.LeagueId,
@@ -228,24 +247,55 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, game ScrapedGameItem)
 		}
 	}
 
-	result := &Result{
-		Players: []ScrapedPlayerData{},
-		Score:   fmt.Sprintf("%s - %s", apiResp.Data.Team1Score, apiResp.Data.Team2Score),
+	apiData := apiResp.Data
+	if apiData.Message != nil && *apiData.Message != "" {
+		return nil, fmt.Errorf("[GET GAME DATA] %s", *apiData.Message)
 	}
 
-	team1Res, _ := s.extractTeamData(
-		apiResp.Data.SportName,
-		apiResp.Data.Team1Name,
-		apiResp.Data.Team1MemberAttendanceList,
+	gameKickoff, err := parseKickoffTime(apiData.KickoffTime, apiData.FacilityLat, apiData.FacilityLon)
+	if err != nil {
+		log.Printf("warning: failed to parse game kickoff time for gameId=%d, gameType=%d", game.GameId, game.GameType)
+	}
+	if gameKickoff.IsZero() {
+		log.Printf("warning: game kickoff time is zero for gameId=%d, gameType=%d", game.GameId, game.GameType)
+	}
+
+	players := make([]ScrapedPlayerStat, 0, 30)
+	team1, err := s.extractPlayerStats(
+		apiData.Team1MemberAttendanceList,
+		apiData.Team1StatsHTML,
+		gameKickoff,
 	)
-	team2Res, _ := s.extractTeamData(
-		apiResp.Data.SportName,
-		apiResp.Data.Team2Name,
-		apiResp.Data.Team2MemberAttendanceList,
+	if err != nil {
+		return nil, err
+	}
+	players = append(players, team1...)
+
+	team2, err := s.extractPlayerStats(
+		apiData.Team2MemberAttendanceList,
+		apiData.Team2StatsHTML,
+		gameKickoff,
 	)
-	result.Players = append(result.Players, team1Res.Players...)
-	result.Players = append(result.Players, team2Res.Players...)
-	return result, nil
+	if err != nil {
+		return nil, err
+	}
+	players = append(players, team2...)
+
+	gameData := &ScrapedGame{
+		ExternalId:     apiResp.Data.Id,
+		ExternalSource: EXTERNAL_SOURCE,
+		HomeTeamName:   apiResp.Data.Team1Name,
+		AwayTeamName:   apiResp.Data.Team2Name,
+		KickoffTime:    gameKickoff,
+		GameResultScore: game.GameResultScore,
+		GameResultStr:   game.GameResultStr,
+		GameCancelled:  apiData.CancelledGame,
+		GameCompleted:  apiData.CompletedGame,
+		Status:         apiData.CompletedGame || apiData.CancelledGame,
+		Players:        players,
+	}
+
+	return gameData, nil
 }
 
 func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error) {
