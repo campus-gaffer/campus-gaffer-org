@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/joho/godotenv"
 	"github.com/ringsaturn/tzf"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -49,13 +48,16 @@ type Attendance struct {
 	IsMVP      bool   `json:"isMVP"`
 }
 type ViewGameData struct {
-	Message     *string `json:"message,omitempty"`
-	SportName   string  `json:"sportName"`
-	Team1Name   string  `json:"team1Name"`
-	Team2Name   string  `json:"team2Name"`
-	KickoffTime string  `json:"startDate"`
-	FacilityLat string  `json:"facilityLat"`
-	FacilityLon string  `json:"facilityLon"`
+	Message       *string `json:"message,omitempty"`
+	Id            string  `json:"id"`
+	SportName     string  `json:"sportName"`
+	Team1Name     string  `json:"team1Name"`
+	Team2Name     string  `json:"team2Name"`
+	KickoffTime   string  `json:"startDate"`
+	FacilityLat   string  `json:"facilityLat"`
+	FacilityLon   string  `json:"facilityLon"`
+	CompletedGame bool    `json:"isCompletedGame"`
+	CancelledGame bool    `json:"isGameCancelled"`
 
 	Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
 	Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
@@ -68,11 +70,6 @@ type ViewGameData struct {
 type ViewGameResponse struct {
 	responseEnvelope
 	Data ViewGameData `json:"data"`
-}
-type ScrapedPlayerData struct {
-	Name  string `json:"name"`
-	Team  string `json:"team"`
-	Sport string `json:"sport"`
 }
 
 type ScrapedPlayerStat struct {
@@ -115,74 +112,9 @@ func (s *IMLeagueScraper) post(ctx context.Context, url string, body []byte, hea
 	return s.Client.Do(req)
 }
 
-func (s *IMLeagueScraper) Scrape(ctx context.Context) (*Result, error) {
-	err := godotenv.Load("campus-gaffer-backend/.env")
-	if err != nil {
-		fmt.Println("Error loading .env file")
-	}
-	shouldUseMock, err := strconv.ParseBool(os.Getenv("USE_MOCK_SCRAPER"))
-	if err != nil {
-		fmt.Println("Error parsing mock flag")
-		panic(err)
-	}
 
-	var gameResp *ViewGameResponse
-	if shouldUseMock {
-		gameResp, err = fetchDataFromDisk("campus-gaffer-backend/internal/scraper/out.json")
-	} else {
-		// apiResp, data, err := fetchLeagueGameData(ctx, s)
-		// if err != nil {
-		// 	return nil, err
-		// }
-	}
-
-	if gameResp == nil {
-		println("ERROR fetching data from disk")
-		return nil, err
-	}
-	data := gameResp.Data
-	// Populate the Players list in the Result
-	result := &Result{
-		Players: []ScrapedPlayerData{},
-	}
-
-	team1Res, _ := s.extractTeamData(
-		data.SportName,
-		data.Team1Name,
-		data.Team1MemberAttendanceList,
-	)
-
-	team2Res, _ := s.extractTeamData(
-		data.SportName,
-		data.Team2Name,
-		data.Team2MemberAttendanceList,
-	)
-
-	kickoffTime, _ := parseKickoffTime(
-		data.KickoffTime,
-		data.FacilityLat,
-		data.FacilityLon,
-	)
-	var perfs []ScrapedPlayerStat
-	perfs1, _ := s.extractPerformanceData(
-		data.Team1StatsHTML,
-		kickoffTime,
-	)
-	perfs2, _ := s.extractPerformanceData(
-		data.Team2StatsHTML,
-		kickoffTime,
-	)
-	perfs = append(perfs, perfs1...)
-	perfs = append(perfs, perfs2...)
-	for _, perf := range perfs {
-		fmt.Printf("Results: %s IsMVP(%t)\n", perf.Name, perf.IsMVP)
-	}
-	result.Players = append(result.Players, team1Res.Players...)
-	result.Players = append(result.Players, team2Res.Players...)
-
-	return result, nil
-}
-
+// parseKickoffTime takes in the kickoff time string from the API response and the facility's geographic coordinates,
+// determines the appropriate timezone, and returns the kickoff time as a time.Time object in that timezone.
 func parseKickoffTime(timeStr string, latitude, longitude string) (time.Time, error) {
 	// Get the timezone name given geographic coordinates
 	finder, err := tzf.NewDefaultFinder()
@@ -280,9 +212,6 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResp
 	return &apiResp, nil
 }
 
-func (s *IMLeagueScraper) ScrapeID(id string) (*Result, error) {
-	return nil, nil
-}
 
 func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime time.Time) ([]ScrapedPlayerStat, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(statsHTML))
@@ -328,25 +257,29 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 	return gameData, nil
 }
 
-func (s *IMLeagueScraper) extractTeamData(
-	sport string,
-	teamName string,
-	teamList []Attendance,
-) (*Result, error) {
-	var players []ScrapedPlayerData
-	// Populate teams slice with appropriate data fields
-	caser := cases.Title(language.English, cases.NoLower)
-	for _, p := range teamList {
-		player := ScrapedPlayerData{
-			Name:  caser.String(p.MemberName),
-			Team:  teamName,
-			Sport: sport,
-		}
-		players = append(players, player)
+
+
+func (s* IMLeagueScraper) extractPlayerStats(
+	attendance []Attendance,
+	statsHTML string,
+	kickoffTime time.Time,
+) ([]ScrapedPlayerStat, error) {
+	perfData, _ := s.extractPerformanceData(statsHTML, kickoffTime)
+	// Map player name to attendance info for O(1) lookup
+	attMap := make(map[string]Attendance)
+	for _, att := range attendance {
+		attMap[att.MemberName] = att
 	}
 
-	res := &Result{Players: players}
-	return res, nil
+	// Merge attendance info with performance data
+	for i, perf := range perfData {
+		if att, exists := attMap[perf.Name]; exists {
+			perfData[i].GamePlayed = att.MarkedPlay
+			perfData[i].IsMVP = att.IsMVP
+		}
+	}
+
+	return perfData, nil
 }
 
 func (s Schedule) getScheduleMessage() string {
