@@ -82,7 +82,7 @@ type ScrapedPlayerStat struct {
 
 type IMLeagueScraper struct {
 	Client *http.Client
-	gameIndex map[string]gameMetadata
+	gameIndex map[string]ScrapedGameItem
 }
 
 func NewIMLeagueScraper() *IMLeagueScraper {
@@ -95,7 +95,7 @@ func NewIMLeagueScraper() *IMLeagueScraper {
 			Timeout: time.Second * 10,
 			Jar:     jar,
 		},
-		gameIndex: make(map[string]gameMetadata),
+		gameIndex: make(map[string]ScrapedGameItem),
 	}
 }
 

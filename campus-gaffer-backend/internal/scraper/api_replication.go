@@ -91,6 +91,7 @@ type ViewPlayerResponse struct {
 
 type gameMetadata struct {
 	GameType int
+	GameId   int
 	LeagueId string
 }
 
@@ -176,14 +177,12 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 	games := append(apiResp.Data.RegularGames, apiResp.Data.PlayOffGames...)
 	for i := range games {
 		externalId := fmt.Sprintf("%d", games[i].GameId)
-		s.gameIndex[games[i].ExternalId] = gameMetadata{
-			GameType: games[i].GameType,
-			LeagueId: apiResp.Data.LeagueId,
-		}
 		games[i].ExternalId = externalId
 		games[i].LeagueId = apiResp.Data.LeagueId
 		games[i].ExternalSource = EXTERNAL_SOURCE
 		games[i].HomeTeamId = apiResp.Data.Id
+		
+		s.gameIndex[games[i].ExternalId] = games[i]
 	}
 	return games, nil
 }

@@ -15,5 +15,5 @@ type Game struct {
 	KickoffTime    *time.Time `gorm:"type:timestamptz;"`
 	Status         string     `gorm:"type:string;not null;default:'scheduled'"`
 	IsScraped      bool       `gorm:"type:boolean;default:false;not null"`
-	UpdatedAt      time.Time  `gorm:"type:timestamp;not null"`
+	UpdatedAt      time.Time  `gorm:"type:timestamp;"`
 }
