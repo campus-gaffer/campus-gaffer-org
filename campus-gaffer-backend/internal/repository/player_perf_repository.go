@@ -30,7 +30,7 @@ func (r *perfRepo) Upsert(ctx context.Context, perf *models.PlayerPerformance) (
 		WithContext(ctx).
 		Clauses(
 			clause.OnConflict{
-				Columns: []clause.Column{{Name: "external_player_id"}, {Name: "external_source"}, {Name: "game_id"}},
+				Columns: []clause.Column{{Name: "player_id"}, {Name: "game_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{"goals", "kickoff_time", "is_mvp", "played_game", "updated_at"}),
 			},
 		).

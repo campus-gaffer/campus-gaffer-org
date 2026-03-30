@@ -73,6 +73,9 @@ type ViewGameResponse struct {
 }
 
 type ScrapedPlayerStat struct {
+	ExternalPlayerID string
+	ExternalSource   string
+	ExternalTeamID   string
 	Name        string
 	GamePlayed  bool
 	IsMVP       bool
@@ -206,7 +209,7 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResp
 
 	fmt.Println(apiResp.Data.Team1StatsHTML)
 	if apiResp.Data.Message != nil {
-		errMsg := fmt.Errorf("api error, Login may be required: %s", apiResp.Data.Message)
+		errMsg := fmt.Errorf("api error, Login may be required: %v", apiResp.Data.Message)
 		return nil, errMsg
 
 	}
@@ -278,6 +281,8 @@ func (s* IMLeagueScraper) extractPlayerStats(
 		if att, exists := attMap[perf.Name]; exists {
 			perfData[i].GamePlayed = att.MarkedPlay
 			perfData[i].IsMVP = att.IsMVP
+			perfData[i].ExternalPlayerID = att.MemberId
+			perfData[i].ExternalTeamID = att.TeamId
 		}
 	}
 
