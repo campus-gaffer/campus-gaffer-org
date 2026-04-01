@@ -7,12 +7,15 @@ import Footer from '@/components/Footer'
 import Dashboard from '@/pages/Dashboard'
 import Leagues from '@/pages/Leagues'
 import Transfers from '@/pages/Transfers'
-import Fixtures from '@/pages/Fixtures'
+import Scores from '@/pages/Scores'
 import Rules from '@/pages/Rules'
+import About from '@/pages/About'
+import PlayerProfile from '@/pages/PlayerProfile'
+import Onboarding from '@/pages/Onboarding'
 
 function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <NavBar />
       <main className="flex-grow">
         <Hero />
@@ -23,77 +26,41 @@ function LandingPage() {
   )
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <SignedIn>{children}</SignedIn>
+      <SignedOut><Navigate to="/" replace /></SignedOut>
+    </>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
+      <div className="min-h-screen bg-background text-white selection:bg-primary selection:text-background font-sans">
         <Routes>
           <Route path="/" element={
             <>
-              <SignedOut>
-                <LandingPage />
-              </SignedOut>
+              <SignedOut><LandingPage /></SignedOut>
               <SignedIn>
-                <Navigate to="/dashboard" replace />
+                {localStorage.getItem('gaffer_onboarded') === 'true'
+                  ? <Navigate to="/dashboard" replace />
+                  : <Navigate to="/onboarding" replace />
+                }
               </SignedIn>
             </>
           } />
 
-          <Route path="/dashboard" element={
-            <>
-              <SignedIn>
-                <Dashboard />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          } />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/leagues" element={<ProtectedRoute><Leagues /></ProtectedRoute>} />
+          <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} />
+          <Route path="/scores" element={<ProtectedRoute><Scores /></ProtectedRoute>} />
+          <Route path="/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />
+          <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+          <Route path="/player/:id" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
 
-          <Route path="/leagues" element={
-            <>
-              <SignedIn>
-                <Leagues />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          } />
-
-          <Route path="/transfers" element={
-            <>
-              <SignedIn>
-                <Transfers />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          } />
-
-          <Route path="/fixtures" element={
-            <>
-              <SignedIn>
-                <Fixtures />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          } />
-
-          <Route path="/rules" element={
-            <>
-              <SignedIn>
-                <Rules />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          } />
-          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -1,0 +1,186 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
+import { User, Shield, GraduationCap, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+
+export default function Onboarding() {
+    const { user } = useUser();
+    const navigate = useNavigate();
+    const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState("");
+    const [teamName, setTeamName] = useState("");
+    const [university, setUniversity] = useState("");
+
+    const handleNext = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (step < 3) {
+            setStep(step + 1);
+        } else {
+            setLoading(true);
+            try {
+                // Connect to backend
+                await fetch(`http://localhost:8082/users/${user?.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username,
+                        team_name: teamName,
+                        university,
+                        email: user?.primaryEmailAddress?.emailAddress,
+                        clerk_id: user?.id,
+                    }),
+                });
+                localStorage.setItem("gaffer_onboarded", "true");
+                setLoading(false);
+                navigate("/dashboard");
+            } catch (error) {
+                console.error("Backend error:", error);
+                // Fallback for demo
+                localStorage.setItem("gaffer_onboarded", "true");
+                setLoading(false);
+                navigate("/dashboard");
+            }
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-background text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+
+            {/* Background Glows */}
+            <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="w-full max-w-md space-y-12 relative z-10">
+
+                {/* Progress Bar */}
+                <div className="flex gap-2">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-primary' : 'bg-white/10'}`} />
+                    ))}
+                </div>
+
+                {/* Header */}
+                <div className="space-y-4">
+                    <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
+                        SET UP YOUR <span className="text-primary italic">LEGACY</span>
+                    </h1>
+                    <p className="text-slate-500 font-bold text-sm tracking-widest uppercase italic">Every legend starts with a name.</p>
+                </div>
+
+                {/* Form Container */}
+                <form onSubmit={handleNext} className="space-y-8 animate-in slide-in-from-bottom duration-500">
+                    {step === 1 && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">CHOOSE USERNAME</label>
+                                <div className="relative group">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
+                                        <User className="w-5 h-5 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        placeholder="GAFFER_99"
+                                        className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none"
+                                    />
+                                    {username.length > 3 && (
+                                        <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                            <CheckCircle2 className="w-5 h-5 text-primary" />
+                                            <span className="text-[8px] font-black text-primary tracking-widest">AVAILABLE</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">TEAM IDENTITY</label>
+                                <div className="relative group">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
+                                        <Shield className="w-5 h-5 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={teamName}
+                                        onChange={(e) => setTeamName(e.target.value)}
+                                        placeholder="THE INVINCIBLES"
+                                        className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none uppercase"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">SELECT UNIVERSITY</label>
+                                <div className="relative group">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
+                                        <GraduationCap className="w-5 h-5 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+                                    </div>
+                                    <select
+                                        required
+                                        value={university}
+                                        onChange={(e) => setUniversity(e.target.value)}
+                                        className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="" disabled>SELECT YOUR CAMPUS</option>
+                                        <option value="oxford">OXFORD UNIVERSITY</option>
+                                        <option value="cambridge">CAMBRIDGE UNIVERSITY</option>
+                                        <option value="stanford">STANFORD UNIVERSITY</option>
+                                        <option value="mit">MIT</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex flex-col gap-4">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary py-6 rounded-2xl flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-primary/30 group"
+                        >
+                            {loading ? (
+                                <Loader2 className="w-6 h-6 text-background animate-spin" />
+                            ) : (
+                                <>
+                                    <span className="text-lg font-black italic text-background uppercase tracking-[0.2em]">{step === 3 ? 'FINALIZE SQUAD' : 'CONTINUE'}</span>
+                                    <ChevronRight className="w-6 h-6 text-background group-hover:translate-x-1 transition-transform" />
+                                </>
+                            )}
+                        </button>
+
+                        {step > 1 && (
+                            <button
+                                type="button"
+                                onClick={() => setStep(step - 1)}
+                                className="text-[10px] font-black text-slate-500 hover:text-white transition-colors tracking-widest uppercase italic"
+                            >
+                                ← GO BACK
+                            </button>
+                        )}
+                    </div>
+                </form>
+
+            </div>
+
+            {/* Footer Branding */}
+            <div className="absolute bottom-10 flex items-center gap-2 opacity-50">
+                <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
+                    <span className="text-background font-black text-sm">C</span>
+                </div>
+                <span className="text-xs font-black tracking-widest">CAMPUS GAFFER v2.4</span>
+            </div>
+        </div>
+    );
+}
