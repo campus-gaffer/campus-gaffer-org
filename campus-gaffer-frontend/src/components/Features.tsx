@@ -1,19 +1,23 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Users, TrendingUp, Trophy, ArrowUpRight } from "lucide-react"
 
 const features = [
   {
     title: "BUILD YOUR DYNASTY",
     content: "$100M virtual budget. 15-player squads. Scout real talent from your campus leagues.",
+    icon: Users,
     id: "01"
   },
   {
     title: "MASTER THE MARKET",
     content: "Weekly transfer deadlines. Play the fierce campus transfer market and optimize your lineup.",
+    icon: TrendingUp,
     id: "02"
   },
   {
     title: "LIVE GLORY",
     content: "Scoring powered by real match data. Watch your mates' performance turn into fantasy points.",
+    icon: Trophy,
     id: "03"
   }
 ]
@@ -22,39 +26,51 @@ export default function Features() {
   return (
     <section className="py-32 px-6 md:px-12 bg-background border-t border-white/5 relative overflow-hidden">
       {/* Background glow */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
-      
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
+
       <div className="container mx-auto relative z-10">
-        <div className="flex items-center gap-6 mb-20">
-          <div className="h-[2px] w-20 bg-primary shadow-[0_0_10px_rgba(255,22,68,0.8)]" />
-          <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter text-foreground uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">
-            THE INTRAMURAL REVOLUTION
-          </h2>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-24">
+          <div className="space-y-4">
+            <div className="h-1.5 w-24 bg-primary rounded-full shadow-[0_0_20px_rgba(0,230,118,0.6)]" />
+            <h2 className="text-5xl md:text-7xl font-black italic tracking-tighter text-foreground uppercase leading-tight">
+              THE INTRAMURAL<br />
+              <span className="text-primary">REVOLUTION</span>
+            </h2>
+          </div>
+          <p className="text-slate-500 font-bold text-lg max-w-sm uppercase tracking-widest leading-relaxed">
+            Experience the excitement of professional fantasy sports, scaled for your university campus.
+          </p>
         </div>
-        
-        <div className="grid md:grid-cols-3 gap-10">
+
+        <div className="grid md:grid-cols-3 gap-8">
           {features.map((feature) => (
-            <Card key={feature.id} className="relative overflow-hidden group bg-zinc-900/20 border-white/5 hover:border-primary/50 hover:bg-zinc-900/40 transition-all duration-500">
-               <div className="absolute top-0 right-0 p-6 font-mono text-xs text-zinc-600 tracking-[0.2em] group-hover:text-primary/50 transition-colors">
-                  REF: {feature.id}
-               </div>
-               
-               <CardHeader className="pt-10">
-                  <div className="w-12 h-[2px] bg-primary mb-6 group-hover:w-full transition-all duration-500 shadow-[0_0_8px_rgba(255,22,68,0.5)]" />
-                  <CardTitle className="text-3xl italic tracking-tighter text-foreground group-hover:translate-x-2 transition-transform duration-300">
-                     {feature.title}
-                  </CardTitle>
-               </CardHeader>
-               
-               <CardContent className="pt-4 text-zinc-400 font-mono text-sm leading-relaxed">
-                  {feature.content}
-               </CardContent>
-               
-               {/* Cyber decorative element */}
-               <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-1 h-1 bg-primary mb-1" />
-                  <div className="w-1 h-1 bg-primary/50" />
-               </div>
+            <Card key={feature.id} className="relative overflow-hidden group bg-secondary/30 border-white/5 hover:border-primary/50 hover:bg-secondary/50 transition-all duration-500 rounded-[2.5rem] p-4">
+              <div className="absolute top-8 right-8 text-4xl font-black text-white/5 group-hover:text-primary/10 transition-colors">
+                {feature.id}
+              </div>
+
+              <CardHeader className="pt-8 space-y-6">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-primary transition-all duration-500">
+                  <feature.icon className="w-8 h-8 text-primary group-hover:text-background transition-colors" />
+                </div>
+                <CardTitle className="text-3xl font-black italic tracking-tighter text-foreground group-hover:text-primary transition-colors">
+                  {feature.title}
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className="pt-2 pb-8 text-slate-400 font-medium text-lg leading-relaxed">
+                {feature.content}
+              </CardContent>
+
+              <div className="px-6 pb-6">
+                <button className="flex items-center gap-2 text-primary font-bold text-sm tracking-widest uppercase group/btn">
+                  Learn More
+                  <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                </button>
+              </div>
+
+              {/* Cyber decorative element */}
+              <div className="absolute bottom-0 right-0 w-24 h-24 bg-primary/5 blur-2xl rounded-full scale-0 group-hover:scale-100 transition-transform duration-700" />
             </Card>
           ))}
         </div>

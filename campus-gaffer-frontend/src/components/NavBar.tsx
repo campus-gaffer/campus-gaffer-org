@@ -1,67 +1,97 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { useLocation, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
-import logo from "@/assets/CG-updated.png"
 import {
   NavigationMenu,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import { cn } from "@/lib/utils"
 
 export default function Navbar() {
+  const location = useLocation();
+
+  const navLinkClass = (path: string) =>
+    cn(
+      navigationMenuTriggerStyle(),
+      "bg-transparent font-bold text-xs tracking-[0.2em] uppercase transition-all px-4 h-10 rounded-none border-b-2",
+      location.pathname === path
+        ? "text-primary border-primary shadow-[0_4px_10px_-4px_rgba(0,230,118,0.5)]"
+        : "text-slate-400 hover:text-white border-transparent hover:border-white/20"
+    );
+
   return (
-    <header className="flex w-full items-center justify-between px-6 py-4 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50 h-20">
-      <div className="flex items-center gap-12">
-        <div className="flex items-center relative h-full w-80">
-          <a href="/" className="block">
-            <img src={logo} alt="Campus Gaffer Logo" className="w-80 h-28 object-contain absolute left-0 top-1/2 -translate-y-1/2 drop-shadow-[0_0_20px_rgba(255,22,68,0.25)]" />
-          </a>
-        </div>
-        
-        <NavigationMenu className="hidden md:flex">
+    <header className="flex w-full items-center justify-between px-8 py-4 bg-background/80 backdrop-blur-xl sticky top-0 z-50 h-24 border-b border-white/5 flex-shrink-0">
+      <div className="flex items-center gap-16">
+        <Link to="/" className="flex items-center gap-2 group">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
+            <span className="text-background font-black text-2xl">C</span>
+          </div>
+          <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
+            CAMPUS <span className="text-primary italic">GAFFER</span>
+          </h1>
+        </Link>
+
+        <NavigationMenu className="hidden lg:flex">
           <NavigationMenuList className="gap-6">
-            <NavigationMenuItem>
-              <NavigationMenuLink 
-                href="/leagues" 
-                className={cn(navigationMenuTriggerStyle(), "bg-transparent text-foreground/80 hover:text-primary font-mono text-xs tracking-widest uppercase transition-all")}
-              >
-                LEAGUES
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink 
-                href="/rules" 
-                className={cn(navigationMenuTriggerStyle(), "bg-transparent text-foreground/80 hover:text-primary font-mono text-xs tracking-widest uppercase transition-all")}
-              >
-                RULES
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink 
-                href="/about" 
-                className={cn(navigationMenuTriggerStyle(), "bg-transparent text-foreground/80 hover:text-primary font-mono text-xs tracking-widest uppercase transition-all")}
-              >
-                ABOUT
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+            <SignedIn>
+              <NavigationMenuItem>
+                <Link to="/dashboard" className={navLinkClass("/dashboard")}>
+                  HOME
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/scores" className={navLinkClass("/scores")}>
+                  SCORES
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/leagues" className={navLinkClass("/leagues")}>
+                  LEADERBOARD
+                </Link>
+              </NavigationMenuItem>
+            </SignedIn>
+            <SignedOut>
+              <NavigationMenuItem>
+                <Link to="/leagues" className={navLinkClass("/leagues")}>
+                  LEADERBOARD
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/rules" className={navLinkClass("/rules")}>
+                  RULES
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/about" className={navLinkClass("/about")}>
+                  ABOUT
+                </Link>
+              </NavigationMenuItem>
+            </SignedOut>
           </NavigationMenuList>
         </NavigationMenu>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-6 flex-shrink-0 h-12">
         <SignedOut>
+          <div className="hidden md:flex">
+            <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+              <Button variant="outline" size="sm" className="font-bold tracking-widest px-8">
+                LOGIN
+              </Button>
+            </SignInButton>
+          </div>
           <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-            <Button variant="crimsonOutline" size="sm" className="font-mono px-6 border-primary text-primary hover:shadow-[0_0_15px_rgba(255,22,68,0.4)]">
-              LOGIN
+            <Button size="sm" className="hidden md:flex font-bold tracking-widest px-8">
+              JOIN NOW
             </Button>
           </SignInButton>
         </SignedOut>
         <SignedIn>
           <UserButton appearance={{
             elements: {
-              userButtonAvatarBox: "w-14 h-14 rounded-none border border-primary shadow-[0_0_20px_rgba(255,22,68,0.4)]"
+              userButtonAvatarBox: "w-12 h-12 rounded-xl border-2 border-primary/50 hover:border-primary transition-colors shadow-lg shadow-primary/20"
             }
           }} />
         </SignedIn>

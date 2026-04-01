@@ -1,46 +1,331 @@
-import DashboardNav from "@/components/dashboard/DashboardNav";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
+import { Bell, Video, User, PlusCircle, CheckCircle2 } from "lucide-react";
+import Navbar from "@/components/NavBar";
+import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
-import { GameweekInfo, PointsBreakdown, LeaderboardRanks, RecentPoints } from "@/components/dashboard/SidebarCards";
-import FooterActions from "@/components/dashboard/FooterActions";
 
 export default function Dashboard() {
+  const { user } = useUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [teamName, setTeamName] = useState("THE VARSITY XI");
+  const [profile, setProfile] = useState<any>(null);
+  const [starters, setStarters] = useState<any[]>([]);
+  const [allPlayers, setAllPlayers] = useState<any[]>([]);
+  const [managingPosition, setManagingPosition] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('manage') === 'true') {
+      setManagingPosition('all');
+      // Clear the param after opening to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
+
+  const fetchSquad = () => {
+    if (!user) return;
+    fetch(`http://localhost:8082/squad/${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.players && data.players.length > 0) {
+          const mapped = data.players.map((p: any, idx: number) => {
+            // Distribute into positions [GK, DEF, DEF, MID, MID, FWD]
+            let pos = p.position;
+            if (!pos) {
+              if (idx === 0) pos = 'GK';
+              else if (idx === 1 || idx === 2) pos = 'DEF';
+              else if (idx === 3 || idx === 4) pos = 'MID';
+              else pos = 'FWD';
+            }
+            return {
+              id: p.id,
+              name: p.name,
+              points: p.weekly_points || 0,
+              position: pos,
+              isCaptain: p.id === data.captain_id,
+              img: p.img_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`
+            };
+          });
+          setStarters(mapped);
+        }
+      });
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch profile
+    fetch(`http://localhost:8082/users/${user.id}`)
+      .then(res => res.json())
+      .then(found => {
+        if (found && found.username) {
+          setProfile(found);
+          setTeamName(found.team_name);
+        }
+      })
+      .catch(e => console.error("Profile fetch error:", e));
+
+    // Fetch pool
+    fetch("http://localhost:8082/players")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) setAllPlayers(data);
+      });
+
+    fetchSquad();
+  }, [user]);
+
+  const saveSquad = async (playerIds: string[]) => {
+    setSaving(true);
+    await fetch(`http://localhost:8082/squad/${user?.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_ids: playerIds })
+    });
+    fetchSquad();
+    setSaving(false);
+    setManagingPosition(null);
+  };
+
+  const setCaptain = async (playerId: string) => {
+    await fetch(`http://localhost:8082/squad/${user?.id}/captain`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: playerId })
+    });
+    fetchSquad();
+  };
+
+  const LIVE_GAMES = [
+    {
+      id: 1,
+      team1: "WOLVES FC",
+      team2: "CITY RAIDERS",
+      score1: 2,
+      score2: 1,
+      status: "65'",
+      pitch: "CENTRAL PITCH 1",
+      hasStream: true
+    },
+    {
+      id: 2,
+      team1: "TECH TITANS",
+      team2: "LAW EAGLES",
+      score1: 0,
+      score2: 0,
+      status: "HT",
+      pitch: "CENTRAL PITCH 2",
+      kickoff: "LIVE"
+    }
+  ];
+
+  const filteredPlayers = managingPosition === 'all'
+    ? allPlayers
+    : allPlayers.filter(p => p.position === managingPosition);
+
   return (
-    <div className="min-h-screen bg-[#000000] text-white font-heading selection:bg-primary/30">
-      {/* Turf Texture Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-10" 
-        style={{ 
-          backgroundImage: `radial-gradient(#10B981 0.5px, transparent 0.5px)`, 
-          backgroundSize: '24px 24px' 
-        }} 
-      />
+    <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
+      <div className="hidden md:block">
+        <Navbar />
+      </div>
 
-      <DashboardNav />
-
-      <main className="container mx-auto px-4 py-8 relative z-10">
-        <DashboardHeader />
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-20">
-          {/* Left Sidebar */}
-          <div className="lg:col-span-3 space-y-6">
-            <GameweekInfo />
-            <PointsBreakdown />
+      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-background font-black text-sm">C</span>
           </div>
+          <h1 className="text-base italic font-extrabold tracking-wider text-white uppercase">CAMPUS GAFFER</h1>
+        </div>
+        <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
+          <Bell className="w-5 h-5 text-slate-300" />
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-background"></span>
+        </button>
+      </header>
 
-          {/* Center Column - Pitch */}
-          <div className="lg:col-span-6">
-            <Pitch />
+      <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
+        <div className="grid lg:grid-cols-12 gap-12">
+
+          <div className="lg:col-span-8 space-y-12">
+            {/* Greeting */}
+            <div className="hidden md:flex items-center justify-between mb-8">
+              <div className="space-y-2 text-left">
+                <span className="text-xs md:text-sm font-black text-slate-500 tracking-[0.4em] uppercase">COACH PROFILE</span>
+                <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter text-white uppercase leading-none transition-all hover:scale-[1.01] cursor-default">
+                  WELCOME BACK, <span className="text-primary italic">{profile?.username || "GAFFER"}</span>!
+                </h1>
+                <p className="text-[10px] md:text-xs font-bold text-slate-500 tracking-widest uppercase italic">Your squad is ready for action.</p>
+              </div>
+            </div>
+
+            {/* Pitch Section */}
+            <section className="animate-in slide-in-from-bottom duration-700 delay-100">
+              <Pitch teamName={teamName} players={starters} onManage={(pos) => setManagingPosition(pos)} onSelectCaptain={(id) => setCaptain(String(id))} />
+            </section>
           </div>
 
           {/* Right Sidebar */}
-          <div className="lg:col-span-3 space-y-6">
-            <LeaderboardRanks />
-            <RecentPoints />
+          <div className="lg:col-span-4 space-y-8">
+            <section>
+              <div className="flex items-center justify-between mb-8 px-1">
+                <h2 className="text-xl italic font-black text-primary tracking-wide uppercase">Live Games</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(0,230,118,0.8)]"></div>
+                  <span className="text-xs font-black text-primary tracking-widest uppercase">LIVE</span>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {LIVE_GAMES.map(game => (
+                  <div key={game.id} className="bg-card border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer shadow-xl text-left">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="bg-secondary/50 px-4 py-1.5 rounded-full text-[10px] font-black text-primary tracking-widest border border-primary/10 uppercase">
+                        {game.pitch}
+                      </div>
+                      {game.hasStream && (
+                        <div className="flex items-center gap-2 text-slate-400 group-hover:text-primary transition-colors">
+                          <Video className="w-5 h-5" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">WATCH</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-6">
+                      <div className="flex flex-col items-center gap-3 flex-1">
+                        <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center border border-white/5 group-hover:border-primary/20 transition-colors" />
+                        <span className="text-center text-[10px] font-black text-white leading-tight uppercase">{game.team1}</span>
+                      </div>
+                      <div className="text-2xl font-black italic">{game.score1} - {game.score2}</div>
+                      <div className="flex flex-col items-center gap-3 flex-1">
+                        <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center border border-white/5 group-hover:border-primary/20 transition-colors" />
+                        <span className="text-center text-[10px] font-black text-white leading-tight uppercase">{game.team2}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="grid sm:grid-cols-2 lg:grid-cols-1 gap-6 text-left">
+              <div className="bg-primary rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center">
+                <h3 className="text-background font-black text-2xl uppercase">MARKET OPEN</h3>
+              </div>
+              <div className="bg-secondary/40 border border-white/5 rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center">
+                <h3 className="text-white font-black text-2xl uppercase tracking-tighter">DAILY REWARDS</h3>
+              </div>
+            </section>
           </div>
         </div>
-
-        <FooterActions />
       </main>
+
+      {/* Manage Squad Modal */}
+      {managingPosition && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
+          <div className="bg-card/90 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,230,118,0.15)] animate-in zoom-in-95 duration-300">
+            <div className="p-10 border-b border-white/5 flex items-center justify-between">
+              <div className="text-left">
+                <h2 className="text-4xl font-black italic tracking-tighter uppercase mb-2">
+                  {managingPosition === 'all' ? 'SQUAD MANAGEMENT' : `SELECT YOUR ${managingPosition}`}
+                </h2>
+                <div className="flex gap-4">
+                  <span className="text-[10px] font-black text-primary tracking-widest uppercase">SLOTS: {starters.length} / 6</span>
+                  <span className="text-[10px] font-black text-slate-500 tracking-widest uppercase italic">BUILD YOUR ELITE TEAM</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setManagingPosition(null)}
+                className="w-14 h-14 bg-secondary/50 rounded-2xl flex items-center justify-center hover:bg-rose-500 transition-all group"
+              >
+                <PlusCircle className="w-8 h-8 rotate-45 text-slate-500 group-hover:text-white transition-colors" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredPlayers.length > 0 ? filteredPlayers.map(p => {
+                const isSelected = starters.some(s => s.id === p.id);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      let newS;
+                      if (isSelected) {
+                        newS = starters.filter(s => s.id !== p.id);
+                      } else {
+                        // If it's a specific position, we might want to replace the existing one or just add
+                        // For simplicity, let's allow adding if space or replacing if same position
+                        if (managingPosition !== 'all') {
+                          // Find if there's already a player in this EXACT slot/position logic
+                          // Current logic is index-based so it's tricky.
+                          // Let's just allow adding up to 6 for now, but prioritize the selected position.
+                          if (starters.length < 6) {
+                            newS = [...starters, { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || managingPosition }];
+                          } else {
+                            // Replace first player with same position?
+                            const idx = starters.findIndex(s => s.position === managingPosition);
+                            if (idx !== -1) {
+                              newS = [...starters];
+                              newS[idx] = { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || managingPosition };
+                            } else {
+                              return;
+                            }
+                          }
+                        } else if (starters.length < 6) {
+                          newS = [...starters, { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || 'MID' }];
+                        } else {
+                          return;
+                        }
+                      }
+
+                      // Normalize positions to ensure they fit the 1-2-2-1 formation if possible
+                      const withP = newS.map((s, idx) => {
+                        // If we are in position-specific mode, keep the position assigned
+                        if (managingPosition !== 'all' && s.id === p.id) return s;
+                        return {
+                          ...s,
+                          position: s.position || (idx === 0 ? 'GK' : idx === 1 || idx === 2 ? 'DEF' : idx === 3 || idx === 4 ? 'MID' : 'FWD')
+                        };
+                      });
+                      setStarters(withP);
+                      if (managingPosition !== 'all' && !isSelected) setManagingPosition(null); // Close after selection for specific position
+                    }}
+                    className={`bg-secondary/30 p-6 rounded-3xl flex items-center justify-between cursor-pointer border-2 transition-all hover:scale-[1.02] ${isSelected ? 'border-primary bg-primary/5' : 'border-white/5 opacity-60 hover:opacity-100'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center border border-white/10">
+                        <User className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-black italic text-white uppercase">{p.name}</p>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">{p.position}</span>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{p.university || p.team}</p>
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && <CheckCircle2 className="w-6 h-6 text-primary" />}
+                    {!isSelected && <div className="text-primary font-black italic uppercase text-xs">SELECT</div>}
+                  </div>
+                );
+              }) : (
+                <div className="col-span-full py-20 text-center">
+                  <p className="text-slate-500 font-black italic uppercase tracking-widest">No {managingPosition}s available</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-10 border-t border-white/5 bg-black/20">
+              <button
+                disabled={saving || starters.length === 0}
+                onClick={() => saveSquad(starters.map(s => s.id))}
+                className="w-full bg-primary py-6 rounded-2xl font-black italic text-background tracking-[0.2em] uppercase transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:hover:scale-100"
+              >
+                {saving ? "SYNCING..." : "SAVE & DEPLOY SQUAD"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <MobileNav />
     </div>
   );
 }

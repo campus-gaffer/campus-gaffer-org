@@ -1,89 +1,173 @@
-import DashboardNav from "@/components/dashboard/DashboardNav";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Trophy, Users, Star, Medal } from "lucide-react";
+import { Bell, ChevronRight, Settings, Search, Trophy, Users } from "lucide-react";
+import Navbar from "@/components/NavBar";
+import MobileNav from "@/components/dashboard/MobileNav";
 
 const GLOBAL_LEAGUE = [
-  { rank: 1, team: "Oxford United", manager: "Alex J.", points: 482 },
-  { rank: 2, team: "LSE Lions", manager: "Sarah K.", points: 475 },
-  { rank: 3, team: "Imperial Kings", manager: "David L.", points: 471 },
+  { rank: 1, team: "Oxford United", manager: "Alex J.", points: 482, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" },
+  { rank: 2, team: "LSE Lions", manager: "Sarah K.", points: 475, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka" },
+  { rank: 3, team: "Imperial Kings", manager: "David L.", points: 471, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sheba" },
 ];
 
 const CAMPUS_LEAGUE = [
-  { rank: 12, team: "Law Legends", manager: "Mike R.", points: 310 },
-  { rank: 13, team: "Medics FC", manager: "You", points: 305, isUser: true },
-  { rank: 14, team: "Eng Tech", manager: "Chris B.", points: 298 },
+  { rank: 12, team: "Law Legends", manager: "Mike R.", points: 310, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Peanut" },
+  { rank: 13, team: "Medics FC", manager: "You", points: 305, isUser: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack" },
+  { rank: 14, team: "Eng Tech", manager: "Chris B.", points: 298, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bear" },
 ];
 
 export default function Leagues() {
   return (
-    <div className="min-h-screen bg-black text-white font-heading">
-      <DashboardNav />
-      <main className="container mx-auto px-4 py-12">
-        <div className="mb-12">
-          <h1 className="text-5xl font-black italic tracking-tighter uppercase mb-2">Leagues & Ranks</h1>
-          <p className="text-zinc-500 font-mono text-sm tracking-widest uppercase">Global and Campus Competition</p>
-        </div>
+    <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
+      {/* Desktop View Header (Hidden on Mobile) */}
+      <div className="hidden md:block">
+        <Navbar />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Global League */}
-          <Card className="bg-zinc-900/40 border-white/5 rounded-none backdrop-blur-xl">
-            <CardHeader className="border-b border-white/5">
-              <div className="flex items-center gap-3 text-primary">
-                <Trophy className="w-6 h-6" />
-                <CardTitle className="italic tracking-widest">GLOBAL LEADERBOARD</CardTitle>
+      {/* Mobile Header (Hidden on Desktop) */}
+      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/50">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jack" alt="Profile" />
+          </div>
+          <h1 className="text-lg italic font-extrabold tracking-wider text-primary">CAMPUS GAFFER</h1>
+        </div>
+        <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
+          <Bell className="w-6 h-6 text-slate-300" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background"></span>
+        </button>
+      </header>
+
+      <main className="container mx-auto px-6 py-8 md:py-16 animate-in fade-in duration-500">
+        <div className="max-w-6xl mx-auto space-y-12">
+          {/* Section Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-l-4 border-primary pl-6 py-2">
+            <div>
+              <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white">Ranks & Leagues</h2>
+              <p className="text-slate-500 font-bold text-xs md:text-sm uppercase tracking-[0.3em] mt-2">Global and campus competition</p>
+            </div>
+
+            <div className="hidden md:flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="FIND LEAGUE..."
+                  className="bg-secondary/50 border border-white/5 rounded-2xl py-3 pl-12 pr-6 text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 w-64 uppercase"
+                />
               </div>
-            </CardHeader>
-            <CardContent className="pt-6">
+              <button className="p-4 bg-secondary/50 border border-white/5 rounded-2xl hover:bg-secondary transition-colors">
+                <Settings className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Global League */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xl md:text-2xl italic font-black text-primary uppercase tracking-widest">Global Top 3</h3>
+                <Trophy className="w-6 h-6 text-primary" />
+              </div>
+
               <div className="space-y-4">
                 {GLOBAL_LEAGUE.map((item) => (
-                  <div key={item.rank} className="flex items-center justify-between p-4 bg-black/40 border-l-2 border-primary/30">
-                    <div className="flex items-center gap-6">
-                      <span className="text-2xl font-black italic text-zinc-700 w-8">0{item.rank}</span>
+                  <div key={item.rank} className="bg-card border border-white/5 rounded-[2.5rem] p-8 flex items-center justify-between hover:border-primary/30 transition-all cursor-pointer group text-left relative overflow-hidden shadow-2xl">
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className="relative">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary border-2 border-white/10 group-hover:border-primary/40 transition-colors">
+                          <img src={item.img} alt={item.team} />
+                        </div>
+                        <div className="absolute -top-1 -left-1 w-8 h-8 bg-primary text-background font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg">
+                          {item.rank}
+                        </div>
+                      </div>
                       <div>
-                        <p className="font-bold uppercase tracking-tight">{item.team}</p>
-                        <p className="text-[10px] font-mono text-zinc-500 uppercase">{item.manager}</p>
+                        <p className="text-lg md:text-xl font-black text-white uppercase leading-none mb-2">{item.team}</p>
+                        <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest leading-none">{item.manager}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black italic text-primary">{item.points}</p>
-                      <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-tighter">PTS</p>
+
+                    <div className="text-right flex items-center gap-6 relative z-10">
+                      <div>
+                        <p className="text-3xl md:text-4xl font-black italic text-primary leading-none">{item.points}</p>
+                        <p className="text-[10px] font-bold text-slate-600 uppercase text-right mt-1 tracking-widest">PTS</p>
+                      </div>
+                      <ChevronRight className="w-6 h-6 text-slate-700 group-hover:text-primary transition-colors" />
                     </div>
+
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity">
+                      <Trophy className="w-32 h-32 text-primary" />
+                    </div>
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-all" />
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </section>
 
-          {/* Campus League */}
-          <Card className="bg-zinc-900/40 border-white/5 rounded-none backdrop-blur-xl">
-            <CardHeader className="border-b border-white/5">
-              <div className="flex items-center gap-3 text-emerald-400">
-                <Users className="w-6 h-6" />
-                <CardTitle className="italic tracking-widest text-white">CAMPUS LEAGUE</CardTitle>
+            {/* Campus League */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between px-1 text-left">
+                <h3 className="text-xl md:text-2xl italic font-black text-primary uppercase tracking-widest">Campus Standings</h3>
+                <Users className="w-6 h-6 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent className="pt-6">
+
               <div className="space-y-4">
                 {CAMPUS_LEAGUE.map((item) => (
-                  <div key={item.rank} className={`flex items-center justify-between p-4 bg-black/40 border-l-2 ${item.isUser ? 'border-primary bg-primary/5' : 'border-emerald-500/30'}`}>
-                    <div className="flex items-center gap-6">
-                      <span className="text-2xl font-black italic text-zinc-700 w-8">{item.rank}</span>
+                  <div key={item.rank} className={`bg-card border rounded-[2.5rem] p-8 flex items-center justify-between hover:border-primary/30 transition-all cursor-pointer group text-left relative overflow-hidden shadow-2xl ${item.isUser ? 'border-primary ring-2 ring-primary/10 bg-primary/5' : 'border-white/5'}`}>
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className="relative">
+                        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary border-2 transition-colors ${item.isUser ? 'border-primary' : 'border-white/10 group-hover:border-primary/40'}`}>
+                          <img src={item.img} alt={item.team} />
+                        </div>
+                        <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${item.isUser ? 'bg-white text-primary' : 'bg-primary text-background'}`}>
+                          {item.rank}
+                        </div>
+                      </div>
                       <div>
-                        <p className="font-bold uppercase tracking-tight">{item.team} {item.isUser && " (YOU)"}</p>
-                        <p className="text-[10px] font-mono text-zinc-500 uppercase">{item.manager}</p>
+                        <p className={`text-lg md:text-xl font-black uppercase leading-none mb-2 ${item.isUser ? 'text-primary' : 'text-white'}`}>{item.team} {item.isUser && "(YOU)"}</p>
+                        <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest leading-none">{item.manager}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black italic text-white">{item.points}</p>
-                      <p className="text-[8px] font-mono text-zinc-600 uppercase tracking-tighter">PTS</p>
+
+                    <div className="text-right flex items-center gap-6 relative z-10">
+                      <div>
+                        <p className={`text-3xl md:text-4xl font-black italic leading-none ${item.isUser ? 'text-white' : 'text-primary'}`}>{item.points}</p>
+                        <p className="text-[10px] font-bold text-slate-600 uppercase text-right mt-1 tracking-widest">PTS</p>
+                      </div>
+                      <ChevronRight className="w-6 h-6 text-slate-700 group-hover:text-primary transition-colors" />
                     </div>
+
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-5 transition-opacity">
+                      <Users className="w-32 h-32 text-primary" />
+                    </div>
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-all" />
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </section>
+          </div>
+
+          {/* Large Action Card */}
+          <section className="pt-8">
+            <div className="bg-primary rounded-[3rem] p-12 text-center shadow-2xl shadow-primary/20 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all">
+              <div className="relative z-10 text-left flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="max-w-xl">
+                  <h3 className="text-background font-black text-4xl md:text-6xl leading-none uppercase mb-4 italic">Win Weekly Prizes</h3>
+                  <p className="text-background/80 text-sm md:text-lg font-black uppercase tracking-widest">The top 3 gaflers in each university win campus rewards every week!</p>
+                </div>
+                <button className="px-10 py-5 bg-background text-primary font-black text-sm tracking-widest uppercase rounded-2xl shadow-xl hover:scale-105 transition-transform whitespace-nowrap">
+                  VIEW REWARDS
+                </button>
+              </div>
+              <div className="absolute top-1/2 -right-20 -translate-y-1/2 opacity-20 group-hover:rotate-12 transition-transform pointer-events-none">
+                <Trophy className="w-96 h-96 text-background" />
+              </div>
+            </div>
+          </section>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   );
 }
