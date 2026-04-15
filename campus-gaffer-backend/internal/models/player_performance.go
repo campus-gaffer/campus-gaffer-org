@@ -7,13 +7,15 @@ import (
 )
 
 type PlayerPerformance struct {
-	Id               uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid();not null"`
-	ExternalPlayerId string     `gorm:"type:string;not null;uniqueIndex:idx_player_performance_external,idx_player_performance_grain"`
-	ExternalSource   string     `gorm:"type:string;not null;uniqueIndex:idx_player_performance_external"`
-	TeamId           *uuid.UUID  `gorm:"type:uuid;"`
-	Goals            uint       `gorm:"type:uint;not null;default:0"`
-	KickoffTime      *time.Time `gorm:"type:timestamp"`
-	GameId           uuid.UUID  `gorm:"type:uuid;not null;uniqueIndex:idx_player_performance_game_player"`
-	IsMVP            bool       `gorm:"type:boolean;not null"`
-	PlayedGame       bool       `gorm:"type:boolean;not null"`
+	Id         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid();not null"`
+	PlayerId   uuid.UUID  `gorm:"type:uuid;not null;uniqueIndex:idx_perf_grain"`
+	GameId     uuid.UUID  `gorm:"type:uuid;not null;uniqueIndex:idx_perf_grain"`
+	TeamId     *uuid.UUID `gorm:"type:uuid;"` // FK to Team, nullable in case of player performance without a team
+	Goals      int        `gorm:"type:int;not null;default:0"`
+	GamePlayed bool       `gorm:"type:boolean;default:false;not null"`
+	IsMVP      bool       `gorm:"type:boolean;default:false;not null"`
+	// ExternalPlayerId string     `gorm:"type:text;not null;uniqueIndex:idx_player_performance_external"`
+	// ExternalSource   string     `gorm:"type:text;not null;uniqueIndex:idx_player_performance_external"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
