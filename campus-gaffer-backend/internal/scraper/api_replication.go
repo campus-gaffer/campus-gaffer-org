@@ -31,7 +31,9 @@ type ScrapedGame struct {
 	ExternalId      string
 	ExternalSource  string
 	HomeTeamName    string
+	HomeTeamId      string
 	AwayTeamName    string
+	AwayTeamId      string
 	KickoffTime     time.Time
 	GameResultScore string
 	GameResultStr   string

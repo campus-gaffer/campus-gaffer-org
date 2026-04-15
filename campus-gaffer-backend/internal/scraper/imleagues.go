@@ -14,18 +14,45 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/joho/godotenv"
 	"github.com/ringsaturn/tzf"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
-func LoadCookiesFromEnv() string {
-	api_token := os.Getenv("APITokenForSPA")
-	session_id := os.Getenv("ASP.NET_SessionId")
-	if api_token == "" || session_id == "" {
-		log.Fatal("APITokenForSPA and ASP.NET_SessionId environment variables must be set")
+// LoadCookiesFromEnv loads API credentials from environment variables or .env file.
+// It tries multiple common paths to locate .env, making it work from different working directories.
+// Returns error if .env cannot be loaded or required environment variables are missing.
+func LoadCookiesFromEnv() (string, error) {
+	// Try common project-relative locations so this works from cmd/* and repo root.
+	loadedDotEnv := false
+	for _, envPath := range []string{".env", "campus-gaffer-backend/.env", "../.env", "../../.env"} {
+		fmt.Printf("Found .env file at %s, loading...\n", envPath)
+		if _, err := os.Stat(envPath); err == nil {
+			if err := godotenv.Load(envPath); err != nil {
+				return "", fmt.Errorf("failed to load env file %q: %w", envPath, err)
+			}
+			fmt.Printf("%s is the correct path!\n", envPath)
+			loadedDotEnv = true
+			break
+		}
 	}
-	return fmt.Sprintf("ApiTokenForSPA=%s; ASP.NET_SessionId=%s", api_token, session_id)
+
+	apiToken := os.Getenv("APITokenForSPA")
+	if apiToken == "" {
+		// Accept common casing variant
+		apiToken = os.Getenv("ApiTokenForSPA")
+	}
+	sessionID := os.Getenv("ASPNET_SESSION_ID")
+
+	if apiToken == "" || sessionID == "" {
+		if !loadedDotEnv {
+			return "", fmt.Errorf("missing required env vars APITokenForSPA and ASP.NET_SessionId; no .env file found in known paths")
+		}
+		return "", fmt.Errorf("missing required env vars APITokenForSPA and ASP.NET_SessionId")
+	}
+
+	return fmt.Sprintf("ApiTokenForSPA=%s; ASP.NET_SessionId=%s", apiToken, sessionID), nil
 }
 
 const (
@@ -34,14 +61,12 @@ const (
 		"method=Initialize&" +
 		"paramType=imLeagues.Internal.API.VO.Input.League.ViewGameInVO&" +
 		"urlReferrer=https://www.imleagues.com/spa/league/7e83f99a1ab04a25a469fd50ad98fa94/viewgame?gameId=23413796&gameType=0"
-	COOKIES = "ApiRefreshTokenForSPA=hqHg!gAAAAJJapeJTPsYnKu6IrXaQquLeg3ElipeQHPIVJ8x1fsPNLS3gig-SwGUA-nhU6nMJvWalLeI68lC3MO5LHM25rKVX_KbmeqwSneRNKRsMCWNlnrtJ-jKgLKQ3U8FyKJusUiGjJMRNAOLcciWui-sF8ys-dPKdQEnEva30l-bxqG9ZFAEAAIAAAABE5iWXJxivWinuVQrrvuVhxoP-lHgxV5FAYwNP40hJMaga7KixPPOmJEGLcmjvr2b4NqIkUpNzTusgjYLBSOJO9IrshVb_kkV7SS_DCl0KKpMRviN4m_sMFjgmqQIG-bY9CIy2VQBSOR7EkoEdx_zSEHSrjhBkOjggFKHS5fUEXvChxy0lW2jO1Q8gxOWGoiEd_caaj5dSx_Tnp5Uuz-4g9rswyZrQAwpa5W9rjPPVx-U3hSzY-cBTcQ2wO7xyd6oylbRwWllFu61Vd42L1yH3PFiK3LcdbBMsoUS51pg_RhcVvDuRMX2-tdxEDixAQqVsrrUt9u-oMgdP9Giz7pFiTj7kHTT_nplRwgtHCoiPfA;" +
-		"ASP.NET_SessionId=i1kpbdbbbhmud0l5flpkkbd5"
 	USER_AGENT      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	HANDLER_URL     = "https://www.imleagues.com/Services/AjaxRequestHandler.ashx"
 	EXTERNAL_SOURCE = "imleagues"
 )
 
 type Attendance struct {
-	TeamId     string `json:"teamId"`
 	MemberId   string `json:"memberId"`
 	MemberName string `json:"memberName"`
 	MarkedPlay bool   `json:"markedPlay"`
@@ -49,9 +74,11 @@ type Attendance struct {
 }
 type ViewGameData struct {
 	Message       *string `json:"message,omitempty"`
-	Id            string  `json:"id"`
+	Id            int     `json:"id"`
 	SportName     string  `json:"sportName"`
 	Team1Name     string  `json:"team1Name"`
+	Team1Id       string  `json:"team1Id"`
+	Team2Id       string  `json:"team2Id"`
 	Team2Name     string  `json:"team2Name"`
 	KickoffTime   string  `json:"startDate"`
 	FacilityLat   string  `json:"facilityLat"`
@@ -76,29 +103,26 @@ type ScrapedPlayerStat struct {
 	ExternalPlayerID string
 	ExternalSource   string
 	ExternalTeamID   string
-	Name        string
-	GamePlayed  bool
-	IsMVP       bool
-	KickoffTime time.Time
-	Goals       int
+	Name             string
+	GamePlayed       bool
+	IsMVP            bool
+	KickoffTime      time.Time
+	Goals            int
 }
 
 type IMLeagueScraper struct {
-	Client *http.Client
+	Client    *http.Client
 	gameIndex map[string]ScrapedGameItem
+	cookies   string
 }
 
-func NewIMLeagueScraper() *IMLeagueScraper {
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		log.Fatal("Failed to create cookie jar:", err)
-	}
+func NewIMLeagueScraper(cookie string) *IMLeagueScraper {
 	return &IMLeagueScraper{
 		Client: &http.Client{
 			Timeout: time.Second * 10,
-			Jar:     jar,
 		},
 		gameIndex: make(map[string]ScrapedGameItem),
+		cookies:   cookie,
 	}
 }
 
@@ -193,7 +217,7 @@ func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResp
 	req.Header.Set("Referer", "https://www.imleagues.com/spa/league/7e83f99a1ab04a25a469fd50ad98fa94/viewgame?gameId=23413796&gameType=0")
 
 	// Set cookies
-	req.Header.Set("Cookie", COOKIES)
+	req.Header.Set("Cookie", s.cookies)
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
@@ -268,6 +292,7 @@ func (s* IMLeagueScraper) extractPlayerStats(
 	attendance []Attendance,
 	statsHTML string,
 	kickoffTime time.Time,
+	teamId string,
 ) ([]ScrapedPlayerStat, error) {
 	perfData, _ := s.extractPerformanceData(statsHTML, kickoffTime)
 	// Map player name to attendance info for O(1) lookup
@@ -280,9 +305,10 @@ func (s* IMLeagueScraper) extractPlayerStats(
 	for i, perf := range perfData {
 		if att, exists := attMap[perf.Name]; exists {
 			perfData[i].GamePlayed = att.MarkedPlay
+			perfData[i].ExternalSource = EXTERNAL_SOURCE
 			perfData[i].IsMVP = att.IsMVP
 			perfData[i].ExternalPlayerID = att.MemberId
-			perfData[i].ExternalTeamID = att.TeamId
+			perfData[i].ExternalTeamID = teamId
 		}
 	}
 

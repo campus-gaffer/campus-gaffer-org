@@ -33,7 +33,13 @@ func (r *gameRepo) Upsert(ctx context.Context, game *models.Game) (*models.Game,
 		Clauses(
 			clause.OnConflict{
 				Columns:   []clause.Column{{Name: "external_game_id"}, {Name: "external_source"}},
-				DoUpdates: clause.AssignmentColumns([]string{"status", "updated_at", "kickoff_time"}),
+				DoUpdates: clause.AssignmentColumns([]string{
+					"status", 
+					"updated_at", 
+					"kickoff_time", 
+					"home_team_external_id", 
+					"away_team_external_id",
+				}),
 			},
 		).
 		Create(game)

@@ -14,7 +14,7 @@ type Scraper interface {
 
 
 type DiscoveryScraper interface {
-	GetCurrentSeasonGames(ctx context.Context) ([]ScrapedGame, error)
+	GetCurrentSeasonGames(ctx context.Context, teamId string) ([]ScrapedGameItem, error)
 }
 
 type StatsScraper interface {

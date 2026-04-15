@@ -27,8 +27,18 @@ func (r *playerRepo) Upsert(ctx context.Context, player *models.Player) (*models
 		WithContext(ctx).
 		Clauses(
 			clause.OnConflict{
-				Columns:   []clause.Column{{Name: "external_id"}, {Name: "external_source"}},
-				DoUpdates: clause.AssignmentColumns([]string{"name", "birth_date"}),
+				Columns: []clause.Column{
+					{Name: "external_player_id"},
+					{Name: "external_source"},
+				},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"name",
+					"birth_date",
+					"gender",
+					"year_of_study",
+					"graduation_year",
+					"updated_at",
+				}),
 			},
 		).
 		Create(player)
