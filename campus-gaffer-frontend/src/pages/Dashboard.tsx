@@ -6,6 +6,8 @@ import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
+
 export default function Dashboard() {
   const { user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,7 +28,7 @@ export default function Dashboard() {
 
   const fetchSquad = () => {
     if (!user) return;
-    fetch(`http://localhost:8082/squad/${user.id}`)
+    fetch(`${API_URL}/squad/${user.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.players && data.players.length > 0) {
@@ -56,7 +58,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     // Fetch profile
-    fetch(`http://localhost:8082/users/${user.id}`)
+    fetch(`${API_URL}/users/${user.id}`)
       .then(res => res.json())
       .then(found => {
         if (found && found.username) {
@@ -67,7 +69,7 @@ export default function Dashboard() {
       .catch(e => console.error("Profile fetch error:", e));
 
     // Fetch pool
-    fetch("http://localhost:8082/players")
+    fetch(API_URL + "/players")
       .then(res => res.json())
       .then(data => {
         if (data && data.length > 0) setAllPlayers(data);
@@ -78,7 +80,7 @@ export default function Dashboard() {
 
   const saveSquad = async (playerIds: string[]) => {
     setSaving(true);
-    await fetch(`http://localhost:8082/squad/${user?.id}`, {
+    await fetch(`${API_URL}/squad/${user?.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_ids: playerIds })
@@ -89,7 +91,7 @@ export default function Dashboard() {
   };
 
   const setCaptain = async (playerId: string) => {
-    await fetch(`http://localhost:8082/squad/${user?.id}/captain`, {
+    await fetch(`${API_URL}/squad/${user?.id}/captain`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_id: playerId })

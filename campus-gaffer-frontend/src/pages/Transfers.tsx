@@ -3,6 +3,8 @@ import { Bell, Users, PlusCircle, Search, TrendingUp, Filter, Settings } from "l
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
+
 const MOCK_PLAYERS = [
   { id: 1, name: "Henderson", team: "Arts & Humanities", price: 8.5, role: "FWD", form: "+2.4", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver" },
   { id: 2, name: "Davies", team: "Engineering", price: 6.2, role: "MID", form: "+1.1", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Noah" },
@@ -13,7 +15,7 @@ export default function Transfers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8082/players")
+    fetch(API_URL + "/players")
       .then(res => res.json())
       .then(data => {
         if (data && data.length > 0) {

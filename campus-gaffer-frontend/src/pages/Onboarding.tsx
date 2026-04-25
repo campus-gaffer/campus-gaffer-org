@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { User, Shield, GraduationCap, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
+
 export default function Onboarding() {
     const { user } = useUser();
     const navigate = useNavigate();
@@ -20,7 +22,7 @@ export default function Onboarding() {
             setLoading(true);
             try {
                 // Connect to backend
-                await fetch(`http://localhost:8082/users/${user?.id}`, {
+                await fetch(`${API_URL}/users/${user?.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

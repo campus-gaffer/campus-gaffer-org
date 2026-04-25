@@ -38,6 +38,8 @@ const MOCK_EVENTS: MatchEvent[] = [
   { id: 4, match_id: 1, event_type: "goal", team: "home", player_name: "J. Doe", player_id: "1", assist_player: "S. Smith", minute: 78, event_time: "78'" },
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
+
 export default function Scores() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"live" | "upcoming">("live");
@@ -48,7 +50,7 @@ export default function Scores() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8082/matches")
+    fetch(API_URL + "/matches")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -67,7 +69,7 @@ export default function Scores() {
 
   useEffect(() => {
     if (selectedMatch) {
-      fetch(`http://localhost:8082/matches/${selectedMatch.id}/events`)
+      fetch(`${API_URL}/matches/${selectedMatch.id}/events`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
