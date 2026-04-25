@@ -65,6 +65,7 @@ func getRouter() (*gin.Engine, error) {
 		r.POST("/squad/:clerk_id", handlers.UpdateSquad)
 		r.GET("/squad/:clerk_id", handlers.GetSquad)
 		r.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
+		r.POST("/admin/update-cookie", handlers.UpdateCookie)
 
 		router = r
 		log.Println("Campus Gaffer API initialized successfully")

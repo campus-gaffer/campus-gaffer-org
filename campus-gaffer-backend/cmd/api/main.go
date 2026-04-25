@@ -14,7 +14,7 @@ func main() {
 	godotenv.Load()
 	database.Connect()
 
-	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{})
+	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{})
 
 	result := gin.Default()
 
@@ -42,6 +42,7 @@ func main() {
 	result.POST("/squad/:clerk_id", handlers.UpdateSquad)
 	result.GET("/squad/:clerk_id", handlers.GetSquad)
 	result.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
+	result.POST("/admin/update-cookie", handlers.UpdateCookie)
 	result.Run(":" + getPort())
 }
 

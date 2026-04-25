@@ -28,8 +28,8 @@ type Game struct {
 	DivisionID     string    `json:"division_id" gorm:"type:uuid;index"`
 	KickoffTime    *time.Time `json:"kickoff_time"`
 	IsScraped      bool      `json:"is_scraped" gorm:"default:false"`
-	ExternalID     string    `json:"external_id" gorm:"index"`
-	ExternalSource string    `json:"external_source"`
+	ExternalID     string    `json:"external_id" gorm:"uniqueIndex:idx_game_external,priority:1"`
+	ExternalSource string    `json:"external_source" gorm:"uniqueIndex:idx_game_external,priority:2"`
 	Status         string    `json:"status"`
 	GameType       string    `json:"game_type"`
 	CreatedAt      time.Time `json:"created_at"`
