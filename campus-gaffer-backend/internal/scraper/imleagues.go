@@ -172,7 +172,7 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 		return nil, nil
 	}
 
-	attMap := map[string]bool{
+	gpFlag := map[string]bool{
 		"Y": true,
 		"":  false,
 	}
@@ -184,14 +184,7 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 			name := strings.TrimSpace(row.
 				Find(".td-0").
 				AttrOr("title", ""))
-			// rawIdStr := strings.TrimSpace(row.
-			// 	Find(".td-0 a").
-			// 	AttrOr("href", ""))
-			// idParts := strings.Split(rawIdStr, "player=")
-			// if len(idParts) != 2 {
-			// 	log.Printf("Unexpected player link format: %s", rawIdStr)
-			// 	return
-			// }
+			
 			// Parse external player id from the anchor href: /Members/player_card.aspx?player=<id>
 			href := strings.TrimSpace(nameCell.Find("a").AttrOr("href", ""))
 			idParts := strings.Split(href, "player=")
@@ -204,8 +197,8 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 			name = caser.String(name)
 			// Game played?
 			// This determines whether the player attended the match
-			gp := attMap[strings.TrimSpace(row.Find("td").Eq(1).Text())]
-			mvp := attMap[strings.TrimSpace(row.Find("td").Eq(2).Text())]
+			gp := gpFlag[strings.TrimSpace(row.Find("td").Eq(1).Text())]
+			mvp := gpFlag[strings.TrimSpace(row.Find("td").Eq(2).Text())]
 			// Goals scored in the given match
 			goals, err := strconv.ParseInt(row.
 				Find("td").
@@ -248,7 +241,6 @@ func (s *IMLeagueScraper) extractPlayerStats(
 			perfData[i].GamePlayed = att.MarkedPlay
 			perfData[i].ExternalSource = EXTERNAL_SOURCE
 			perfData[i].IsMVP = att.IsMVP
-			perfData[i].ExternalPlayerID = att.MemberId
 		}
 	}
 

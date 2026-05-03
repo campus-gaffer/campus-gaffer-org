@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	strs "strings"
 	"time"
 )
 
@@ -135,6 +136,27 @@ const (
 		"urlReferrer=https://www.imleagues.com/spa/team/" + TEAM_ID + "/home"
 )
 
+// helper local to scraper pkg
+func isPrivateResponse(env responseEnvelope) bool {
+	// Shape A: envelope-level (the one panicking now)
+	if env.Code == 99 && env.Message != nil && strs.Contains(*env.Message, "private") {
+		return true
+	}
+	// Shape B: data-level (the one in private_player.json)
+	if len(env.Data) > 0 && string(env.Data) != "null" {
+		var probe struct {
+			Code    *int    `json:"code"`
+			Message *string `json:"message"`
+		}
+		if json.Unmarshal(env.Data, &probe) == nil &&
+			probe.Code != nil && *probe.Code == 99 &&
+			probe.Message != nil && strs.Contains(*probe.Message, "private") {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *IMLeagueScraper) GetLeaguesList(ctx context.Context) ([]ScrapedLeagueItem, error) {
 	req_body := map[string]any{
 		"entityType": "league",
@@ -174,14 +196,17 @@ func (s *IMLeagueScraper) GetLeaguesList(ctx context.Context) ([]ScrapedLeagueIt
 
 	resString, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var envelope responseEnvelope
 	if err := json.Unmarshal(resString, &envelope); err != nil || envelope.Message != nil {
-		fmt.Println(envelope.Message)
-		return nil, fmt.Errorf("failed to parse leagues list response: %s", *envelope.Message)
+		if envelope.Message != nil {
+			log.Println(*envelope.Message)
+		} else {
+			log.Println(err)
+		}
+		return nil, fmt.Errorf("failed to parse leagues list response")
 	}
 
 	apiResp := ScrapedLeagueItem{}
@@ -263,13 +288,11 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId stri
 
 	resString, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var envelope responseEnvelope
 	if err := json.Unmarshal(resString, &envelope); err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -357,16 +380,19 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 	resString, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var envelope responseEnvelope
 	if err := json.Unmarshal(resString, &envelope); err != nil {
-		fmt.Println(err)
 		return nil, err
 	} else if envelope.Code < 0 {
-		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
+		myErr := &ErrSessionExpired{
+			Msg:            string(envelope.Data),
+			RouteNamespace: "https://www.imleagues.com/spa/account/login",
+		}
+		//fmt.Errorf("API error: %s", string(envelope.Data))
+		return nil, myErr
 	}
 
 	apiResp := ViewGameResponse{}

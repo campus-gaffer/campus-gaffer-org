@@ -1,21 +1,16 @@
 package scraper
 
 import (
-	"encoding/json"
 	"errors"
-
-	//"errors"
 	"fmt"
-	strs "strings"
-	//"github.com/google/uuid"
 )
 
 type ErrSessionExpired struct {
-	msg            string
-	routeNamespace string
+	Msg            string
+	RouteNamespace string
 }
 
-type ErrUnauthorized struct{}
+var ErrUnauthorized = errors.New("Unauthorized or not logged in")
 
 type ErrRateLimited struct{}
 
@@ -24,40 +19,25 @@ type ErrParseFailed struct {
 	id  string
 }
 
-var ErrPlayerPrivate = errors.New("Player's information is private")
+var ErrPlayerPrivate = errors.New("player info is private")
 
 type ErrDBWrite struct{}
 
 type ErrTimeout struct{}
 
-// helper local to scraper pkg
-func isPrivateResponse(env responseEnvelope) bool {
-	// Shape A: envelope-level (the one panicking now)
-	if env.Code == 99 && env.Message != nil && strs.Contains(*env.Message, "private") {
-		return true
-	}
-	// Shape B: data-level (the one in private_player.json)
-	if len(env.Data) > 0 && string(env.Data) != "null" {
-		var probe struct {
-			Code    *int    `json:"code"`
-			Message *string `json:"message"`
-		}
-		if json.Unmarshal(env.Data, &probe) == nil &&
-			probe.Code != nil && *probe.Code == 99 &&
-			probe.Message != nil && strs.Contains(*probe.Message, "private") {
-			return true
-		}
-	}
-	return false
-}
 
 func (e *ErrSessionExpired) Error() string {
-	return fmt.Sprintf("session expired: %s - %s", e.routeNamespace, e.msg)
+	return fmt.Sprintf("session expired: %s - %s", e.RouteNamespace, e.Msg)
 }
 
-func (e ErrUnauthorized) Error() string {
-	return "unauthorized"
+func (e *ErrSessionExpired) Is(target error) bool {
+	_, ok := target.(*ErrSessionExpired)
+	return ok
 }
+
+//func (e ErrUnauthorized) Error() string {
+//	return "unauthorized"
+//}
 
 func (e ErrRateLimited) Error() string {
 	return "rate limited"
