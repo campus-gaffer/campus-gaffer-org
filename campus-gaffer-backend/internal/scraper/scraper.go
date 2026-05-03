@@ -1,24 +1,28 @@
 package scraper
 
-import (
-	"context"
-)
+import "context"
 
-
-
+// Scraper is the base marker interface — all scrapers have a name.
 type Scraper interface {
 	Name() string
-	// GetCurrentSeasonGames(ctx context.Context) ([]ScrapedGameItem, error)
-	// GetGameData(ctx context.Context, externalId string) (*ScrapedGame, error)
 }
 
-
+// DiscoveryScraper fetches the full season schedule and returns a
+// deduplicated list of game summaries. Callers receive a flat slice;
+// any source-specific pagination or multi-team iteration is an
+// implementation detail hidden behind this interface.
 type DiscoveryScraper interface {
-	GetCurrentSeasonGames(ctx context.Context, teamId string) ([]ScrapedGameItem, error)
+	//Discover(ctx context.Context) ([]ScrapedGameSummary, error)
+	//Discover(ctx context.Context) (error)
+	GetLeagueTeams(ctx context.Context) ([]ScrapedTeamItem, error)
+	GetCurrentSeasonGames(ctx context.Context, teamId string) ([]ScrapedGameSummary, error)
 }
 
+// StatsScraper fetches per-game statistics and player biographical data.
+// GetGameData requires that Discover has been called first on the same
+// instance — implementations cache game routing metadata during discovery
+// and use it to build the per-game request.
 type StatsScraper interface {
-	GetGameData(ctx context.Context, externalId string) (*ScrapedGame, error)
+	GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error)
 	GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error)
 }
-

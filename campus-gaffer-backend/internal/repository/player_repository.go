@@ -10,6 +10,7 @@ import (
 
 type PlayerRepository interface {
 	Upsert(ctx context.Context, p *models.Player) (*models.Player, error)
+	FindByExternalID(ctx context.Context, externalID string) *models.Player
 }
 
 type playerRepo struct {
@@ -35,6 +36,7 @@ func (r *playerRepo) Upsert(ctx context.Context, player *models.Player) (*models
 					"name",
 					"birth_date",
 					"gender",
+					"is_private",
 					"year_of_study",
 					"graduation_year",
 					"updated_at",
@@ -46,4 +48,20 @@ func (r *playerRepo) Upsert(ctx context.Context, player *models.Player) (*models
 		return nil, result.Error
 	}
 	return player, nil
+}
+
+func (r *playerRepo) FindByExternalID(ctx context.Context, externalID string) *models.Player {
+	player := &models.Player{}
+	result := r.db.
+		WithContext(ctx).
+		Where("external_player_id = ?", externalID).
+		First(player)
+
+	if result.Error != nil {
+		// Treat unexpected query errors as "not found" so the caller falls
+		// through to the enrichment-and-upsert path rather than silently
+		// using a stale/zero record.
+		return nil
+	}
+	return player
 }

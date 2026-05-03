@@ -12,6 +12,7 @@ type Player struct {
 	Name             string          `gorm:"type:text;not null"`
 	BirthDate        *datatypes.Date `gorm:"type:date;"`
 	//Age              uint           `gorm:"type:integer;"` // Can be calculated from BirthDate, so not stored in DB ---
+	IsPrivate      bool    `gorm:"type:boolean;not null"`
 	Gender         *string `gorm:"type:text;"`
 	YearOfStudy    *string `gorm:"type:text;"`
 	GraduationYear *string `gorm:"type:text;"`
