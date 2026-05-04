@@ -64,49 +64,6 @@ const (
 	EXTERNAL_SOURCE = "imleagues"
 )
 
-type Attendance struct {
-	MemberId   string `json:"memberId"`
-	MemberName string `json:"memberName"`
-	MarkedPlay bool   `json:"markedPlay"`
-	IsMVP      bool   `json:"isMVP"`
-}
-type ViewGameData struct {
-	Message       *string `json:"message,omitempty"`
-	Id            int     `json:"id"`
-	SportName     string  `json:"sportName"`
-	Team1Name     string  `json:"team1Name"`
-	Team1Id       string  `json:"team1Id"`
-	Team2Id       string  `json:"team2Id"`
-	Team2Name     string  `json:"team2Name"`
-	KickoffTime   string  `json:"startDate"`
-	FacilityLat   string  `json:"facilityLat"`
-	FacilityLon   string  `json:"facilityLon"`
-	CompletedGame bool    `json:"isCompletedGame"`
-	CancelledGame bool    `json:"isGameCancelled"`
-
-	Team1MemberAttendanceList []Attendance `json:"team1MemberAttendanceList"`
-	Team2MemberAttendanceList []Attendance `json:"team2MemberAttendanceList"`
-	// The actual goals are hidden inside these raw HTML string fields!
-	Team1StatsHTML string `json:"team1PlayerStatsUC"`
-	Team2StatsHTML string `json:"team2PlayerStatsUC"`
-	Team1Score     string `json:"team1Result"`
-	Team2Score     string `json:"team2Result"`
-}
-type ViewGameResponse struct {
-	responseEnvelope
-	Data ViewGameData `json:"data"`
-}
-
-type ScrapedPlayerStat struct {
-	ExternalPlayerID string
-	ExternalSource   string
-	ExternalTeamID   string
-	Name             string
-	GamePlayed       bool
-	IsMVP            bool
-	Goals            int
-}
-
 type IMLeagueScraper struct {
 	Client    *http.Client
 	gameIndex map[string]ScrapedGameSummary
@@ -245,11 +202,4 @@ func (s *IMLeagueScraper) extractPlayerStats(
 	}
 
 	return perfData, nil
-}
-
-func (s Schedule) getScheduleMessage() string {
-	if s.Data.Message == nil {
-		return ""
-	}
-	return *s.Data.Message
 }
