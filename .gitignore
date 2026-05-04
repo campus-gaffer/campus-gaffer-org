@@ -1,6 +1,7 @@
 .idea/
 .DS_Store
 .vscode/
+.env
 
 # Design documents
 campus_gaffer_design*.pdf
@@ -8,3 +9,13 @@ campus_gaffer_design*.docx
 
 # JSON files
 *.json
+
+# Claude
+.claude/
+
+# Compiled scripts
+campus-gaffer-backend/clean_game_stats
+__pycache__/
+
+# Dev files
+data/*.cleaned.*

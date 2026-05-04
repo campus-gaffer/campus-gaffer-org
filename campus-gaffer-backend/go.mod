@@ -10,6 +10,9 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/aws/aws-lambda-go v1.54.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/ringsaturn/tzf-rel-lite v0.0.2026-a // indirect
@@ -18,6 +21,8 @@ require (
 	github.com/tidwall/rtree v1.10.0 // indirect
 	github.com/twpayne/go-polyline v1.1.1 // indirect
 	go.mongodb.org/mongo-driver v1.11.4 // indirect
+	gorm.io/datatypes v1.2.7 // indirect
+	gorm.io/driver/mysql v1.5.6 // indirect
 )
 
 require (

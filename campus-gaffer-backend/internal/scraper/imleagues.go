@@ -3,11 +3,9 @@ package scraper
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 	"strconv"
 	"strings"
@@ -106,13 +104,12 @@ type ScrapedPlayerStat struct {
 	Name             string
 	GamePlayed       bool
 	IsMVP            bool
-	KickoffTime      time.Time
 	Goals            int
 }
 
 type IMLeagueScraper struct {
 	Client    *http.Client
-	gameIndex map[string]ScrapedGameItem
+	gameIndex map[string]ScrapedGameSummary
 	cookies   string
 }
 
@@ -121,13 +118,19 @@ func NewIMLeagueScraper(cookie string) *IMLeagueScraper {
 		Client: &http.Client{
 			Timeout: time.Second * 10,
 		},
-		gameIndex: make(map[string]ScrapedGameItem),
+		gameIndex: make(map[string]ScrapedGameSummary),
 		cookies:   cookie,
 	}
 }
 
 func (s *IMLeagueScraper) Name() string {
 	return "IMLeagueScraper"
+}
+
+func (s *IMLeagueScraper) Discover(ctx context.Context) error {
+	// No-op for now since we don't have any dynamic discovery needs, but this is where we'd implement any logic to discover new leagues, teams, or games if needed in the future.
+	log.Println("IMLeagueScraper: Discover called - no dynamic discovery implemented yet")
+	return nil
 }
 
 func (s *IMLeagueScraper) post(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) {
@@ -140,7 +143,6 @@ func (s *IMLeagueScraper) post(ctx context.Context, url string, body []byte, hea
 	}
 	return s.Client.Do(req)
 }
-
 
 // parseKickoffTime takes in the kickoff time string from the API response and the facility's geographic coordinates,
 // determines the appropriate timezone, and returns the kickoff time as a time.Time object in that timezone.
@@ -164,107 +166,39 @@ func parseKickoffTime(timeStr string, latitude, longitude string) (time.Time, er
 	return time.ParseInLocation(layout, timeStr, loc)
 }
 
-func fetchDataFromDisk(filename string) (*ViewGameResponse, error) {
-	contents, err := os.ReadFile(filename)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-
-	var data ViewGameResponse
-	err = json.Unmarshal(contents, &data)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &data, nil
-}
-
-func fetchLeagueGameData(ctx context.Context, s *IMLeagueScraper) (*ViewGameResponse, error) {
-	req_body := map[string]interface{}{
-		"entityType":     "league",
-		"entityId":       "7e83f99a1ab04a25a469fd50ad98fa94",
-		"gameId":         "23413796",
-		"gameType":       "0",
-		"pageType":       "League",
-		"clientVersion":  "574",
-		"isMobileDevice": false,
-		"isSSO":          false,
-		"cachedKey":      nil,
-		"clientType":     0,
-	}
-
-	payload, err := json.Marshal(req_body)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		GAME_DATA_URL,
-		bytes.NewBuffer(payload),
-	)
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Content-Type", "application/json;charset=UTF-8")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.8")
-	req.Header.Set("User-Agent", USER_AGENT)
-	req.Header.Set("Origin", "https://www.imleagues.com")
-	req.Header.Set("Referer", "https://www.imleagues.com/spa/league/7e83f99a1ab04a25a469fd50ad98fa94/viewgame?gameId=23413796&gameType=0")
-
-	// Set cookies
-	req.Header.Set("Cookie", s.cookies)
-
-	resp, err := s.Client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	var apiResp ViewGameResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		decodeError := fmt.Errorf("failed to decode JSON: %v\n", err)
-		return nil, decodeError
-	}
-
-	fmt.Println(apiResp.Data.Team1StatsHTML)
-	if apiResp.Data.Message != nil {
-		errMsg := fmt.Errorf("api error, Login may be required: %v", apiResp.Data.Message)
-		return nil, errMsg
-
-	}
-
-	return &apiResp, nil
-}
-
-
 func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime time.Time) ([]ScrapedPlayerStat, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(statsHTML))
 	if err != nil {
 		return nil, nil
 	}
 
-	attMap := map[string]bool{
+	gpFlag := map[string]bool{
 		"Y": true,
 		"":  false,
 	}
 	var gameData []ScrapedPlayerStat
 
-	doc.Find("#gvGamePlayerStats tbody tr").
+	doc.Find("table[id^='gvGamePlayerStats'] tbody tr").
 		Each(func(i int, row *goquery.Selection) {
+			nameCell := row.Find(".td-0")
 			name := strings.TrimSpace(row.
 				Find(".td-0").
 				AttrOr("title", ""))
+			
+			// Parse external player id from the anchor href: /Members/player_card.aspx?player=<id>
+			href := strings.TrimSpace(nameCell.Find("a").AttrOr("href", ""))
+			idParts := strings.Split(href, "player=")
+			if len(idParts) != 2 {
+				log.Printf("scraper: skipping row %d, unexpected href format: %q", i, href)
+				return
+			}
+			externalPlayerID := strings.TrimSpace(idParts[1])
 			caser := cases.Title(language.English)
 			name = caser.String(name)
 			// Game played?
 			// This determines whether the player attended the match
-			gp := attMap[strings.TrimSpace(row.Find("td").Eq(1).Text())]
-			mvp := attMap[strings.TrimSpace(row.Find("td").Eq(2).Text())]
+			gp := gpFlag[strings.TrimSpace(row.Find("td").Eq(1).Text())]
+			mvp := gpFlag[strings.TrimSpace(row.Find("td").Eq(2).Text())]
 			// Goals scored in the given match
 			goals, err := strconv.ParseInt(row.
 				Find("td").
@@ -275,20 +209,19 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 			}
 
 			playerPerf := ScrapedPlayerStat{
-				Name:        name,
-				GamePlayed:  gp,
-				IsMVP:       mvp,
-				KickoffTime: kickoffTime,
-				Goals:       int(goals),
+				ExternalPlayerID: externalPlayerID,
+				ExternalSource:   EXTERNAL_SOURCE,
+				Name:             name,
+				GamePlayed:       gp,
+				IsMVP:            mvp,
+				Goals:            int(goals),
 			}
 			gameData = append(gameData, playerPerf)
 		})
 	return gameData, nil
 }
 
-
-
-func (s* IMLeagueScraper) extractPlayerStats(
+func (s *IMLeagueScraper) extractPlayerStats(
 	attendance []Attendance,
 	statsHTML string,
 	kickoffTime time.Time,
@@ -298,17 +231,16 @@ func (s* IMLeagueScraper) extractPlayerStats(
 	// Map player name to attendance info for O(1) lookup
 	attMap := make(map[string]Attendance)
 	for _, att := range attendance {
-		attMap[att.MemberName] = att
+		attMap[att.MemberId] = att
 	}
 
 	// Merge attendance info with performance data
 	for i, perf := range perfData {
-		if att, exists := attMap[perf.Name]; exists {
+		perfData[i].ExternalTeamID = teamId
+		if att, exists := attMap[perf.ExternalPlayerID]; exists {
 			perfData[i].GamePlayed = att.MarkedPlay
 			perfData[i].ExternalSource = EXTERNAL_SOURCE
 			perfData[i].IsMVP = att.IsMVP
-			perfData[i].ExternalPlayerID = att.MemberId
-			perfData[i].ExternalTeamID = teamId
 		}
 	}
 

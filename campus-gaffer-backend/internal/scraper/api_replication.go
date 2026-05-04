@@ -7,11 +7,29 @@ import (
 	"io"
 	"log"
 	"net/url"
+	strs "strings"
 	"time"
 )
 
+type ScrapedLeagueItem struct {
+	responseEnvelope
+	Data LeagueData `json:"data"`
+}
 
-type ScrapedGameItem struct {
+type ScrapedTeamItem struct {
+	TeamId   string `json:"id"`
+	TeamName string `json:"name"`
+	TeamSize int    `json:"playersNo"`
+	NumGuys  int    `json:"guysNo"`
+	NumGirls int    `json:"girlsrNo"`
+	Captain  struct {
+		PlayerId   string `json:"id"`
+		PlayerName string `json:"name"`
+	} `json:"captainInfo"`
+	TeamUrl string `json:"homeUrl"`
+}
+
+type ScrapedGameSummary struct {
 	ExternalId       string
 	ExternalSource   string // Always EXTERNAL_SOURCE
 	GameId           int    `json:"gameId"`
@@ -27,7 +45,7 @@ type ScrapedGameItem struct {
 	LeagueId       string `json:"leagueId"`
 }
 
-type ScrapedGame struct {
+type ScrapedGameDetails struct {
 	ExternalId      string
 	ExternalSource  string
 	HomeTeamName    string
@@ -44,21 +62,36 @@ type ScrapedGame struct {
 	Players         []ScrapedPlayerStat
 }
 
+type LeagueData struct {
+	Message   *string        `json:"message,omitempty"`
+	Id        string         `json:"id"`
+	LogoURL   string         `json:"schoolLogo"`
+	Divisions []DivisionData `json:"divisionTeams"`
+}
+
+type DivisionData struct {
+	Id         string            `json:"id"`
+	LeagueId   string            `json:"leagueId"`
+	LeagueName string            `json:"name"`
+	Teams      []ScrapedTeamItem `json:"teams"`
+}
+
 type ScheduleData struct {
-	Message      *string           `json:"message,omitempty"`
-	Id           string            `json:"id"`
-	Name         string            `json:"name"`
-	LeagueId     string            `json:"leagueId"`
-	DivisionId   string            `json:"divisionId"`
-	Form         string            `json:"wlt"`
-	RegularGames []ScrapedGameItem `json:"regularGameList"`
-	PlayOffGames []ScrapedGameItem `json:"playoffGameList"`
+	Message      *string              `json:"message,omitempty"`
+	Id           string               `json:"id"`
+	Name         string               `json:"name"`
+	LeagueId     string               `json:"leagueId"`
+	DivisionId   string               `json:"divisionId"`
+	Form         string               `json:"wlt"`
+	RegularGames []ScrapedGameSummary `json:"regularGameList"`
+	PlayOffGames []ScrapedGameSummary `json:"playoffGameList"`
 }
 
 type responseEnvelope struct {
-	IsDone bool            `json:"isDone"`
-	Code   int             `json:"code"`
-	Data   json.RawMessage `json:"data"`
+	IsDone  bool            `json:"isDone"`
+	Code    int             `json:"code"`
+	Message *string         `json:"message,omitempty"`
+	Data    json.RawMessage `json:"data"`
 }
 
 type Schedule struct {
@@ -75,9 +108,8 @@ type ScrapedPlayerInfo struct {
 	PlayerName        string `json:"playerName"`
 	// MM/DD/YYYY format, e.g. "09/15/1998"
 	BirthDate string `json:"birthDate"`
-	Age       string `json:"age"`
 	Gender    string `json:"gender"`
-	// e.g. "Senior", "Graduate"
+	// e.g. "Senior", "Graduate", "Faculty"
 	YearOfStudy    string `json:"status"`
 	GraduationYear string `json:"grad"`
 }
@@ -85,16 +117,12 @@ type ScrapedPlayerInfo struct {
 type ViewPlayerResponse struct {
 	responseEnvelope
 	Data struct {
+		Message            *string           `json:"message,omitempty"`
+		Code               *int              `json:"code,omitempty"`
 		ActiveTeamsCount   int               `json:"activeTeamsCount"`
 		StatsWinPercentage string            `json:"statsWinPercent"`
 		PlayerInfo         ScrapedPlayerInfo `json:"playerInfo"`
 	} `json:"data"`
-}
-
-type gameMetadata struct {
-	GameType int
-	GameId   int
-	LeagueId string
 }
 
 const (
@@ -108,18 +136,132 @@ const (
 		"urlReferrer=https://www.imleagues.com/spa/team/" + TEAM_ID + "/home"
 )
 
-func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedGameItem, error) {
+// helper local to scraper pkg
+func isPrivateResponse(env responseEnvelope) bool {
+	if env.Code == 99 && env.Message != nil && strs.Contains(*env.Message, "private") {
+		return true
+	}
+	if len(env.Data) > 0 && string(env.Data) != "null" {
+		var probe struct {
+			Code    *int    `json:"code"`
+			Message *string `json:"message"`
+		}
+		if json.Unmarshal(env.Data, &probe) == nil &&
+			probe.Code != nil && *probe.Code == 99 &&
+			probe.Message != nil && strs.Contains(*probe.Message, "private") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *IMLeagueScraper) GetLeaguesList(ctx context.Context) ([]ScrapedLeagueItem, error) {
 	req_body := map[string]any{
-		"entityType":     "league",
-		"entityId":       "zzz1459316985769754624",
-		"pageType":       "Team",
-		"clientVersion":  "574",
+		"entityType": "league",
+		"entityId":   LEAGUE_ID,
+		"pageType":   "League",
+		//"clientVersion": "574",
+	}
+
+	payload, err := json.Marshal(req_body)
+
+	if err != nil {
+		log.Printf("failed to marshal leagues list request body: %v", err)
+		return nil, err
+	}
+
+	headers := map[string]string{
+		"Accept":       "application/json, text/plain, */*",
+		"Content-Type": "application/json;charset=UTF-8",
+		"User-Agent":   USER_AGENT,
+		"Origin":       IM_LEAGUES_URL,
+		"Referer":      fmt.Sprintf("%s/spa/team/%s/home", IM_LEAGUES_URL, LEAGUE_ID),
+		"Cookie":       s.cookies,
+	}
+
+	leagueUrl := fmt.Sprintf("%s?"+
+		"class=imLeagues.Web.Members.Services.BO.League.NewHomeBO&"+
+		"method=Initialize&"+
+		"paramType=imLeagues.Internal.API.VO.Input.ViewInVO&"+
+		"urlReferrer=https://www.imleagues.com/spa/league/%s/home", HANDLER_URL, LEAGUE_ID)
+	res, err := s.post(ctx, leagueUrl, payload, headers)
+
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	resString, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var envelope responseEnvelope
+	if err := json.Unmarshal(resString, &envelope); err != nil || envelope.Message != nil {
+		if envelope.Message != nil {
+			log.Println(*envelope.Message)
+		} else {
+			log.Println(err)
+		}
+		return nil, fmt.Errorf("failed to parse leagues list response")
+	}
+
+	apiResp := ScrapedLeagueItem{}
+	if len(envelope.Data) > 0 && string(envelope.Data) != "null" {
+		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
+			var dataAsString string
+			if stringErr := json.Unmarshal(envelope.Data, &dataAsString); stringErr == nil {
+				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", envelope.Code, dataAsString)
+			}
+			return nil, fmt.Errorf("failed to parse leagues list data object: %w", err)
+		}
+	}
+
+	if apiResp.Message != nil && *apiResp.Message != "" {
+		return nil, fmt.Errorf("[GET LEAGUES LIST] %s", *apiResp.Message)
+	}
+
+	return []ScrapedLeagueItem{apiResp}, nil
+}
+
+func (s *IMLeagueScraper) GetLeagueTeams(ctx context.Context) ([]ScrapedTeamItem, error) {
+	leagues, err := s.GetLeaguesList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	totalTeams := 0
+
+	for _, league := range leagues {
+		divData := league.Data.Divisions
+		for _, div := range divData {
+			totalTeams += len(div.Teams)
+		}
+	}
+
+	res := make([]ScrapedTeamItem, 0, totalTeams)
+	for _, league := range leagues {
+		for _, div := range league.Data.Divisions {
+			res = append(res, div.Teams...)
+		}
+	}
+
+	return res, nil
+}
+
+// GetCurrentSeasonGames fetches the list of games for the current season.
+func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId string) ([]ScrapedGameSummary, error) {
+
+	req_body := map[string]any{
+		"entityType": "league",
+		"entityId":   teamId,
+		"pageType":   "Team",
+		//"clientVersion":  "574",
 		"isMobileDevice": false,
 		"isSSO":          false,
 		"cachedKey":      nil,
 		"clientType":     0,
 	}
-
 	payload, err := json.Marshal(req_body)
 	if err != nil {
 		log.Println(err)
@@ -132,11 +274,10 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 		"User-Agent":      USER_AGENT,
 		"Origin":          IM_LEAGUES_URL,
 		"Referer":         fmt.Sprintf("%s/spa/team/%s/home", IM_LEAGUES_URL, TEAM_ID),
-		"Cookie":          COOKIES,
+		"Cookie":          s.cookies,
 	}
 
 	res, err := s.post(ctx, SCHEDULE_URL, payload, headers)
-
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -145,13 +286,11 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 
 	resString, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var envelope responseEnvelope
 	if err := json.Unmarshal(resString, &envelope); err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -166,7 +305,7 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
 			if stringErr := json.Unmarshal(envelope.Data, &dataAsString); stringErr == nil {
-				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", apiResp.Code, dataAsString)
+				return nil, fmt.Errorf("[GET CURR SZN] imleagues returned non-object data payload: code=%d, message=%q", apiResp.Code, dataAsString)
 			}
 			return nil, fmt.Errorf("failed to parse schedule data object: %w", err)
 		}
@@ -183,28 +322,28 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context) ([]ScrapedG
 		games[i].LeagueId = apiResp.Data.LeagueId
 		games[i].ExternalSource = EXTERNAL_SOURCE
 		games[i].HomeTeamId = apiResp.Data.Id
-		
+
 		s.gameIndex[games[i].ExternalId] = games[i]
+	}
+	if len(games) == 0 {
+		return []ScrapedGameSummary{}, nil
 	}
 	return games, nil
 }
 
-func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*ScrapedGame, error) {
+func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error) {
 	game, ok := s.gameIndex[externalId]
 	if !ok {
 		return nil, fmt.Errorf("game not found with external ID: %s. Was GetCurrentSeasonGames called first?", externalId)
 	}
 	req_body := map[string]any{
-		"entityType":     "league",
-		"entityId":       game.LeagueId,
-		"gameId":         fmt.Sprintf("%d", game.GameId),
-		"gameType":       fmt.Sprintf("%d", game.GameType),
-		"pageType":       "League",
-		"clientVersion":  "574",
-		"isMobileDevice": false,
-		"isSSO":          false,
-		"cachedKey":      nil,
-		"clientType":     0,
+		"entityType": "league",
+		"entityId":   game.LeagueId,
+		"gameId":     fmt.Sprintf("%d", game.GameId),
+		"gameType":   fmt.Sprintf("%d", game.GameType),
+		"pageType":   "League",
+		//"clientVersion":  "574",
+		"clientType": 10,
 	}
 
 	payload, err := json.Marshal(req_body)
@@ -226,29 +365,32 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
 		"Referer":      fmt.Sprintf("%s/%s", IM_LEAGUES_URL, game.GameUrl),
-		"Cookie":       COOKIES,
+		"Cookie":       s.cookies,
 	}
 
 	res, err := s.post(ctx, gameUrl, payload, headers)
 	if err != nil {
 		return nil, err
 	}
-	log.Println("API Response status:", res.StatusCode)
+
 	defer res.Body.Close()
 
 	resString, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var envelope responseEnvelope
 	if err := json.Unmarshal(resString, &envelope); err != nil {
-		fmt.Println(err)
 		return nil, err
 	} else if envelope.Code < 0 {
-		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
+		myErr := &ErrSessionExpired{
+			Msg:            string(envelope.Data),
+			RouteNamespace: "https://www.imleagues.com/spa/account/login",
+		}
+
+		return nil, myErr
 	}
 
 	apiResp := ViewGameResponse{}
@@ -256,7 +398,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
 			if stringErr := json.Unmarshal(envelope.Data, &dataAsString); stringErr == nil {
-				return nil, fmt.Errorf("imleagues returned non-object data payload: code=%d, message=%q", envelope.Code, dataAsString)
+				return nil, fmt.Errorf("[GET GAME DATA] imleagues returned non-object data payload: code=%d, message=%q", envelope.Code, dataAsString)
 			}
 			return nil, fmt.Errorf("failed to parse game data object: %w", err)
 		}
@@ -280,6 +422,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 		apiData.Team1MemberAttendanceList,
 		apiData.Team1StatsHTML,
 		gameKickoff,
+		apiData.Team1Id,
 	)
 	if err != nil {
 		return nil, err
@@ -290,24 +433,31 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 		apiData.Team2MemberAttendanceList,
 		apiData.Team2StatsHTML,
 		gameKickoff,
+		apiData.Team2Id,
 	)
 	if err != nil {
 		return nil, err
 	}
 	players = append(players, team2...)
 
-	gameData := &ScrapedGame{
-		ExternalId:     apiResp.Data.Id,
-		ExternalSource: EXTERNAL_SOURCE,
-		HomeTeamName:   apiResp.Data.Team1Name,
-		AwayTeamName:   apiResp.Data.Team2Name,
-		KickoffTime:    gameKickoff,
+	for i := range players {
+		players[i].ExternalSource = EXTERNAL_SOURCE
+	}
+
+	gameData := &ScrapedGameDetails{
+		ExternalId:      fmt.Sprintf("%d", game.GameId),
+		ExternalSource:  EXTERNAL_SOURCE,
+		HomeTeamName:    apiResp.Data.Team1Name,
+		HomeTeamId:      apiResp.Data.Team1Id,
+		AwayTeamName:    apiResp.Data.Team2Name,
+		AwayTeamId:      apiResp.Data.Team2Id,
+		KickoffTime:     gameKickoff,
 		GameResultScore: game.GameResultScore,
 		GameResultStr:   game.GameResultStr,
-		GameCancelled:  apiData.CancelledGame,
-		GameCompleted:  apiData.CompletedGame,
-		Status:         apiData.CompletedGame || apiData.CancelledGame,
-		Players:        players,
+		GameCancelled:   apiData.CancelledGame,
+		GameCompleted:   apiData.CompletedGame,
+		Status:          apiData.CompletedGame || apiData.CancelledGame,
+		Players:         players,
 	}
 
 	return gameData, nil
@@ -315,10 +465,10 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 
 func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error) {
 	req_body := map[string]any{
-		"entityType":     "member",
-		"pageType":       "Member",
-		"entityId":       playerId,
-		"clientVersion":  "574",
+		"entityType": "member",
+		"pageType":   "Member",
+		"entityId":   playerId,
+		//"clientVersion":  "574",
 		"isMobileDevice": false,
 		"isSSO":          false,
 		"cachedKey":      nil,
@@ -344,7 +494,7 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
 		"Referer":      fmt.Sprintf("%s/spa/member/%s/player", IM_LEAGUES_URL, playerId),
-		"Cookie":       COOKIES,
+		"Cookie":       s.cookies,
 	}
 	res, err := s.post(ctx, player_info_url, payload, headers)
 
@@ -369,6 +519,11 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
 	}
 
+	// Detect privacy before touching apiResp.Data — for private profiles
+	if isPrivateResponse(envelope) {
+		return nil, ErrPlayerPrivate
+	}
+
 	apiResp := ViewPlayerResponse{}
 	if len(envelope.Data) > 0 && string(envelope.Data) != "null" {
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
@@ -389,6 +544,5 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 	info.PlayerId = id.Get("player")
 	info.ExternalId = info.PlayerId
 	info.ExternalSource = EXTERNAL_SOURCE
-
 	return &info, nil
 }
