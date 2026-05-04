@@ -138,11 +138,9 @@ const (
 
 // helper local to scraper pkg
 func isPrivateResponse(env responseEnvelope) bool {
-	// Shape A: envelope-level (the one panicking now)
 	if env.Code == 99 && env.Message != nil && strs.Contains(*env.Message, "private") {
 		return true
 	}
-	// Shape B: data-level (the one in private_player.json)
 	if len(env.Data) > 0 && string(env.Data) != "null" {
 		var probe struct {
 			Code    *int    `json:"code"`
@@ -247,7 +245,7 @@ func (s *IMLeagueScraper) GetLeagueTeams(ctx context.Context) ([]ScrapedTeamItem
 			res = append(res, div.Teams...)
 		}
 	}
-	//log.Println("Total teams extracted:", len(res))
+
 	return res, nil
 }
 
@@ -391,7 +389,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 			Msg:            string(envelope.Data),
 			RouteNamespace: "https://www.imleagues.com/spa/account/login",
 		}
-		//fmt.Errorf("API error: %s", string(envelope.Data))
+
 		return nil, myErr
 	}
 
@@ -522,8 +520,6 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 	}
 
 	// Detect privacy before touching apiResp.Data — for private profiles
-	// envelope.Data is empty and the privacy signal lives on the envelope,
-	// so any deref of inner fields would nil-panic.
 	if isPrivateResponse(envelope) {
 		return nil, ErrPlayerPrivate
 	}
