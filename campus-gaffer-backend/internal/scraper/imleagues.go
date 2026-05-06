@@ -65,9 +65,8 @@ const (
 )
 
 type IMLeagueScraper struct {
-	Client    *http.Client
-	gameIndex map[string]ScrapedGameSummary
-	cookies   string
+	Client  *http.Client
+	cookies string
 }
 
 func NewIMLeagueScraper(cookie string) *IMLeagueScraper {
@@ -75,8 +74,7 @@ func NewIMLeagueScraper(cookie string) *IMLeagueScraper {
 		Client: &http.Client{
 			Timeout: time.Second * 10,
 		},
-		gameIndex: make(map[string]ScrapedGameSummary),
-		cookies:   cookie,
+		cookies: cookie,
 	}
 }
 
@@ -141,7 +139,7 @@ func (s *IMLeagueScraper) extractPerformanceData(statsHTML string, kickoffTime t
 			name := strings.TrimSpace(row.
 				Find(".td-0").
 				AttrOr("title", ""))
-			
+
 			// Parse external player id from the anchor href: /Members/player_card.aspx?player=<id>
 			href := strings.TrimSpace(nameCell.Find("a").AttrOr("href", ""))
 			idParts := strings.Split(href, "player=")

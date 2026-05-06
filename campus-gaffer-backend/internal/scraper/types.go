@@ -82,20 +82,33 @@ type ScrapedGameSummary struct {
 }
 
 type ScrapedGameDetails struct {
-	ExternalId      string
-	ExternalSource  string
-	HomeTeamName    string
-	HomeTeamId      string
-	AwayTeamName    string
-	AwayTeamId      string
-	KickoffTime     time.Time
-	GameResultScore string
-	GameResultStr   string
-	GameCancelled   bool
-	GameCompleted   bool
-	Status          bool
-	Score           string
-	Players         []ScrapedPlayerStat
+	ExternalId     string
+	ExternalSource string
+	HomeTeamName   string
+	HomeTeamId     string
+	AwayTeamName   string
+	AwayTeamId     string
+	KickoffTime    time.Time
+	GameCancelled  bool
+	GameCompleted  bool
+	Status         bool
+	Score          string
+	Players        []ScrapedPlayerStat
+}
+
+// GameRef carries the routing data needed to fetch per-game stats from a
+// source. It is constructed from a persisted models.Game row and passed
+// into StatsScraper.GetGameData, replacing the implicit gameIndex
+// dependency on prior discovery.
+type GameRef struct {
+	ExternalId     string
+	ExternalSource string
+	// GameType is the source's per-game category code (e.g. IMLeagues
+	// regular vs. playoff). Persisted on Game as external_game_type.
+	GameType int16
+	// LeagueId is the source's league/competition handle. Persisted on
+	// Game as external_league_id.
+	LeagueId string
 }
 
 type LeagueData struct {

@@ -12,8 +12,6 @@ type Scraper interface {
 // any source-specific pagination or multi-team iteration is an
 // implementation detail hidden behind this interface.
 type DiscoveryScraper interface {
-	//Discover(ctx context.Context) ([]ScrapedGameSummary, error)
-	//Discover(ctx context.Context) (error)
 	GetLeagueTeams(ctx context.Context) ([]ScrapedTeamItem, error)
 	GetCurrentSeasonGames(ctx context.Context, teamId string) ([]ScrapedGameSummary, error)
 }
@@ -23,6 +21,7 @@ type DiscoveryScraper interface {
 // instance — implementations cache game routing metadata during discovery
 // and use it to build the per-game request.
 type StatsScraper interface {
-	GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error)
+	//GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error)
+	GetGameData(ctx context.Context, ref GameRef) (*ScrapedGameDetails, error)
 	GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error)
 }
