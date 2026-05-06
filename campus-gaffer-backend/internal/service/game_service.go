@@ -70,6 +70,8 @@ func toGame(game scraper.ScrapedGameSummary) models.Game {
 	return models.Game{
 		ExternalGameId:     game.ExternalId,
 		ExternalSource:     game.ExternalSource,
+		ExternalGameType:   int16(game.GameType),
+		ExternalLeagueId:   game.LeagueId,
 		HomeTeamExternalId: game.HomeTeamId,
 		AwayTeamExternalId: game.OpponentTeamId,
 		Status:             normaliseStatus(game.GameResultScore),
