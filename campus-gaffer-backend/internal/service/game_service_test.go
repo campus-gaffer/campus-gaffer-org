@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -15,6 +16,10 @@ import (
 type MockGameRepository struct {
 	upsertCalls []models.Game
 	upsertErr   error
+	// unscraped is what FindUnscraped returns (used by ProcessCompletedGames tests).
+	unscraped []models.Game
+	// markScrapedIds records each MarkScraped call.
+	markScrapedIds []uuid.UUID
 }
 
 func (m *MockGameRepository) Upsert(ctx context.Context, game *models.Game) (*models.Game, error) {
@@ -22,15 +27,18 @@ func (m *MockGameRepository) Upsert(ctx context.Context, game *models.Game) (*mo
 		return nil, m.upsertErr
 	}
 	m.upsertCalls = append(m.upsertCalls, *game)
-	game.Id = uuid.New()
+	if game.Id == uuid.Nil {
+		game.Id = uuid.New()
+	}
 	return game, nil
 }
 
 func (m *MockGameRepository) FindUnscraped(ctx context.Context) ([]models.Game, error) {
-	return nil, nil
+	return m.unscraped, nil
 }
 
 func (m *MockGameRepository) MarkScraped(ctx context.Context, gameId uuid.UUID) error {
+	m.markScrapedIds = append(m.markScrapedIds, gameId)
 	return nil
 }
 
@@ -39,9 +47,12 @@ func (m *MockGameRepository) FindByExternalId(ctx context.Context, externalId, e
 }
 
 // MockPerformanceRepository mocks the PerformanceRepository for testing.
-type MockPerformanceRepository struct{}
+type MockPerformanceRepository struct {
+	upsertCalls []models.PlayerPerformance
+}
 
 func (m *MockPerformanceRepository) Upsert(ctx context.Context, perf *models.PlayerPerformance) (*models.PlayerPerformance, error) {
+	m.upsertCalls = append(m.upsertCalls, *perf)
 	return perf, nil
 }
 
@@ -50,15 +61,23 @@ func (m *MockPerformanceRepository) FindByGameIdAndPlayerId(ctx context.Context,
 }
 
 // MockPlayerRepository mocks the PlayerRepository for testing.
-type MockPlayerRepository struct{}
+type MockPlayerRepository struct {
+	// existing is consulted by FindByExternalID — keys are ExternalPlayerId.
+	existing    map[string]*models.Player
+	upsertCalls []models.Player
+}
 
 func (m *MockPlayerRepository) Upsert(ctx context.Context, player *models.Player) (*models.Player, error) {
+	m.upsertCalls = append(m.upsertCalls, *player)
 	player.Id = uuid.New()
 	return player, nil
 }
 
 func (m *MockPlayerRepository) FindByExternalID(ctx context.Context, externalId string) *models.Player {
-	return nil
+	if m.existing == nil {
+		return nil
+	}
+	return m.existing[externalId]
 }
 
 // MockTeamRepository mocks the TeamRepository for testing.
@@ -341,5 +360,220 @@ func TestSyncGames_MapsTeamIds(t *testing.T) {
 	}
 	if game.AwayTeamExternalId != "away-456" {
 		t.Errorf("expected AwayTeamExternalId 'away-456', got %s", game.AwayTeamExternalId)
+	}
+}
+
+// --- ProcessCompletedGames tests ---------------------------------------
+//
+// These tests exercise the player-enrichment branches in ProcessCompletedGames.
+// The four scenarios are listed in issue #20 and are the biggest coverage gap
+// at the time of the GameRef refactor.
+
+// processTestGame returns an unscraped Completed game with the routing fields
+// populated (mirroring what SyncGames would have written).
+func processTestGame() models.Game {
+	return models.Game{
+		Id:                 uuid.New(),
+		ExternalGameId:     "g-1",
+		ExternalSource:     "imleagues",
+		ExternalGameType:   0,
+		ExternalLeagueId:   "league-1",
+		HomeTeamExternalId: "home-team",
+		AwayTeamExternalId: "away-team",
+		Status:             "Completed",
+	}
+}
+
+// processTestDetails returns the ScrapedGameDetails the FakeScraper will hand
+// back for "g-1", parameterised on the player stat slice so each test can
+// shape the player set without rebuilding the whole fixture.
+func processTestDetails(players []scraper.ScrapedPlayerStat) *scraper.ScrapedGameDetails {
+	return &scraper.ScrapedGameDetails{
+		ExternalId:     "g-1",
+		ExternalSource: "imleagues",
+		HomeTeamName:   "Home FC",
+		HomeTeamId:     "home-team",
+		AwayTeamName:   "Away FC",
+		AwayTeamId:     "away-team",
+		KickoffTime:    time.Now(),
+		GameCompleted:  true,
+		Players:        players,
+	}
+}
+
+func newProcessTestService(
+	gameRepo *MockGameRepository,
+	playerRepo *MockPlayerRepository,
+	perfRepo *MockPerformanceRepository,
+	teamRepo *MockTeamRepository,
+	fake *scraper.FakeScraper,
+) *gameService {
+	return &gameService{
+		discovery:  &MockDiscoveryScraper{},
+		stats:      fake,
+		gameRepo:   gameRepo,
+		perfRepo:   perfRepo,
+		playerRepo: playerRepo,
+		teamRepo:   teamRepo,
+	}
+}
+
+// TestProcessCompletedGames_CacheHitSkipsPlayerEnrichment verifies that when
+// a player is already in the repo, GetPlayerData is not called and the
+// existing record is reused — the cache-hit fast path. The performance row
+// is still upserted since stats fetching is independent of player enrichment.
+func TestProcessCompletedGames_CacheHitSkipsPlayerEnrichment(t *testing.T) {
+	game := processTestGame()
+	gameRepo := &MockGameRepository{unscraped: []models.Game{game}}
+
+	existing := &models.Player{Id: uuid.New(), ExternalPlayerId: "p-1", Name: "Existing Player"}
+	playerRepo := &MockPlayerRepository{
+		existing: map[string]*models.Player{"p-1": existing},
+	}
+	perfRepo := &MockPerformanceRepository{}
+	teamRepo := &MockTeamRepository{}
+
+	fake := scraper.NewFakeScraper()
+	fake.Stats["g-1"] = processTestDetails([]scraper.ScrapedPlayerStat{
+		{ExternalPlayerID: "p-1", ExternalSource: "imleagues", ExternalTeamID: "home-team", Goals: 1, GamePlayed: true},
+	})
+
+	svc := newProcessTestService(gameRepo, playerRepo, perfRepo, teamRepo, fake)
+
+	if err := svc.ProcessCompletedGames(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if calls := fake.PlayerDataCalls["p-1"]; calls != 0 {
+		t.Errorf("expected 0 GetPlayerData calls for cached player, got %d", calls)
+	}
+	if len(playerRepo.upsertCalls) != 0 {
+		t.Errorf("expected 0 player Upserts on cache hit, got %d", len(playerRepo.upsertCalls))
+	}
+	if len(perfRepo.upsertCalls) != 1 {
+		t.Errorf("expected 1 performance Upsert, got %d", len(perfRepo.upsertCalls))
+	}
+}
+
+// TestProcessCompletedGames_PrivatePlayerSavedAsIsPrivate verifies that when
+// GetPlayerData returns ErrPlayerPrivate, the player is persisted with
+// IsPrivate=true so subsequent runs don't re-enrich (and don't burn the
+// session on a profile we know we can't read).
+func TestProcessCompletedGames_PrivatePlayerSavedAsIsPrivate(t *testing.T) {
+	game := processTestGame()
+	gameRepo := &MockGameRepository{unscraped: []models.Game{game}}
+	playerRepo := &MockPlayerRepository{}
+	perfRepo := &MockPerformanceRepository{}
+	teamRepo := &MockTeamRepository{}
+
+	fake := scraper.NewFakeScraper()
+	fake.Stats["g-1"] = processTestDetails([]scraper.ScrapedPlayerStat{
+		{ExternalPlayerID: "p-private", ExternalSource: "imleagues", ExternalTeamID: "home-team", Name: "Hidden", Goals: 0},
+	})
+	fake.PlayerDataErr = scraper.ErrPlayerPrivate
+
+	svc := newProcessTestService(gameRepo, playerRepo, perfRepo, teamRepo, fake)
+
+	if err := svc.ProcessCompletedGames(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(playerRepo.upsertCalls) != 1 {
+		t.Fatalf("expected 1 player Upsert, got %d", len(playerRepo.upsertCalls))
+	}
+	saved := playerRepo.upsertCalls[0]
+	if !saved.IsPrivate {
+		t.Errorf("expected saved player to have IsPrivate=true, got false")
+	}
+	if saved.ExternalPlayerId != "p-private" {
+		t.Errorf("expected ExternalPlayerId 'p-private', got %q", saved.ExternalPlayerId)
+	}
+	if saved.Name != "Hidden" {
+		t.Errorf("expected Name from scrape context 'Hidden', got %q", saved.Name)
+	}
+	if len(perfRepo.upsertCalls) != 1 {
+		t.Errorf("expected 1 performance Upsert, got %d", len(perfRepo.upsertCalls))
+	}
+}
+
+// TestProcessCompletedGames_TransientPlayerErrorPersistsScrapeContext verifies
+// that a transient (non-classified) GetPlayerData failure persists the player
+// using the scrape context with IsPrivate=false, so the next run can retry
+// the enrichment path. The performance row must still land — we never let
+// player-side issues drop a goalscorer.
+func TestProcessCompletedGames_TransientPlayerErrorPersistsScrapeContext(t *testing.T) {
+	game := processTestGame()
+	gameRepo := &MockGameRepository{unscraped: []models.Game{game}}
+	playerRepo := &MockPlayerRepository{}
+	perfRepo := &MockPerformanceRepository{}
+	teamRepo := &MockTeamRepository{}
+
+	fake := scraper.NewFakeScraper()
+	fake.Stats["g-1"] = processTestDetails([]scraper.ScrapedPlayerStat{
+		{ExternalPlayerID: "p-flaky", ExternalSource: "imleagues", ExternalTeamID: "home-team", Name: "Flaky McNet", Goals: 2, GamePlayed: true},
+	})
+	fake.PlayerDataErr = errors.New("temporary network failure")
+
+	svc := newProcessTestService(gameRepo, playerRepo, perfRepo, teamRepo, fake)
+
+	if err := svc.ProcessCompletedGames(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(playerRepo.upsertCalls) != 1 {
+		t.Fatalf("expected 1 player Upsert, got %d", len(playerRepo.upsertCalls))
+	}
+	saved := playerRepo.upsertCalls[0]
+	if saved.IsPrivate {
+		t.Errorf("expected IsPrivate=false for transient error so retries can re-enrich")
+	}
+	if saved.Name != "Flaky McNet" {
+		t.Errorf("expected name from scrape context 'Flaky McNet', got %q", saved.Name)
+	}
+	if saved.ExternalPlayerId != "p-flaky" {
+		t.Errorf("expected ExternalPlayerId 'p-flaky', got %q", saved.ExternalPlayerId)
+	}
+	if len(perfRepo.upsertCalls) != 1 {
+		t.Errorf("expected 1 performance Upsert, got %d", len(perfRepo.upsertCalls))
+	}
+}
+
+// TestProcessCompletedGames_SessionExpiredHaltsProcessing verifies that an
+// ErrSessionExpired bubbles up from ProcessCompletedGames immediately —
+// continuing would burn quota on a dead session. No player or performance
+// row should be persisted past the failure point.
+func TestProcessCompletedGames_SessionExpiredHaltsProcessing(t *testing.T) {
+	game := processTestGame()
+	gameRepo := &MockGameRepository{unscraped: []models.Game{game}}
+	playerRepo := &MockPlayerRepository{}
+	perfRepo := &MockPerformanceRepository{}
+	teamRepo := &MockTeamRepository{}
+
+	fake := scraper.NewFakeScraper()
+	fake.Stats["g-1"] = processTestDetails([]scraper.ScrapedPlayerStat{
+		{ExternalPlayerID: "p-1", ExternalSource: "imleagues", ExternalTeamID: "home-team"},
+		{ExternalPlayerID: "p-2", ExternalSource: "imleagues", ExternalTeamID: "away-team"},
+	})
+	fake.PlayerDataErr = &scraper.ErrSessionExpired{Msg: "session timed out", RouteNamespace: "/login"}
+
+	svc := newProcessTestService(gameRepo, playerRepo, perfRepo, teamRepo, fake)
+
+	err := svc.ProcessCompletedGames(context.Background())
+	if err == nil {
+		t.Fatal("expected ErrSessionExpired, got nil")
+	}
+	if !errors.Is(err, &scraper.ErrSessionExpired{}) {
+		t.Errorf("expected ErrSessionExpired, got: %v", err)
+	}
+
+	// Nothing should persist past the session-expiry signal.
+	if len(playerRepo.upsertCalls) != 0 {
+		t.Errorf("expected 0 player Upserts on session expiry, got %d", len(playerRepo.upsertCalls))
+	}
+	if len(perfRepo.upsertCalls) != 0 {
+		t.Errorf("expected 0 performance Upserts on session expiry, got %d", len(perfRepo.upsertCalls))
+	}
+	if len(gameRepo.markScrapedIds) != 0 {
+		t.Errorf("expected MarkScraped not called on session expiry, got %d calls", len(gameRepo.markScrapedIds))
 	}
 }
