@@ -165,7 +165,6 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId stri
 		"Accept-Language": "en-US,en;q=0.8",
 		"User-Agent":      USER_AGENT,
 		"Origin":          IM_LEAGUES_URL,
-		"Referer":         fmt.Sprintf("%s/spa/team/%s/home", IM_LEAGUES_URL, TEAM_ID),
 		"Cookie":          s.cookies,
 	}
 
@@ -186,13 +185,7 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId stri
 		return nil, err
 	}
 
-	apiResp := Schedule{
-		responseEnvelope: responseEnvelope{
-			IsDone: envelope.IsDone,
-			Code:   envelope.Code,
-		},
-	}
-
+	var apiResp Schedule
 	if len(envelope.Data) > 0 && string(envelope.Data) != "null" {
 		if err := json.Unmarshal(envelope.Data, &apiResp.Data); err != nil {
 			var dataAsString string
@@ -214,8 +207,6 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId stri
 		games[i].LeagueId = apiResp.Data.LeagueId
 		games[i].ExternalSource = EXTERNAL_SOURCE
 		games[i].HomeTeamId = apiResp.Data.Id
-
-		s.gameIndex[games[i].ExternalId] = games[i]
 	}
 	if len(games) == 0 {
 		return []ScrapedGameSummary{}, nil
@@ -223,18 +214,13 @@ func (s *IMLeagueScraper) GetCurrentSeasonGames(ctx context.Context, teamId stri
 	return games, nil
 }
 
-func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error) {
-	game, ok := s.gameIndex[externalId]
-	if !ok {
-		return nil, fmt.Errorf("game not found with external ID: %s. Was GetCurrentSeasonGames called first?", externalId)
-	}
+func (s *IMLeagueScraper) GetGameData(ctx context.Context, ref GameRef) (*ScrapedGameDetails, error) {
 	req_body := map[string]any{
 		"entityType": "league",
-		"entityId":   game.LeagueId,
-		"gameId":     fmt.Sprintf("%d", game.GameId),
-		"gameType":   fmt.Sprintf("%d", game.GameType),
+		"entityId":   ref.LeagueId,
+		"gameId":     ref.ExternalId,
+		"gameType":   fmt.Sprintf("%d", ref.GameType),
 		"pageType":   "League",
-		//"clientVersion":  "574",
 		"clientType": 10,
 	}
 
@@ -248,15 +234,14 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 		"class=imLeagues.Web.Members.Services.BO.League.ViewGameBO&"+
 		"method=Initialize&"+
 		"paramType=imLeagues.Internal.API.VO.Input.League.ViewGameInVO&"+
-		"urlReferrer=https://www.imleagues.com/spa/league/%s/viewgame?gameId=%d&gameType=%d",
-		IM_LEAGUES_URL, game.LeagueId, game.GameId, game.GameType)
+		"urlReferrer=https://www.imleagues.com/spa/league/%s/viewgame?gameId=%s&gameType=%d",
+		IM_LEAGUES_URL, ref.LeagueId, ref.ExternalId, ref.GameType)
 
 	headers := map[string]string{
 		"Accept":       "application/json, text/plain, */*",
 		"Content-Type": "application/json;charset=UTF-8",
 		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
-		"Referer":      fmt.Sprintf("%s/%s", IM_LEAGUES_URL, game.GameUrl),
 		"Cookie":       s.cookies,
 	}
 
@@ -268,7 +253,6 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 	defer res.Body.Close()
 
 	resString, err := io.ReadAll(res.Body)
-
 	if err != nil {
 		return nil, err
 	}
@@ -303,10 +287,10 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 
 	gameKickoff, err := parseKickoffTime(apiData.KickoffTime, apiData.FacilityLat, apiData.FacilityLon)
 	if err != nil {
-		log.Printf("warning: failed to parse game kickoff time for gameId=%d, gameType=%d", game.GameId, game.GameType)
+		log.Printf("warning: failed to parse game kickoff time for gameId=%s, gameType=%d", ref.ExternalId, ref.GameType)
 	}
 	if gameKickoff.IsZero() {
-		log.Printf("warning: game kickoff time is zero for gameId=%d, gameType=%d", game.GameId, game.GameType)
+		log.Printf("warning: game kickoff time is zero for gameId=%s, gameType=%d", ref.ExternalId, ref.GameType)
 	}
 
 	players := make([]ScrapedPlayerStat, 0, 30)
@@ -337,19 +321,17 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 	}
 
 	gameData := &ScrapedGameDetails{
-		ExternalId:      fmt.Sprintf("%d", game.GameId),
-		ExternalSource:  EXTERNAL_SOURCE,
-		HomeTeamName:    apiResp.Data.Team1Name,
-		HomeTeamId:      apiResp.Data.Team1Id,
-		AwayTeamName:    apiResp.Data.Team2Name,
-		AwayTeamId:      apiResp.Data.Team2Id,
-		KickoffTime:     gameKickoff,
-		GameResultScore: game.GameResultScore,
-		GameResultStr:   game.GameResultStr,
-		GameCancelled:   apiData.CancelledGame,
-		GameCompleted:   apiData.CompletedGame,
-		Status:          apiData.CompletedGame || apiData.CancelledGame,
-		Players:         players,
+		ExternalId:     ref.ExternalId,
+		ExternalSource: EXTERNAL_SOURCE,
+		HomeTeamName:   apiResp.Data.Team1Name,
+		HomeTeamId:     apiResp.Data.Team1Id,
+		AwayTeamName:   apiResp.Data.Team2Name,
+		AwayTeamId:     apiResp.Data.Team2Id,
+		KickoffTime:    gameKickoff,
+		GameCancelled:  apiData.CancelledGame,
+		GameCompleted:  apiData.CompletedGame,
+		Status:         apiData.CompletedGame || apiData.CancelledGame,
+		Players:        players,
 	}
 
 	return gameData, nil
@@ -357,10 +339,9 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, externalId string) (*
 
 func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*ScrapedPlayerInfo, error) {
 	req_body := map[string]any{
-		"entityType": "member",
-		"pageType":   "Member",
-		"entityId":   playerId,
-		//"clientVersion":  "574",
+		"entityType":     "member",
+		"pageType":       "Member",
+		"entityId":       playerId,
 		"isMobileDevice": false,
 		"isSSO":          false,
 		"cachedKey":      nil,
@@ -385,7 +366,6 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		"Content-Type": "application/json;charset=UTF-8",
 		"User-Agent":   USER_AGENT,
 		"Origin":       IM_LEAGUES_URL,
-		"Referer":      fmt.Sprintf("%s/spa/member/%s/player", IM_LEAGUES_URL, playerId),
 		"Cookie":       s.cookies,
 	}
 	res, err := s.post(ctx, player_info_url, payload, headers)

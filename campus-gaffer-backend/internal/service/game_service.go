@@ -155,7 +155,13 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 	}
 	skipped := 0
 	for _, game := range unscraped {
-		scraped, err := svc.stats.GetGameData(ctx, game.ExternalGameId)
+		ref := scraper.GameRef{
+			ExternalId:     game.ExternalGameId,
+			ExternalSource: game.ExternalSource,
+			GameType:       game.ExternalGameType,
+			LeagueId:       game.ExternalLeagueId,
+		}
+		scraped, err := svc.stats.GetGameData(ctx, ref)
 		if err != nil {
 			log.Printf("Failed to fetch stats for %s, %v", game.ExternalGameId, err)
 			skipped++
@@ -254,7 +260,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 			}
 		}
 		log.Printf("info: skipped %d players in game %s", skipped, game.ExternalGameId)
-		if skipped == 0 {	
+		if skipped == 0 {
 			if err := svc.gameRepo.MarkScraped(ctx, game.Id); err != nil {
 				return fmt.Errorf("ProcessCompletedGames: mark scraped %w", err)
 			}

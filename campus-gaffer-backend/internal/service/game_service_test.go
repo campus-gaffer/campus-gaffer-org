@@ -87,7 +87,7 @@ func (m *MockDiscoveryScraper) GetCurrentSeasonGames(ctx context.Context, teamId
 // MockStatsScraper mocks the StatsScraper for testing.
 type MockStatsScraper struct{}
 
-func (m *MockStatsScraper) GetGameData(ctx context.Context, externalId string) (*scraper.ScrapedGameDetails, error) {
+func (m *MockStatsScraper) GetGameData(ctx context.Context, ref scraper.GameRef) (*scraper.ScrapedGameDetails, error) {
 	return nil, nil
 }
 
