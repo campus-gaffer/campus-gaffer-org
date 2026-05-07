@@ -3,6 +3,7 @@ package main
 import (
 	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
+	"campus-gaffer-backend/internal/pipeline"
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/scraper"
 	"campus-gaffer-backend/internal/service"
@@ -27,27 +28,9 @@ func main() {
 		repository.NewPlayerRepo(db),
 		repository.NewTeamRepo(db),
 	)
-	teams, err := s.GetLeagueTeams(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Collect across teams first; each fixture appears in both the home and
-	// away team's feed, so SyncGames must dedupe across the full payload.
-	var allGames []scraper.ScrapedGameSummary
-	for _, team := range teams {
-		games, err := s.GetCurrentSeasonGames(ctx, team.TeamId)
-		if err != nil {
-			log.Fatal(err)
-		}
-		allGames = append(allGames, games...)
-	}
-	if err := svc.SyncGames(ctx, allGames); err != nil {
-		log.Fatal(err)
-	}
 
-	if err := svc.ProcessCompletedGames(ctx); err != nil {
+	if err := pipeline.NewRunner(s, svc).Run(ctx); err != nil {
 		log.Fatal(err)
 	}
-
 	log.Println("scraping complete")
 }
