@@ -31,15 +31,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Collect across teams first; each fixture appears in both the home and
+	// away team's feed, so SyncGames must dedupe across the full payload.
+	var allGames []scraper.ScrapedGameSummary
 	for _, team := range teams {
 		games, err := s.GetCurrentSeasonGames(ctx, team.TeamId)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		if err := svc.SyncGames(ctx, games); err != nil {
-			log.Fatal(err)
-		}
+		allGames = append(allGames, games...)
+	}
+	if err := svc.SyncGames(ctx, allGames); err != nil {
+		log.Fatal(err)
 	}
 
 	if err := svc.ProcessCompletedGames(ctx); err != nil {

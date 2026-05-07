@@ -153,7 +153,6 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ProcessCompletedGames: find unscraped %w", err)
 	}
-	skipped := 0
 	for _, game := range unscraped {
 		ref := scraper.GameRef{
 			ExternalId:     game.ExternalGameId,
@@ -164,9 +163,12 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 		scraped, err := svc.stats.GetGameData(ctx, ref)
 		if err != nil {
 			log.Printf("Failed to fetch stats for %s, %v", game.ExternalGameId, err)
-			skipped++
 			continue
 		}
+		// Per-game counter — gates MarkScraped so a single failed player
+		// keeps this game in the unscraped pool for retry, but doesn't
+		// poison subsequent games in the batch.
+		skippedPlayers := 0
 
 		homeTeam := toTeam(scraped.HomeTeamId, scraped.ExternalSource, scraped.HomeTeamName)
 		savedHome, err := svc.teamRepo.Upsert(ctx, &homeTeam)
@@ -203,6 +205,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 		for _, stat := range scraped.Players {
 			if stat.ExternalPlayerID == "" {
 				log.Printf("Skipping %s in game %s due to missing ExternalPlayerID", stat.Name, game.ExternalGameId)
+				skippedPlayers++
 				continue // skip players with no external ID - we won't be able to link them to performances
 			}
 
@@ -245,6 +248,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 				saved, err := svc.playerRepo.Upsert(ctx, &player)
 				if err != nil {
 					log.Printf("Failed to upsert player %s, %v", player.ExternalPlayerId, err)
+					skippedPlayers++
 					continue
 				}
 				savedPlayer = saved
@@ -256,11 +260,12 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 			performance := toPerformance(stat, game.Id, savedPlayer.Id, teamId)
 			if _, err := svc.perfRepo.Upsert(ctx, &performance); err != nil {
 				log.Printf("Failed to upsert performance for player %s in game %s, %v", savedPlayer.ExternalPlayerId, game.ExternalGameId, err)
+				skippedPlayers++
 				continue
 			}
 		}
-		log.Printf("info: skipped %d players in game %s", skipped, game.ExternalGameId)
-		if skipped == 0 {
+		log.Printf("info: skipped %d players in game %s", skippedPlayers, game.ExternalGameId)
+		if skippedPlayers == 0 {
 			if err := svc.gameRepo.MarkScraped(ctx, game.Id); err != nil {
 				return fmt.Errorf("ProcessCompletedGames: mark scraped %w", err)
 			}
