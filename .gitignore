@@ -19,3 +19,6 @@ __pycache__/
 
 # Dev files
 data/*.cleaned.*
+
+# LocalStack deployment artifacts
+dist/
