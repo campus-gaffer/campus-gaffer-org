@@ -3,6 +3,11 @@
 .vscode/
 .env
 
+# Local artifacts
+go.work
+go.work.sum
+
+
 # Design documents
 campus_gaffer_design*.pdf
 campus_gaffer_design*.docx
