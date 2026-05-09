@@ -1,16 +1,21 @@
 package main
 
 import (
-	"github.com/joho/godotenv"
+	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
-	"campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/handlers"
+	"campus-gaffer-backend/internal/models"
+	"log"
+
 	"github.com/gin-gonic/gin"
 )
 
 func main(){
-	godotenv.Load()
-	database.Connect()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	database.Connect(cfg.DBUri)
 
 	database.DB.AutoMigrate(&models.User{})
 
