@@ -165,7 +165,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 			log.Printf("Failed to fetch stats for %s, %v", game.ExternalGameId, err)
 			continue
 		}
-		// Per-game counter — gates MarkScraped so a single failed player
+		// Per-game counter gates MarkScraped so a single failed player
 		// keeps this game in the unscraped pool for retry, but doesn't
 		// poison subsequent games in the batch.
 		skippedPlayers := 0
@@ -184,6 +184,14 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 
 		kickoff := scraped.KickoffTime
 		game.KickoffTime = &kickoff
+
+		// Lift forfeit signal from the scraper DTO onto the domain model.
+		// "" means no forfeit, leave Game.ForfeitedBy nil so the scoring
+		// service treats this as a normal game.
+		if scraped.ForfeitedBy != "" {
+			f := scraped.ForfeitedBy
+			game.ForfeitedBy = &f
+		}
 
 		if _, err := svc.gameRepo.Upsert(ctx, &game); err != nil {
 			log.Printf("Failed to update kickoff time for game %s, %v", game.ExternalGameId, err)
@@ -213,7 +221,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 			existing := svc.playerRepo.FindByExternalID(ctx, stat.ExternalPlayerID)
 
 			if existing != nil {
-				// Cache hit: skip enrichment entirely. Idempotent — re-runs
+				// Cache hit: skip enrichment entirely. Idempotent, and re-runs
 				// don't burn API quota on players we've already seen.
 				savedPlayer = existing
 			} else {
@@ -254,8 +262,7 @@ func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 				savedPlayer = saved
 			}
 
-			// Always upsert the performance — never let player-side issues
-			// silently drop a goalscorer.
+			// Always upsert the performance
 			teamId := teamIdFor(stat.ExternalTeamID)
 			performance := toPerformance(stat, game.Id, savedPlayer.Id, teamId)
 			if _, err := svc.perfRepo.Upsert(ctx, &performance); err != nil {

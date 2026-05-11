@@ -17,6 +17,7 @@ type Game struct {
 	KickoffTime        *time.Time `gorm:"type:timestamptz;"`
 	Status             string     `gorm:"type:text;not null;default:'Scheduled'"`
 	IsScraped          bool       `gorm:"type:boolean;default:false;not null"`
+	ForfeitedBy        *string    `gorm:"type:text;column:forfeited_by"` // nil | "home" | "away"
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
