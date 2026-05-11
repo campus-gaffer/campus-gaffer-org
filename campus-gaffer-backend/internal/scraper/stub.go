@@ -16,12 +16,12 @@ type FakeScraper struct {
 	Stats   map[string]*ScrapedGameDetails // keyed by GameRef.ExternalId
 	Players map[string]*ScrapedPlayerInfo  // keyed by ExternalId (player)
 
-	// Error injection — when set, the corresponding method returns this error
+	// Error injection, when set, the corresponding method returns this error
 	// instead of fixture data.
 	GameDataErr   error
 	PlayerDataErr error
 
-	// Call counters — assert how many times each method was invoked.
+	// Call counters, assert how many times each method was invoked.
 	GameDataCalls   map[string]int // keyed by GameRef.ExternalId
 	PlayerDataCalls map[string]int // keyed by playerId
 }
