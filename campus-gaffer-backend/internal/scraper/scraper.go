@@ -2,7 +2,7 @@ package scraper
 
 import "context"
 
-// Scraper is the base marker interface — all scrapers have a name.
+// Scraper is the base marker interface
 type Scraper interface {
 	Name() string
 }
@@ -18,8 +18,7 @@ type DiscoveryScraper interface {
 
 // StatsScraper fetches per-game statistics and player biographical data.
 // GetGameData requires that Discover has been called first on the same
-// instance — implementations cache game routing metadata during discovery
-// and use it to build the per-game request.
+// instance
 type StatsScraper interface {
 	//GetGameData(ctx context.Context, externalId string) (*ScrapedGameDetails, error)
 	GetGameData(ctx context.Context, ref GameRef) (*ScrapedGameDetails, error)

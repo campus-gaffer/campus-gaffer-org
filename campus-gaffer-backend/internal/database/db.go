@@ -1,6 +1,7 @@
 package database
 
 import (
+	// "campus-gaffer-backend/internal/models"
 	"log"
 	"os"
 
@@ -25,16 +26,17 @@ func Connect(db_uri string) *gorm.DB {
 		log.Fatal("Failed to connect to Neon")
 	}
 	log.Println("Connected to Neon")
-	//err = db.AutoMigrate(
-	//	&models.Game{},
-	//	&models.Player{},
-	//	&models.PlayerPerformance{},
-	//	&models.Team{},
-	//)
-	//if err != nil {
-	//	log.Fatal("Failed to automigrate")
-	//}
-	//log.Println("Successfully ran automigrate!")
+	// err = db.AutoMigrate(
+	// 	&models.Game{},
+	// 	&models.Player{},
+	// 	&models.PlayerPerformance{},
+	// 	&models.Team{},
+	// 	&models.PlayerGamePoint{},
+	// )
+	// if err != nil {
+	// 	log.Fatal("Failed to automigrate")
+	// }
+	// log.Println("Successfully ran automigrate!")
 	DB = db
 	return DB
 }

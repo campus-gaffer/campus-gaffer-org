@@ -38,14 +38,18 @@ func setup(ctx context.Context) error {
 
 		log.Println("lambda setup: building pipeline")
 		s := scraper.NewIMLeagueScraper(cfg.Cookies)
+		gameRepo := repository.NewGameRepo(db)
+		perfRepo := repository.NewPlayerPerfRepo(db)
+		pointsRepo := repository.NewPlayerGamePointRepo(db)
 		svc := service.NewGameService(
 			s, s,
-			repository.NewGameRepo(db),
-			repository.NewPlayerPerfRepo(db),
+			gameRepo,
+			perfRepo,
 			repository.NewPlayerRepo(db),
 			repository.NewTeamRepo(db),
 		)
-		runner = pipeline.NewRunner(s, svc)
+		scoring := service.NewScoringService(gameRepo, perfRepo, pointsRepo)
+		runner = pipeline.NewRunner(s, svc, scoring)
 		log.Println("lambda setup: ready")
 	})
 	return initErr

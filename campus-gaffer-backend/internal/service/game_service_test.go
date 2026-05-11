@@ -18,6 +18,8 @@ type MockGameRepository struct {
 	upsertErr   error
 	// unscraped is what FindUnscraped returns (used by ProcessCompletedGames tests).
 	unscraped []models.Game
+	// scraped is what FindScraped returns (used by ScoringService tests).
+	scraped []models.Game
 	// markScrapedIds records each MarkScraped call.
 	markScrapedIds []uuid.UUID
 }
@@ -46,9 +48,15 @@ func (m *MockGameRepository) FindByExternalId(ctx context.Context, externalId, e
 	return nil, nil
 }
 
+func (m *MockGameRepository) FindScraped(ctx context.Context) ([]models.Game, error) {
+	return m.scraped, nil
+}
+
 // MockPerformanceRepository mocks the PerformanceRepository for testing.
 type MockPerformanceRepository struct {
 	upsertCalls []models.PlayerPerformance
+	// byGameId is what FindByGameId returns (used by ScoringService tests).
+	byGameId map[uuid.UUID][]models.PlayerPerformance
 }
 
 func (m *MockPerformanceRepository) Upsert(ctx context.Context, perf *models.PlayerPerformance) (*models.PlayerPerformance, error) {
@@ -60,9 +68,34 @@ func (m *MockPerformanceRepository) FindByGameIdAndPlayerId(ctx context.Context,
 	return nil, nil
 }
 
+func (m *MockPerformanceRepository) FindByGameId(ctx context.Context, gameId uuid.UUID) ([]models.PlayerPerformance, error) {
+	if m.byGameId == nil {
+		return nil, nil
+	}
+	return m.byGameId[gameId], nil
+}
+
+// MockPlayerGamePointRepo mocks the PlayerGamePointRepo for testing.
+type MockPlayerGamePointRepo struct {
+	upsertCalls []models.PlayerGamePoint
+	upsertErr   error
+}
+
+func (m *MockPlayerGamePointRepo) Upsert(ctx context.Context, record *models.PlayerGamePoint) (*models.PlayerGamePoint, error) {
+	if m.upsertErr != nil {
+		return nil, m.upsertErr
+	}
+	m.upsertCalls = append(m.upsertCalls, *record)
+	return record, nil
+}
+
+func (m *MockPlayerGamePointRepo) FindById(ctx context.Context, id uuid.UUID) (*models.PlayerGamePoint, error) {
+	return nil, nil
+}
+
 // MockPlayerRepository mocks the PlayerRepository for testing.
 type MockPlayerRepository struct {
-	// existing is consulted by FindByExternalID — keys are ExternalPlayerId.
+	// existing is consulted by FindByExternalID, keys are ExternalPlayerId.
 	existing    map[string]*models.Player
 	upsertCalls []models.Player
 }
@@ -420,7 +453,7 @@ func newProcessTestService(
 
 // TestProcessCompletedGames_CacheHitSkipsPlayerEnrichment verifies that when
 // a player is already in the repo, GetPlayerData is not called and the
-// existing record is reused — the cache-hit fast path. The performance row
+// existing record is reused, the cache-hit fast path. The performance row
 // is still upserted since stats fetching is independent of player enrichment.
 func TestProcessCompletedGames_CacheHitSkipsPlayerEnrichment(t *testing.T) {
 	game := processTestGame()
@@ -499,7 +532,7 @@ func TestProcessCompletedGames_PrivatePlayerSavedAsIsPrivate(t *testing.T) {
 // TestProcessCompletedGames_TransientPlayerErrorPersistsScrapeContext verifies
 // that a transient (non-classified) GetPlayerData failure persists the player
 // using the scrape context with IsPrivate=false, so the next run can retry
-// the enrichment path. The performance row must still land — we never let
+// the enrichment path. The performance row must still land, we never let
 // player-side issues drop a goalscorer.
 func TestProcessCompletedGames_TransientPlayerErrorPersistsScrapeContext(t *testing.T) {
 	game := processTestGame()
@@ -539,7 +572,7 @@ func TestProcessCompletedGames_TransientPlayerErrorPersistsScrapeContext(t *test
 }
 
 // TestProcessCompletedGames_SessionExpiredHaltsProcessing verifies that an
-// ErrSessionExpired bubbles up from ProcessCompletedGames immediately —
+// ErrSessionExpired bubbles up from ProcessCompletedGames immediately
 // continuing would burn quota on a dead session. No player or performance
 // row should be persisted past the failure point.
 func TestProcessCompletedGames_SessionExpiredHaltsProcessing(t *testing.T) {

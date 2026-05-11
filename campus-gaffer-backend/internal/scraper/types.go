@@ -30,6 +30,11 @@ type ViewGameData struct {
 	Team2StatsHTML string `json:"team2PlayerStatsUC"`
 	Team1Score     string `json:"team1Result"`
 	Team2Score     string `json:"team2Result"`
+	// Team1FD / Team2FD signal a forfeit by the corresponding team.
+	// The fields are absent (omitempty) for normal games; when present,
+	// the typical value observed is "Forfeit".
+	Team1FD string `json:"team1FD,omitempty"`
+	Team2FD string `json:"team2FD,omitempty"`
 }
 
 type ViewGameResponse struct {
@@ -93,7 +98,10 @@ type ScrapedGameDetails struct {
 	GameCompleted  bool
 	Status         bool
 	Score          string
-	Players        []ScrapedPlayerStat
+	// ForfeitedBy: "" | "home" | "away". Derived from team1FD/team2FD
+	// presence in the IMLeagues response.
+	ForfeitedBy string
+	Players     []ScrapedPlayerStat
 }
 
 // GameRef carries the routing data needed to fetch per-game stats from a

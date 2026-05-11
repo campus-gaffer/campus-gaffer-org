@@ -51,6 +51,16 @@ func (f *fakeGameService) ProcessCompletedGames(_ context.Context) error {
 	return f.processErr
 }
 
+type fakeScoringService struct {
+	scoreErr   error
+	scoreCalls int
+}
+
+func (f *fakeScoringService) ScoreCompletedGames(_ context.Context) error {
+	f.scoreCalls++
+	return f.scoreErr
+}
+
 func teams(ids ...string) []scraper.ScrapedTeamItem {
 	out := make([]scraper.ScrapedTeamItem, len(ids))
 	for i, id := range ids {
@@ -77,7 +87,7 @@ func TestRunner_HappyPath(t *testing.T) {
 	}
 	svc := &fakeGameService{}
 
-	if err := NewRunner(d, svc).Run(context.Background()); err != nil {
+	if err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if svc.syncCalls != 1 {
@@ -104,7 +114,7 @@ func TestRunner_SingleTeamDiscoveryFails_RunContinues(t *testing.T) {
 	}
 	svc := &fakeGameService{}
 
-	if err := NewRunner(d, svc).Run(context.Background()); err != nil {
+	if err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if svc.syncCalls != 1 {
@@ -129,7 +139,7 @@ func TestRunner_AllTeamsFailDiscovery_ReturnsError(t *testing.T) {
 	}
 	svc := &fakeGameService{}
 
-	err := NewRunner(d, svc).Run(context.Background())
+	err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -148,7 +158,7 @@ func TestRunner_GetLeagueTeamsFails_ReturnsError(t *testing.T) {
 	d := &fakeDiscovery{teamsErr: errors.New("auth-expired")}
 	svc := &fakeGameService{}
 
-	err := NewRunner(d, svc).Run(context.Background())
+	err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -161,7 +171,7 @@ func TestRunner_NoTeams_NoOpSuccess(t *testing.T) {
 	d := &fakeDiscovery{teams: nil}
 	svc := &fakeGameService{}
 
-	if err := NewRunner(d, svc).Run(context.Background()); err != nil {
+	if err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if svc.syncCalls != 0 || svc.processCalls != 0 {
@@ -176,7 +186,7 @@ func TestRunner_SyncGamesFails_AbortsBeforeProcess(t *testing.T) {
 	}
 	svc := &fakeGameService{syncErr: errors.New("db-down")}
 
-	err := NewRunner(d, svc).Run(context.Background())
+	err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -192,7 +202,7 @@ func TestRunner_ProcessCompletedGamesFails_Surfaces(t *testing.T) {
 	}
 	svc := &fakeGameService{processErr: errors.New("session-expired")}
 
-	err := NewRunner(d, svc).Run(context.Background())
+	err := NewRunner(d, svc, &fakeScoringService{}).Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

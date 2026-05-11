@@ -21,15 +21,19 @@ func main() {
 	}
 	db := database.Connect(cfg.DBUri)
 	s := scraper.NewIMLeagueScraper(cfg.Cookies)
+	gameRepo := repository.NewGameRepo(db)
+	perfRepo := repository.NewPlayerPerfRepo(db)
+	pointsRepo := repository.NewPlayerGamePointRepo(db)
 	svc := service.NewGameService(
 		s, s,
-		repository.NewGameRepo(db),
-		repository.NewPlayerPerfRepo(db),
+		gameRepo,
+		perfRepo,
 		repository.NewPlayerRepo(db),
 		repository.NewTeamRepo(db),
 	)
+	scoring := service.NewScoringService(gameRepo, perfRepo, pointsRepo)
 
-	if err := pipeline.NewRunner(s, svc).Run(ctx); err != nil {
+	if err := pipeline.NewRunner(s, svc, scoring).Run(ctx); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("scraping complete")

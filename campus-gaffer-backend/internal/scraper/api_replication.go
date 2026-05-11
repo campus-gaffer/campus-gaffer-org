@@ -47,6 +47,20 @@ func isPrivateResponse(env responseEnvelope) bool {
 	return false
 }
 
+// toForfeitedBy maps the IMLeagues teamNFD signal to the ScrapedGameDetails
+// ForfeitedBy enum. Any non-empty teamNFD value indicates that team
+// forfeited the game (typical observed value: "Forfeit"). Returns "" for
+// normal games, the common case.
+func toForfeitedBy(team1FD, team2FD string) string {
+	if team1FD != "" {
+		return "home"
+	}
+	if team2FD != "" {
+		return "away"
+	}
+	return ""
+}
+
 func (s *IMLeagueScraper) GetLeaguesList(ctx context.Context) ([]ScrapedLeagueItem, error) {
 	req_body := map[string]any{
 		"entityType": "league",
@@ -331,6 +345,7 @@ func (s *IMLeagueScraper) GetGameData(ctx context.Context, ref GameRef) (*Scrape
 		GameCancelled:  apiData.CancelledGame,
 		GameCompleted:  apiData.CompletedGame,
 		Status:         apiData.CompletedGame || apiData.CancelledGame,
+		ForfeitedBy:    toForfeitedBy(apiData.Team1FD, apiData.Team2FD),
 		Players:        players,
 	}
 
@@ -391,7 +406,6 @@ func (s *IMLeagueScraper) GetPlayerData(ctx context.Context, playerId string) (*
 		return nil, fmt.Errorf("API error: %s", string(envelope.Data))
 	}
 
-	// Detect privacy before touching apiResp.Data — for private profiles
 	if isPrivateResponse(envelope) {
 		return nil, ErrPlayerPrivate
 	}

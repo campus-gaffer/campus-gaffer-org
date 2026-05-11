@@ -14,19 +14,18 @@ import (
 type Runner struct {
 	discovery scraper.DiscoveryScraper
 	games     service.GameService
+	scoring   service.ScoringService
 }
 
-func NewRunner(discovery scraper.DiscoveryScraper, games service.GameService) *Runner {
-	return &Runner{discovery: discovery, games: games}
+func NewRunner(discovery scraper.DiscoveryScraper, games service.GameService, scoring service.ScoringService) *Runner {
+	return &Runner{discovery: discovery, games: games, scoring: scoring}
 }
 
 // Run executes the full ingest: discover teams, fetch each team's season,
-// sync the deduped batch, then process completed games.
+// sync the deduped batch, process completed games, then score them.
 //
 // Per-team discovery failures are logged and aggregated rather than aborting
-// the run — one team's outage shouldn't poison the rest of the league. The
-// run only fails outright if every team's discovery failed (nothing to sync)
-// or if SyncGames / ProcessCompletedGames error.
+// the run, one team's outage shouldn't poison the rest of the league.
 func (r *Runner) Run(ctx context.Context) error {
 	teams, err := r.discovery.GetLeagueTeams(ctx)
 	if err != nil {
@@ -63,6 +62,10 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 	if err := r.games.ProcessCompletedGames(ctx); err != nil {
 		return fmt.Errorf("pipeline: process completed games: %w", err)
+	}
+	if err := r.scoring.ScoreCompletedGames(ctx); err != nil {
+		// Non-fatal: stats are persisted; scoring is recomputable.
+		log.Printf("pipeline: scoring failed: %v", err)
 	}
 	return nil
 }
