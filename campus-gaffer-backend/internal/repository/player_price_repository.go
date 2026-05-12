@@ -9,6 +9,9 @@ import (
 )
 
 type PlayerPriceRepository interface {
+	// Upsert is insert-once: a price written for (player_id, gameweek) is
+	// frozen. Re-running for an existing grain is a no-op (no overwrite),
+	// so the pipeline is safely re-runnable.
 	Upsert(ctx context.Context, player_val *models.PlayerPrice) (*models.PlayerPrice, error)
 }
 
@@ -28,10 +31,8 @@ func (pvr *playerPriceRepo) Upsert(ctx context.Context, record *models.PlayerPri
 		WithContext(ctx).
 		Clauses(
 			clause.OnConflict{
-				Columns: []clause.Column{{Name: "player_id"}, {Name: "gameweek"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"price", "updated_at",
-				}),
+				Columns:   []clause.Column{{Name: "player_id"}, {Name: "gameweek"}},
+				DoNothing: true,
 			},
 		).
 		Create(record)
