@@ -21,6 +21,11 @@ type PlayerPriceRepository interface {
 	// frozen. Re-running for an existing grain is a no-op (no overwrite),
 	// so the pipeline is safely re-runnable.
 	Upsert(ctx context.Context, player_val *models.PlayerPrice) (*models.PlayerPrice, error)
+	// InsertBatch writes many price rows in one round trip. Conflicts on
+	// (player_id, gameweek) are skipped (DO NOTHING) so re-running the
+	// pricing pipeline for a past gameweek is a no-op. Returns the number
+	// of rows actually inserted (excluding skipped duplicates).
+	InsertBatch(ctx context.Context, records []models.PlayerPrice) (int, error)
 	// GetEffectivePrice returns the player's most recent priced gameweek
 	// at or before asOfGameweek (carry-forward). Falls back to PriceFloor
 	// if the player has never been priced. Centralises the carry-forward
@@ -37,6 +42,22 @@ func NewPlayerValueRepo(db *gorm.DB) PlayerPriceRepository {
 	return &playerPriceRepo{
 		db: db,
 	}
+}
+
+func (pvr *playerPriceRepo) InsertBatch(ctx context.Context, records []models.PlayerPrice) (int, error) {
+	if len(records) == 0 {
+		return 0, nil
+	}
+	res := pvr.db.
+		WithContext(ctx).
+		Clauses(
+			clause.OnConflict{
+				Columns:   []clause.Column{{Name: "player_id"}, {Name: "gameweek"}},
+				DoNothing: true,
+			},
+		).
+		CreateInBatches(records, 500)
+	return int(res.RowsAffected), res.Error
 }
 
 func (pvr *playerPriceRepo) GetEffectivePrice(ctx context.Context, playerID uuid.UUID, asOfGameweek int) (float64, error) {

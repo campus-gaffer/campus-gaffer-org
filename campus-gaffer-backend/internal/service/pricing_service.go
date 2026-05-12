@@ -6,20 +6,21 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
-
-	"github.com/google/uuid"
+	"time"
 )
 
 type PlayerPriceService interface {
-	RecalculateValue(ctx context.Context, gameweek int) error
+	// ComputeGameweekPrices computes one price per player who has
+	// at least one points row with kickoff_time <= cutoff at the current
+	// weight_ver, and inserts them at the (player_id, gameweek) grain.
+	// Insert-once: running again for the same gameweek is a no-op.
+	ComputeGameweekPrices(ctx context.Context, gameweek int, cutoff time.Time) error
 }
 
 type playerPriceService struct {
 	gamePointRepo repository.PlayerGamePointRepo
-	priceRepo repository.PlayerPriceRepository
-	playerRepo repository.PlayerRepository
-	weightVer string
+	priceRepo     repository.PlayerPriceRepository
+	weightVer     string
 }
 
 const (
@@ -30,84 +31,54 @@ const (
 func NewPlayerPricingService(
 	gamePointRepo repository.PlayerGamePointRepo,
 	priceRepo repository.PlayerPriceRepository,
-	playerRepo repository.PlayerRepository,
 ) PlayerPriceService {
 	return &playerPriceService{
 		gamePointRepo: gamePointRepo,
-		priceRepo: priceRepo,
-		playerRepo: playerRepo,
-		weightVer: WeightVerV1,
+		priceRepo:     priceRepo,
+		weightVer:     WeightVerV1,
 	}
 }
 
-func (svc *playerPriceService) RecalculateValue(ctx context.Context, gameweek int) error {
-	players, err := svc.playerRepo.FindAll(ctx)
+func (svc *playerPriceService) ComputeGameweekPrices(ctx context.Context, gameweek int, cutoff time.Time) error {
+	avgs, err := svc.gamePointRepo.AvgPointsByPlayer(ctx, svc.weightVer, cutoff)
 	if err != nil {
-		return fmt.Errorf("RecalculatePrices: failed to retrieve all players %w\n", err)
+		return fmt.Errorf("ComputeGameweekPrices: aggregate failed: %w", err)
 	}
-	type playerScore struct {
-		id uuid.UUID
-		avgPts float64
+	if len(avgs) == 0 {
+		log.Printf("ComputeGameweekPrices: gameweek %d, no qualifying point rows; nothing written", gameweek)
+		return nil
 	}
 
-	maxAvg := math.Inf(-1)
-	// Hold the avg point tally for all players in the scores slice
-	scores := make([]playerScore, 0, len(players))
-	for _, p := range players {
-		player_pts, err := svc.gamePointRepo.FindByPlayerIdUpTo(ctx, p.Id, svc.weightVer, gameweek)
-		if err != nil {
-			log.Printf("RecalculatePrices: skipping player %s %w\n", p.Id,  err)
-			continue
+	maxAvg := 0.0
+	for _, a := range avgs {
+		if a.AvgPts > maxAvg {
+			maxAvg = a.AvgPts
 		}
-
-		if len(player_pts) == 0 {
-			// No games played (start of season or brand-new player)
-			// append zero score and skip subsequent computation
-			scores = append(scores, playerScore{id: p.Id, avgPts: 0})
-			continue
-		}
-
-		total_pts := 0
-		for _, record := range player_pts {
-			total_pts += record.Points
-		}
-		// if err != nil {
-		// 	log.Printf("RecalculatePrices: couldn't compute point total for player %s %w\n", p.Id, err)
-		// 	// Manual point computation path given that we have all points records anyway
-		// 	total_pts = sum
-		// }
-		avgPts := float64(total_pts) / float64(len(player_pts))
-		maxAvg = max(maxAvg, avgPts)
-		// Add this player's avg points to the slice
-		scores = append(scores, playerScore{id: p.Id, avgPts: avgPts})
 	}
-	
-	// Normalization pass
-	written := 0
-	skipped := 0
-	for _, score := range scores {
-		var normalised float64
-		if maxAvg > 0 {
-			normalised = score.avgPts / maxAvg
+	if maxAvg <= 0 {
+		log.Printf("ComputeGameweekPrices: gameweek %d, max avg <= 0; nothing written", gameweek)
+		return nil
+	}
+
+	records := make([]models.PlayerPrice, 0, len(avgs))
+	for _, a := range avgs {
+		price := PriceMin + (a.AvgPts/maxAvg)*(PriceMax-PriceMin)
+		if price > PriceMax {
+			price = PriceMax
+		} else if price < PriceMin {
+			price = PriceMin
 		}
-		price := PriceMin + normalised * (PriceMax - PriceMin)
-		if score.id.String() == "a17481fb-1841-46a1-b0f5-b2f742f4c54d" {
-			log.Printf("Useful data: MAX AVERAGE: %.f\n", maxAvg)
-			log.Printf("My average score up to GW %d is %.3f. Normalized to: %.3f\n", gameweek, score.avgPts, price)
-		}
-		record := &models.PlayerPrice{
-			PlayerId: score.id,
+		records = append(records, models.PlayerPrice{
+			PlayerId: a.PlayerID,
 			Gameweek: gameweek,
-			Price: price,
-		}
-
-		if _, err := svc.priceRepo.Upsert(ctx, record); err != nil {
-			log.Printf("Failed to upsert price record for player %s %w\n", score.id, err)
-			skipped++
-			continue
-		}
-		written++
+			Price:    price,
+		})
 	}
-	log.Printf("RecalculatePrices: gameweek %d. Wrote %d prices, skipped %d", gameweek, written, skipped)
+
+	inserted, err := svc.priceRepo.InsertBatch(ctx, records)
+	if err != nil {
+		return fmt.Errorf("ComputeGameweekPrices: batch insert failed: %w", err)
+	}
+	log.Printf("ComputeGameweekPrices: gameweek %d, %d players priced, %d new rows (rest already frozen)", gameweek, len(records), inserted)
 	return nil
 }
