@@ -5,6 +5,8 @@ import (
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
 	"campus-gaffer-backend/internal/models"
+	"campus-gaffer-backend/internal/repository"
+	"campus-gaffer-backend/internal/service"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +19,12 @@ func main(){
 	}
 	database.Connect(cfg.DBUri)
 
-	database.DB.AutoMigrate(&models.User{})
+	database.DB.AutoMigrate(&models.User{}, &models.Squad{}, &models.SquadPlayer{})
+
+	squadRepo := repository.NewSquadRepo(database.DB)
+	priceRepo := repository.NewPlayerPriceRepo(database.DB)
+	squadSvc := service.NewSquadService(squadRepo, priceRepo)
+	squadHandler := handlers.NewSquadHandler(squadSvc)
 
 	result := gin.Default()
 	
@@ -36,5 +43,10 @@ func main(){
 
 	result.POST("/users", handlers.CreateUser)
 	result.GET("/users", handlers.GetUser)
+
+	result.POST("/squads", squadHandler.CreateSquad)
+	result.GET("/squads/:id", squadHandler.GetSquad)
+	result.GET("/squads/:id/points", squadHandler.GetSquadPoints)
+
 	result.Run(":8081")
 }
