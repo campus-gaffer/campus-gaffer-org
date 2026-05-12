@@ -11,6 +11,7 @@ import (
 type PlayerRepository interface {
 	Upsert(ctx context.Context, p *models.Player) (*models.Player, error)
 	FindByExternalID(ctx context.Context, externalID string) *models.Player
+	FindAll(ctx context.Context) ([]models.Player, error)
 }
 
 type playerRepo struct {
@@ -64,4 +65,15 @@ func (r *playerRepo) FindByExternalID(ctx context.Context, externalID string) *m
 		return nil
 	}
 	return player
+}
+
+
+func (r *playerRepo) FindAll(ctx context.Context) ([]models.Player, error) {
+	var players []models.Player
+	err := r.db.
+		WithContext(ctx).
+		Find(&players).
+		Error
+		
+	return players, err
 }
