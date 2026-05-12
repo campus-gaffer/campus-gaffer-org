@@ -53,6 +53,10 @@ func (m *MockGameRepository) FindScraped(ctx context.Context) ([]models.Game, er
 	return m.scraped, nil
 }
 
+func (m *MockGameRepository) FindRegularSeason(ctx context.Context) ([]models.Game, error) {
+	return nil, nil
+}
+
 // MockPerformanceRepository mocks the PerformanceRepository for testing.
 type MockPerformanceRepository struct {
 	upsertCalls []models.PlayerPerformance
