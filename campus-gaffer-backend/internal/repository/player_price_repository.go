@@ -38,7 +38,7 @@ type playerPriceRepo struct {
 }
 
 
-func NewPlayerValueRepo(db *gorm.DB) PlayerPriceRepository {
+func NewPlayerPriceRepo(db *gorm.DB) PlayerPriceRepository {
 	return &playerPriceRepo{
 		db: db,
 	}

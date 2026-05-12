@@ -37,7 +37,7 @@ func main() {
 
 	svc := service.NewPlayerPricingService(
 		repository.NewPlayerGamePointRepo(db),
-		repository.NewPlayerValueRepo(db),
+		repository.NewPlayerPriceRepo(db),
 	)
 
 	ctx := context.Background()
