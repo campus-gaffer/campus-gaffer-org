@@ -2,6 +2,7 @@ package service
 
 import (
 	"campus-gaffer-backend/internal/models"
+	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/scraper"
 	"context"
 	"errors"
@@ -52,6 +53,10 @@ func (m *MockGameRepository) FindScraped(ctx context.Context) ([]models.Game, er
 	return m.scraped, nil
 }
 
+func (m *MockGameRepository) FindRegularSeason(ctx context.Context) ([]models.Game, error) {
+	return nil, nil
+}
+
 // MockPerformanceRepository mocks the PerformanceRepository for testing.
 type MockPerformanceRepository struct {
 	upsertCalls []models.PlayerPerformance
@@ -93,6 +98,10 @@ func (m *MockPlayerGamePointRepo) FindById(ctx context.Context, id uuid.UUID) (*
 	return nil, nil
 }
 
+func (m *MockPlayerGamePointRepo) AvgPointsByPlayer(ctx context.Context, weightVer string, cutoff time.Time) ([]repository.PlayerAvgPoints, error) {
+	return nil, nil
+}
+
 // MockPlayerRepository mocks the PlayerRepository for testing.
 type MockPlayerRepository struct {
 	// existing is consulted by FindByExternalID, keys are ExternalPlayerId.
@@ -111,6 +120,10 @@ func (m *MockPlayerRepository) FindByExternalID(ctx context.Context, externalId 
 		return nil
 	}
 	return m.existing[externalId]
+}
+
+func (m *MockPlayerRepository) FindAll(ctx context.Context) ([]models.Player, error) {
+	return nil, nil
 }
 
 // MockTeamRepository mocks the TeamRepository for testing.

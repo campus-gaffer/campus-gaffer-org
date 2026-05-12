@@ -15,6 +15,10 @@ type GameRepository interface {
 	FindByExternalId(ctx context.Context, externalId, externalSource string) (*models.Game, error)
 	FindUnscraped(ctx context.Context) ([]models.Game, error)
 	FindScraped(ctx context.Context) ([]models.Game, error)
+	// FindRegularSeason returns every regular-season game (external_game_type = 0)
+	// with a non-null kickoff_time. Used by the pricing pipeline to derive
+	// the gameweek schedule for the league.
+	FindRegularSeason(ctx context.Context) ([]models.Game, error)
 	MarkScraped(ctx context.Context, id uuid.UUID) error
 }
 
@@ -79,6 +83,16 @@ func (r *gameRepo) FindScraped(ctx context.Context) ([]models.Game, error) {
 	err := r.db.
 		WithContext(ctx).
 		Where("is_scraped = true").
+		Find(&games).Error
+	return games, err
+}
+
+func (r *gameRepo) FindRegularSeason(ctx context.Context) ([]models.Game, error) {
+	var games []models.Game
+	err := r.db.
+		WithContext(ctx).
+		Where("external_game_type = 0 AND kickoff_time IS NOT NULL").
+		Order("kickoff_time ASC").
 		Find(&games).Error
 	return games, err
 }

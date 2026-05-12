@@ -32,6 +32,7 @@ func Connect(db_uri string) *gorm.DB {
 	// 	&models.PlayerPerformance{},
 	// 	&models.Team{},
 	// 	&models.PlayerGamePoint{},
+	// 	&models.PlayerPrice{},
 	// )
 	// if err != nil {
 	// 	log.Fatal("Failed to automigrate")
