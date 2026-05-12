@@ -26,6 +26,10 @@ type PlayerPriceRepository interface {
 	// pricing pipeline for a past gameweek is a no-op. Returns the number
 	// of rows actually inserted (excluding skipped duplicates).
 	InsertBatch(ctx context.Context, records []models.PlayerPrice) (int, error)
+	// MaxPricedGameweek returns the highest gameweek that has any price
+	// row, or 0 if the table is empty. Lambda uses this to skip
+	// already-priced gameweeks without re-running the aggregate.
+	MaxPricedGameweek(ctx context.Context) (int, error)
 	// GetEffectivePrice returns the player's most recent priced gameweek
 	// at or before asOfGameweek (carry-forward). Falls back to PriceFloor
 	// if the player has never been priced. Centralises the carry-forward
@@ -58,6 +62,16 @@ func (pvr *playerPriceRepo) InsertBatch(ctx context.Context, records []models.Pl
 		).
 		CreateInBatches(records, 500)
 	return int(res.RowsAffected), res.Error
+}
+
+func (pvr *playerPriceRepo) MaxPricedGameweek(ctx context.Context) (int, error) {
+	var max int
+	err := pvr.db.
+		WithContext(ctx).
+		Model(&models.PlayerPrice{}).
+		Select("COALESCE(MAX(gameweek), 0)").
+		Scan(&max).Error
+	return max, err
 }
 
 func (pvr *playerPriceRepo) GetEffectivePrice(ctx context.Context, playerID uuid.UUID, asOfGameweek int) (float64, error) {
