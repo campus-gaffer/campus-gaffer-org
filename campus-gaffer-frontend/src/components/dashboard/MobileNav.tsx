@@ -23,7 +23,7 @@ export default function MobileNav() {
                             onClick={() => navigate(item.path)}
                             className={`flex flex-col items-center gap-2 transition-all group ${isActive ? 'text-primary' : 'text-slate-500 hover:text-white'}`}
                         >
-                            <div className={`${isActive ? 'bg-primary/10 px-6 py-2 rounded-2xl shadow-[0_0_20px_rgba(0,230,118,0.1)]' : 'px-6 py-2'}`}>
+                            <div className={`${isActive ? 'bg-primary/10 px-6 py-2 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.1)]' : 'px-6 py-2'}`}>
                                 <item.icon className={`w-6 h-6 ${isActive ? 'animate-pulse' : ''}`} />
                             </div>
                             <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? '' : 'font-bold'}`}>{item.name}</span>

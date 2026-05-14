@@ -17,21 +17,33 @@ export default function Navbar() {
       navigationMenuTriggerStyle(),
       "bg-transparent font-bold text-xs tracking-[0.2em] uppercase transition-all px-4 h-10 rounded-none border-b-2",
       location.pathname === path
-        ? "text-primary border-primary shadow-[0_4px_10px_-4px_rgba(0,230,118,0.5)]"
+        ? "text-primary border-primary shadow-[0_4px_10px_-4px_rgba(139,92,246,0.5)]"
         : "text-slate-400 hover:text-white border-transparent hover:border-white/20"
     );
 
   return (
     <header className="flex w-full items-center justify-between px-8 py-4 bg-background/80 backdrop-blur-xl sticky top-0 z-50 h-24 border-b border-white/5 flex-shrink-0">
       <div className="flex items-center gap-16">
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
-            <span className="text-background font-black text-2xl">C</span>
-          </div>
-          <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
-            CAMPUS <span className="text-primary italic">GAFFER</span>
-          </h1>
-        </Link>
+        <SignedIn>
+          <Link to="/dashboard" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
+              <span className="text-background font-black text-2xl">C</span>
+            </div>
+            <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
+              CAMPUS <span className="text-primary italic">GAFFER</span>
+            </h1>
+          </Link>
+        </SignedIn>
+        <SignedOut>
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
+              <span className="text-background font-black text-2xl">C</span>
+            </div>
+            <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
+              CAMPUS <span className="text-primary italic">GAFFER</span>
+            </h1>
+          </Link>
+        </SignedOut>
 
         <NavigationMenu className="hidden lg:flex">
           <NavigationMenuList className="gap-6">
@@ -49,6 +61,21 @@ export default function Navbar() {
               <NavigationMenuItem>
                 <Link to="/leagues" className={navLinkClass("/leagues")}>
                   LEADERBOARD
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/rules" className={navLinkClass("/rules")}>
+                  RULES
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/about" className={navLinkClass("/about")}>
+                  ABOUT
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/rewards" className={navLinkClass("/rewards")}>
+                  REWARDS
                 </Link>
               </NavigationMenuItem>
             </SignedIn>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
-import { User, Shield, GraduationCap, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import { User, Shield, GraduationCap, CheckCircle2, ChevronRight, Loader2, Cake, Users } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
@@ -13,35 +13,64 @@ export default function Onboarding() {
     const [username, setUsername] = useState("");
     const [teamName, setTeamName] = useState("");
     const [university, setUniversity] = useState("");
+    const [age, setAge] = useState(18);
+    const [gender, setGender] = useState("");
+    const [error, setError] = useState("");
+
+    // Clear any stale localStorage flag so it doesn't skip onboarding
+    localStorage.removeItem("gaffer_onboarded");
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (step < 3) {
+        setError("");
+
+        // Validate
+        if (step === 1 && (!age || age < 13)) {
+            setError("You must be at least 13 to play");
+            return;
+        }
+        if (step === 2 && username.length < 2) {
+            setError("Username must be at least 2 characters");
+            return;
+        }
+        if (step === 3 && teamName.length < 2) {
+            setError("Team name must be at least 2 characters");
+            return;
+        }
+
+        if (step < 4) {
             setStep(step + 1);
         } else {
             setLoading(true);
             try {
-                // Connect to backend
-                await fetch(`${API_URL}/users/${user?.id}`, {
+                const payload: Record<string, any> = {
+                    username,
+                    team_name: teamName,
+                    university,
+                    age,
+                    gender: gender || "prefer_not_to_say",
+                    email: user?.primaryEmailAddress?.emailAddress,
+                    clerk_id: user?.id,
+                };
+
+                const res = await fetch(`${API_URL}/users/${user?.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username,
-                        team_name: teamName,
-                        university,
-                        email: user?.primaryEmailAddress?.emailAddress,
-                        clerk_id: user?.id,
-                    }),
+                    body: JSON.stringify(payload),
                 });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || "Failed to save");
+                }
+
                 localStorage.setItem("gaffer_onboarded", "true");
                 setLoading(false);
                 navigate("/dashboard");
-            } catch (error) {
-                console.error("Backend error:", error);
-                // Fallback for demo
-                localStorage.setItem("gaffer_onboarded", "true");
+            } catch (err: any) {
+                console.error("Backend error:", err);
+                setError(err.message || "Something went wrong");
                 setLoading(false);
-                navigate("/dashboard");
             }
         }
     };
@@ -57,7 +86,7 @@ export default function Onboarding() {
 
                 {/* Progress Bar */}
                 <div className="flex gap-2">
-                    {[1, 2, 3].map((i) => (
+                    {[1, 2, 3, 4].map((i) => (
                         <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-primary' : 'bg-white/10'}`} />
                     ))}
                 </div>
@@ -73,6 +102,52 @@ export default function Onboarding() {
                 {/* Form Container */}
                 <form onSubmit={handleNext} className="space-y-8 animate-in slide-in-from-bottom duration-500">
                     {step === 1 && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">YOUR AGE</label>
+                                <div className="relative group">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
+                                        <Cake className="w-5 h-5 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min={13}
+                                        max={99}
+                                        required
+                                        value={age}
+                                        onChange={(e) => setAge(parseInt(e.target.value) || 18)}
+                                        placeholder="18"
+                                        className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">GENDER</label>
+                                <div className="relative group">
+                                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
+                                        <Users className="w-5 h-5 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+                                    </div>
+                                    <select
+                                        required
+                                        value={gender}
+                                        onChange={(e) => setGender(e.target.value)}
+                                        className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="" disabled>SELECT</option>
+                                        <option value="male">MALE</option>
+                                        <option value="female">FEMALE</option>
+                                        <option value="non_binary">NON-BINARY</option>
+                                        <option value="prefer_not_to_say">PREFER NOT TO SAY</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center">{error}</p>}
+                        </div>
+                    )}
+
+                    {step === 2 && (
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">CHOOSE USERNAME</label>
@@ -96,10 +171,11 @@ export default function Onboarding() {
                                     )}
                                 </div>
                             </div>
+                            {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center">{error}</p>}
                         </div>
                     )}
 
-                    {step === 2 && (
+                    {step === 3 && (
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">TEAM IDENTITY</label>
@@ -117,10 +193,11 @@ export default function Onboarding() {
                                     />
                                 </div>
                             </div>
+                            {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest text-center">{error}</p>}
                         </div>
                     )}
 
-                    {step === 3 && (
+                    {step === 4 && (
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">SELECT UNIVERSITY</label>
@@ -156,7 +233,7 @@ export default function Onboarding() {
                                 <Loader2 className="w-6 h-6 text-background animate-spin" />
                             ) : (
                                 <>
-                                    <span className="text-lg font-black italic text-background uppercase tracking-[0.2em]">{step === 3 ? 'FINALIZE SQUAD' : 'CONTINUE'}</span>
+                                    <span className="text-lg font-black italic text-background uppercase tracking-[0.2em]">{step === 4 ? 'FINALIZE & JOIN' : 'CONTINUE'}</span>
                                     <ChevronRight className="w-6 h-6 text-background group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
@@ -173,7 +250,6 @@ export default function Onboarding() {
                         )}
                     </div>
                 </form>
-
             </div>
 
             {/* Footer Branding */}

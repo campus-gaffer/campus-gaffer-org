@@ -100,6 +100,8 @@ func UpdateUserOnboarding(c *gin.Context) {
 			TeamName:   user.TeamName,
 			University: user.University,
 			Email:      user.Email,
+			Age:        user.Age,
+			Gender:     user.Gender,
 		})
 	}
 

@@ -14,7 +14,21 @@ func main() {
 	godotenv.Load()
 	database.Connect()
 
-	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{})
+	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{}, &models.ScrapedPlayer{}, &models.PlayerPerformance{})
+
+	// Warm up queries to refresh PgBouncer cached plans after schema changes
+	database.DB.Exec("SELECT * FROM users LIMIT 0")
+	database.DB.Exec("SELECT * FROM player_data LIMIT 0")
+	database.DB.Exec("SELECT * FROM squad_members LIMIT 0")
+	database.DB.Exec("SELECT * FROM matches LIMIT 0")
+	database.DB.Exec("SELECT * FROM match_events LIMIT 0")
+
+	// Warm up queries to refresh PgBouncer cached plans after schema changes
+	database.DB.Exec("SELECT * FROM users LIMIT 0")
+	database.DB.Exec("SELECT * FROM player_data LIMIT 0")
+	database.DB.Exec("SELECT * FROM squad_members LIMIT 0")
+	database.DB.Exec("SELECT * FROM matches LIMIT 0")
+	database.DB.Exec("SELECT * FROM match_events LIMIT 0")
 
 	result := gin.Default()
 
@@ -35,6 +49,7 @@ func main() {
 	result.GET("/users", handlers.GetUsers)
 	result.GET("/users/:clerk_id", handlers.GetUserByClerkID)
 	result.GET("/players", handlers.GetPlayers)
+	result.GET("/players/:id", handlers.GetPlayerByID)
 	result.GET("/matches/live", handlers.GetLiveMatch)
 	result.GET("/matches", handlers.GetAllMatches)
 	result.GET("/matches/:id", handlers.GetMatchByID)
@@ -42,6 +57,8 @@ func main() {
 	result.POST("/squad/:clerk_id", handlers.UpdateSquad)
 	result.GET("/squad/:clerk_id", handlers.GetSquad)
 	result.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
+	result.GET("/leaderboard", handlers.GetLeaderboard)
+	result.GET("/rewards", handlers.GetRewards)
 	result.POST("/admin/update-cookie", handlers.UpdateCookie)
 	result.Run(":" + getPort())
 }

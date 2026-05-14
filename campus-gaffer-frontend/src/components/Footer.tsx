@@ -1,4 +1,6 @@
 import { Shield, Zap, Heart } from "lucide-react"
+import { Link } from "react-router-dom"
+import { SignedIn, SignedOut } from '@clerk/clerk-react'
 
 export default function Footer() {
   return (
@@ -15,19 +17,36 @@ export default function Footer() {
           
           {/* Brand column */}
           <div className="flex flex-col items-center md:items-start gap-6">
-            <a href="/" className="flex items-center gap-3 group">
-              <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/30">
-                <span className="text-background font-black text-2xl">C</span>
-              </div>
-              <div>
-                <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
-                  CAMPUS
-                </h1>
-                <h1 className="text-xl italic font-black tracking-tighter text-primary uppercase leading-tight -mt-1">
-                  GAFFER
-                </h1>
-              </div>
-            </a>
+            <SignedIn>
+              <Link to="/dashboard" className="flex items-center gap-3 group">
+                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/30">
+                  <span className="text-background font-black text-2xl">C</span>
+                </div>
+                <div>
+                  <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
+                    CAMPUS
+                  </h1>
+                  <h1 className="text-xl italic font-black tracking-tighter text-primary uppercase leading-tight -mt-1">
+                    GAFFER
+                  </h1>
+                </div>
+              </Link>
+            </SignedIn>
+            <SignedOut>
+              <Link to="/" className="flex items-center gap-3 group">
+                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/30">
+                  <span className="text-background font-black text-2xl">C</span>
+                </div>
+                <div>
+                  <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
+                    CAMPUS
+                  </h1>
+                  <h1 className="text-xl italic font-black tracking-tighter text-primary uppercase leading-tight -mt-1">
+                    GAFFER
+                  </h1>
+                </div>
+              </Link>
+            </SignedOut>
             <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em] text-center md:text-left italic">
               BECOME A CAMPUS LEGEND.
             </p>
@@ -49,11 +68,17 @@ export default function Footer() {
           <div className="flex flex-col items-center gap-6">
             <span className="text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">NAVIGATION</span>
             <div className="flex flex-wrap justify-center gap-6">
-              {["LEAGUES", "RULES", "ABOUT", "SCORES", "TRANSFERS"].map(link => (
-                <a key={link} href="#" className="font-black text-xs text-slate-400 hover:text-primary tracking-[0.2em] uppercase transition-colors relative group">
-                  {link}
+              {[
+                { name: "LEAGUES", path: "/leagues" },
+                { name: "RULES", path: "/rules" },
+                { name: "ABOUT", path: "/about" },
+                { name: "SCORES", path: "/scores" },
+                { name: "TRANSFERS", path: "/transfers" },
+              ].map(link => (
+                <Link key={link.name} to={link.path} className="font-black text-xs text-slate-400 hover:text-primary tracking-[0.2em] uppercase transition-colors relative group">
+                  {link.name}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
-                </a>
+                </Link>
               ))}
             </div>
             
@@ -73,21 +98,21 @@ export default function Footer() {
               {/* Status indicators */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,230,118,0.6)] animate-pulse" />
+                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)] animate-pulse" />
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">ALL SYSTEMS GO</span>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,230,118,0.6)]" />
+                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">SEASON 2026 ACTIVE</span>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,230,118,0.6)]" />
+                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">TRANSFERS OPEN</span>
                 </div>
               </div>

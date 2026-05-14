@@ -1,34 +1,24 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
 
-type Player struct {
-	ID           string  `json:"id" gorm:"primaryKey;type:text"`
-	Name         string  `json:"name" gorm:"column:name"`
-	University   string  `json:"university" gorm:"column:team"`
-	Sport        string  `json:"sport" gorm:"column:sport"`
-	Position     string  `json:"position" gorm:"default:MID"`
-	Price        float64 `json:"price" gorm:"default:5.0"`
-	TotalPoints  int     `json:"total_points" gorm:"default:0"`
-	WeeklyPoints int     `json:"weekly_points" gorm:"default:0"`
-	ImgURL       string  `json:"img_url"`
+	"github.com/google/uuid"
+)
+
+// Game represents an IMLeagues scraped game
+type Game struct {
+	Id             uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid();not null"`
+	ExternalGameId string     `gorm:"type:string;not null;uniqueIndex:idx_game_external"`
+	ExternalSource string     `gorm:"type:string;not null;uniqueIndex:idx_game_external"`
+	Team1Id        *uuid.UUID `gorm:"type:uuid;"`
+	Team2Id        *uuid.UUID `gorm:"type:uuid;"`
+	KickoffTime    *time.Time `gorm:"type:timestamptz;"`
+	Status         string     `gorm:"type:string;not null;default:'scheduled'"`
+	IsScraped      bool       `gorm:"type:boolean;default:false;not null"`
+	UpdatedAt      time.Time  `gorm:"type:timestamp;"`
 }
 
-func (Player) TableName() string {
-	return "player_data"
-}
-
-type Match struct {
-	gorm.Model
-	HomeTeam    string `json:"home_team"`
-	AwayTeam    string `json:"away_team"`
-	HomeScore   int    `json:"home_score"`
-	AwayScore   int    `json:"away_score"`
-	IsLive      bool   `json:"is_live"`
-	MatchTime   string `json:"match_time"` // e.g. "65'"
-	Venue       string `json:"venue"`
-	PossessionH int    `json:"possession_h"`
-	PossessionA int    `json:"possession_a"`
-	ShotsH      int    `json:"shots_h"`
-	ShotsA      int    `json:"shots_a"`
+func (Game) TableName() string {
+	return "games"
 }

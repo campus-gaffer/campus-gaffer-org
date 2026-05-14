@@ -3,6 +3,7 @@ package handlers
 import (
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,9 +31,17 @@ func GetSquad(c *gin.Context) {
 		database.DB.Where("id IN ?", playerIDs).Find(&players)
 	}
 
+	// Get user budget
+	var user models.User
+	budget := 100.0
+	if err := database.DB.Where("clerk_id = ?", clerkID).First(&user).Error; err == nil {
+		budget = user.Budget
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"players":    players,
 		"captain_id": captainID,
+		"budget":     budget,
 	})
 }
 
@@ -47,18 +56,90 @@ func UpdateSquad(c *gin.Context) {
 		return
 	}
 
-	// Simple wipe and recreate for this demo
+	// Get user
+	var user models.User
+	if err := database.DB.Where("clerk_id = ?", clerkID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Calculate total cost of new squad
+	var totalCost float64
+	var validPlayers []models.Player
+	for _, pID := range req.PlayerIDs {
+		var player models.Player
+		if err := database.DB.First(&player, "id = ?", pID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Player not found: " + pID})
+			return
+		}
+		totalCost += player.Price
+		validPlayers = append(validPlayers, player)
+	}
+
+	// Budget check
+	if totalCost > user.Budget {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":      "Insufficient budget",
+			"budget":     user.Budget,
+			"squad_cost": totalCost,
+		})
+		return
+	}
+
+	// Count changed players vs current squad
+	var currentCount int64
+	database.DB.Model(&models.SquadMember{}).Where("clerk_id = ?", clerkID).Count(&currentCount)
+
+	transfersUsed := 0
+	if currentCount > 0 {
+		transfersUsed = int(currentCount) // rough: replacing a full squad
+		// More accurate: count how many are different
+		var currentMembers []models.SquadMember
+		database.DB.Where("clerk_id = ?", clerkID).Find(&currentMembers)
+		currentIDs := make(map[string]bool)
+		for _, m := range currentMembers {
+			currentIDs[m.PlayerID] = true
+		}
+		transfersUsed = 0
+		for _, pID := range req.PlayerIDs {
+			if !currentIDs[pID] {
+				transfersUsed++
+			}
+		}
+	}
+
+	// Apply transfer penalty if over free transfers
+	pointPenalty := 0
+	if transfersUsed > user.FreeTransfers {
+		pointPenalty = (transfersUsed - user.FreeTransfers) * 4
+	}
+
+	// Wipe and recreate squad
 	database.DB.Where("clerk_id = ?", clerkID).Delete(&models.SquadMember{})
 
-	for _, pID := range req.PlayerIDs {
+	for _, p := range validPlayers {
 		member := models.SquadMember{
 			ClerkID:  clerkID,
-			PlayerID: pID,
+			PlayerID: p.ID,
 		}
 		database.DB.Create(&member)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	// Update user - new budget and penalty
+	database.DB.Model(&user).Updates(map[string]interface{}{
+		"total_points":  user.TotalPoints - pointPenalty,
+		"free_transfers": user.FreeTransfers,
+	})
+
+	log.Printf("🔄 Squad updated for %s: %d players, %d transfers used, %d pt penalty",
+		clerkID, len(req.PlayerIDs), transfersUsed, pointPenalty)
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":         "success",
+		"transfers_used": transfersUsed,
+		"point_penalty":  pointPenalty,
+		"budget_used":    totalCost,
+	})
 }
 
 func SetCaptain(c *gin.Context) {

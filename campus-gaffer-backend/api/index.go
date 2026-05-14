@@ -41,6 +41,13 @@ func getRouter() (*gin.Engine, error) {
 			&models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{},
 		)
 
+		// Warm up queries to refresh PgBouncer cached plans after schema changes
+		database.DB.Exec("SELECT * FROM users LIMIT 0")
+		database.DB.Exec("SELECT * FROM player_data LIMIT 0")
+		database.DB.Exec("SELECT * FROM squad_members LIMIT 0")
+		database.DB.Exec("SELECT * FROM matches LIMIT 0")
+		database.DB.Exec("SELECT * FROM match_events LIMIT 0")
+
 		r := gin.Default()
 		r.Use(func(c *gin.Context) {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -58,6 +65,7 @@ func getRouter() (*gin.Engine, error) {
 		r.GET("/users", handlers.GetUsers)
 		r.GET("/users/:clerk_id", handlers.GetUserByClerkID)
 		r.GET("/players", handlers.GetPlayers)
+		r.GET("/players/:id", handlers.GetPlayerByID)
 		r.GET("/matches/live", handlers.GetLiveMatch)
 		r.GET("/matches", handlers.GetAllMatches)
 		r.GET("/matches/:id", handlers.GetMatchByID)
@@ -65,6 +73,8 @@ func getRouter() (*gin.Engine, error) {
 		r.POST("/squad/:clerk_id", handlers.UpdateSquad)
 		r.GET("/squad/:clerk_id", handlers.GetSquad)
 		r.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
+		r.GET("/leaderboard", handlers.GetLeaderboard)
+		r.GET("/rewards", handlers.GetRewards)
 		r.POST("/admin/update-cookie", handlers.UpdateCookie)
 
 		router = r

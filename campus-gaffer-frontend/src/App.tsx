@@ -10,6 +10,7 @@ import Transfers from '@/pages/Transfers'
 import Scores from '@/pages/Scores'
 import Rules from '@/pages/Rules'
 import About from '@/pages/About'
+import Rewards from '@/pages/Rewards'
 import PlayerProfile from '@/pages/PlayerProfile'
 import Onboarding from '@/pages/Onboarding'
 
@@ -57,8 +58,9 @@ function App() {
           <Route path="/leagues" element={<ProtectedRoute><Leagues /></ProtectedRoute>} />
           <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} />
           <Route path="/scores" element={<ProtectedRoute><Scores /></ProtectedRoute>} />
-          <Route path="/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />
-          <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+          <Route path="/rules" element={<Rules />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
           <Route path="/player/:id" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

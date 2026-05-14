@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", sans-serif;
-  --font-heading: "Inter", sans-serif;
+  --font-sans: "Space Grotesk", sans-serif;
+  --font-heading: "Space Grotesk", sans-serif;
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -45,8 +45,8 @@
     --card-foreground: #FFFFFF;
     --popover: #181D29;
     --popover-foreground: #FFFFFF;
-    --primary: #00E676;
-    /* Neon Green */
+    --primary: #8B5CF6;
+    /* Violet */
     --primary-foreground: #0F1219;
     --secondary: #252D3D;
     --secondary-foreground: #FFFFFF;
@@ -58,7 +58,7 @@
     --destructive-foreground: #FFFFFF;
     --border: #252D3D;
     --input: #181D29;
-    --ring: #00E676;
+    --ring: #8B5CF6;
     --radius: 1rem;
   }
 }
@@ -92,6 +92,6 @@
   background: linear-gradient(135deg, #1C2331 0%, #121520 100%);
 }
 
-.green-glow {
-  box-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+.violet-glow {
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
 }

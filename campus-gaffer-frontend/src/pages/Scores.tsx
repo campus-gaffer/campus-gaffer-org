@@ -150,7 +150,7 @@ export default function Scores() {
                       <span className="text-[9px] font-black text-slate-500 tracking-widest">{match.venue || "CAMPUS PITCH"}</span>
                       {match.is_live ? (
                         <div className="flex items-center gap-1.5">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(0,230,118,0.8)]"></div>
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(139,92,246,0.8)]"></div>
                           <span className="text-[9px] font-black text-primary tracking-widest">{match.match_time || "LIVE"}</span>
                         </div>
                       ) : (
@@ -213,7 +213,7 @@ export default function Scores() {
 
                   <div className="mt-10 flex justify-center">
                     <div className="bg-primary/20 border border-primary/30 px-6 py-2.5 rounded-full flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${selectedMatch.is_live ? "bg-primary animate-pulse shadow-[0_0_10px_rgba(0,230,118,0.8)]" : "bg-slate-500"}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${selectedMatch.is_live ? "bg-primary animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.8)]" : "bg-slate-500"}`}></div>
                       <span className="text-[10px] md:text-xs font-black text-primary tracking-widest uppercase italic">
                         {selectedMatch.is_live ? `In Progress (${selectedMatch.match_time || "0'"})` : "Upcoming"}
                       </span>
@@ -241,7 +241,7 @@ export default function Scores() {
                         </div>
                       </div>
                       <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden flex">
-                        <div className="h-full bg-primary shadow-[0_0_10px_rgba(0,230,118,0.4)]" style={{ width: `${selectedMatch.possession_h || 50}%` }}></div>
+                        <div className="h-full bg-primary shadow-[0_0_10px_rgba(139,92,246,0.4)]" style={{ width: `${selectedMatch.possession_h || 50}%` }}></div>
                         <div className="h-full bg-slate-800" style={{ width: `${selectedMatch.possession_a || 50}%` }}></div>
                       </div>
                     </div>
@@ -284,7 +284,10 @@ export default function Scores() {
                             {event.event_type === "substitution" && <span className="text-blue-400 text-[10px]">S</span>}
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-black text-white uppercase italic">
+                            <div
+                              onClick={() => navigate(`/player/${event.player_id}`)}
+                              className="text-sm font-black text-white uppercase italic cursor-pointer hover:text-primary transition-colors"
+                            >
                               {event.player_name}
                               {event.assist_player && (
                                 <span className="text-slate-500 font-normal text-xs"> (assist: {event.assist_player})</span>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { Bell, Video, User, PlusCircle, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/NavBar";
@@ -10,6 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
 export default function Dashboard() {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [teamName, setTeamName] = useState("THE VARSITY XI");
   const [profile, setProfile] = useState<any>(null);
@@ -17,6 +18,9 @@ export default function Dashboard() {
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [managingPosition, setManagingPosition] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [userBudget, setUserBudget] = useState(0);
 
   useEffect(() => {
     if (searchParams.get('manage') === 'true') {
@@ -25,6 +29,28 @@ export default function Dashboard() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams]);
+
+  // Fetch live matches from API
+  useEffect(() => {
+    fetch(API_URL + "/matches")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped = data.filter((m: any) => m.is_live).map((m: any) => ({
+            id: m.id,
+            team1: m.home_team,
+            team2: m.away_team,
+            score1: m.home_score,
+            score2: m.away_score,
+            status: m.match_time || "LIVE",
+            pitch: m.venue || "CAMPUS PITCH",
+            hasStream: true
+          }));
+          if (mapped.length > 0) setLiveMatches(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchSquad = () => {
     if (!user) return;
@@ -59,11 +85,21 @@ export default function Dashboard() {
     if (!user) return;
     // Fetch profile
     fetch(`${API_URL}/users/${user.id}`)
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 404) {
+          // User doesn't exist in DB -- stale localStorage flag. Redirect to onboarding.
+          localStorage.removeItem('gaffer_onboarded');
+          navigate('/onboarding', { replace: true });
+          return null;
+        }
+        return res.json();
+      })
       .then(found => {
         if (found && found.username) {
           setProfile(found);
           setTeamName(found.team_name);
+          setTotalPoints(found.total_points || 0);
+          setUserBudget(found.budget || 0);
         }
       })
       .catch(e => console.error("Profile fetch error:", e));
@@ -98,29 +134,6 @@ export default function Dashboard() {
     });
     fetchSquad();
   };
-
-  const LIVE_GAMES = [
-    {
-      id: 1,
-      team1: "WOLVES FC",
-      team2: "CITY RAIDERS",
-      score1: 2,
-      score2: 1,
-      status: "65'",
-      pitch: "CENTRAL PITCH 1",
-      hasStream: true
-    },
-    {
-      id: 2,
-      team1: "TECH TITANS",
-      team2: "LAW EAGLES",
-      score1: 0,
-      score2: 0,
-      status: "HT",
-      pitch: "CENTRAL PITCH 2",
-      kickoff: "LIVE"
-    }
-  ];
 
   const filteredPlayers = managingPosition === 'all'
     ? allPlayers
@@ -162,7 +175,7 @@ export default function Dashboard() {
 
             {/* Pitch Section */}
             <section className="animate-in slide-in-from-bottom duration-700 delay-100">
-              <Pitch teamName={teamName} players={starters} onManage={(pos) => setManagingPosition(pos)} onSelectCaptain={(id) => setCaptain(String(id))} />
+              <Pitch teamName={teamName} players={starters} totalPoints={totalPoints} onManage={(pos) => setManagingPosition(pos)} onSelectCaptain={(id) => setCaptain(String(id))} />
             </section>
           </div>
 
@@ -172,13 +185,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-8 px-1">
                 <h2 className="text-xl italic font-black text-primary tracking-wide uppercase">Live Games</h2>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(0,230,118,0.8)]"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.8)]"></div>
                   <span className="text-xs font-black text-primary tracking-widest uppercase">LIVE</span>
                 </div>
               </div>
 
               <div className="space-y-6">
-                {LIVE_GAMES.map(game => (
+                {liveMatches.length > 0 ? liveMatches.map(game => (
                   <div key={game.id} className="bg-card border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group hover:border-primary/30 transition-all cursor-pointer shadow-xl text-left">
                     <div className="flex items-center justify-between mb-8">
                       <div className="bg-secondary/50 px-4 py-1.5 rounded-full text-[10px] font-black text-primary tracking-widest border border-primary/10 uppercase">
@@ -204,17 +217,24 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-12">
+                    <p className="text-slate-500 font-black italic uppercase tracking-widest text-xs">No live matches right now</p>
+                    <p className="text-slate-700 text-[9px] font-bold uppercase tracking-widest mt-2">Check back during game day</p>
+                  </div>
+                )}
               </div>
             </section>
 
             <section className="grid sm:grid-cols-2 lg:grid-cols-1 gap-6 text-left">
-              <div className="bg-primary rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center">
-                <h3 className="text-background font-black text-2xl uppercase">MARKET OPEN</h3>
-              </div>
-              <div className="bg-secondary/40 border border-white/5 rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center">
-                <h3 className="text-white font-black text-2xl uppercase tracking-tighter">DAILY REWARDS</h3>
-              </div>
+              <Link to="/transfers" className="bg-primary rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center hover:scale-[1.02] transition-all">
+                <h3 className="text-background font-black text-2xl uppercase">TRANSFER MARKET</h3>
+                <p className="text-background/70 text-[10px] font-black uppercase tracking-widest mt-2">£{userBudget.toFixed(1)}M budget available</p>
+              </Link>
+              <Link to="/leagues" className="bg-secondary/40 border border-white/5 rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center hover:border-primary/30 transition-all">
+                <h3 className="text-white font-black text-2xl uppercase tracking-tighter">LEADERBOARD</h3>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">{totalPoints} pts — view rankings</p>
+              </Link>
             </section>
           </div>
         </div>
@@ -223,7 +243,7 @@ export default function Dashboard() {
       {/* Manage Squad Modal */}
       {managingPosition && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
-          <div className="bg-card/90 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,230,118,0.15)] animate-in zoom-in-95 duration-300">
+          <div className="bg-card/90 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(139,92,246,0.15)] animate-in zoom-in-95 duration-300">
             <div className="p-10 border-b border-white/5 flex items-center justify-between">
               <div className="text-left">
                 <h2 className="text-4xl font-black italic tracking-tighter uppercase mb-2">

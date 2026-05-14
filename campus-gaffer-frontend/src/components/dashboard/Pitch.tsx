@@ -11,11 +11,12 @@ interface Player {
 interface PitchProps {
     teamName?: string;
     players?: Player[];
+    totalPoints?: number;
     onManage?: (position: string) => void;
     onSelectCaptain?: (id: string | number) => void;
 }
 
-export default function Pitch({ teamName = "THE VARSITY XI", players = [], onManage, onSelectCaptain }: PitchProps) {
+export default function Pitch({ teamName = "THE VARSITY XI", players = [], totalPoints = 0, onManage, onSelectCaptain }: PitchProps) {
     // Standard 6-player formation (1-2-2-1)
     const gk = players.find(p => p.position === 'GK');
     const defs = players.filter(p => p.position === 'DEF');
@@ -36,7 +37,7 @@ export default function Pitch({ teamName = "THE VARSITY XI", players = [], onMan
                         <span className="text-[10px] md:text-xs font-black text-primary tracking-widest uppercase">LIVE</span>
                     </div>
                     <div className="flex items-end gap-2 leading-none">
-                        <span className="text-4xl md:text-6xl font-black text-primary italic transition-all group-hover:scale-105">78</span>
+                        <span className="text-4xl md:text-6xl font-black text-primary italic transition-all group-hover:scale-105">{totalPoints}</span>
                         <span className="text-lg md:text-xl font-black text-primary/60 mb-1">pts</span>
                     </div>
                 </div>
@@ -120,7 +121,7 @@ function PlayerCard({ player, isGK, role, onManage, onSelectCaptain }: { player?
 
     return (
         <div onClick={() => onSelectCaptain?.(player.id)} className="flex flex-col items-center gap-2 group cursor-pointer transition-transform hover:scale-110 active:scale-95">
-            <div className={`relative w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center border-2 shadow-lg transition-all ${isGK ? 'bg-orange-500/20 border-orange-500/40 group-hover:bg-orange-500 group-hover:border-orange-500' : 'bg-secondary border-primary/20 group-hover:bg-primary group-hover:border-primary'} ${player?.isCaptain ? 'ring-2 ring-primary ring-offset-4 ring-offset-transparent shadow-[0_0_20px_rgba(0,230,118,0.3)]' : ''}`}>
+            <div className={`relative w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center border-2 shadow-lg transition-all ${isGK ? 'bg-orange-500/20 border-orange-500/40 group-hover:bg-orange-500 group-hover:border-orange-500' : 'bg-secondary border-primary/20 group-hover:bg-primary group-hover:border-primary'} ${player?.isCaptain ? 'ring-2 ring-primary ring-offset-4 ring-offset-transparent shadow-[0_0_20px_rgba(139,92,246,0.3)]' : ''}`}>
                 {isGK ? (
                     <Shield className={`w-6 h-6 md:w-8 md:h-8 ${isGK ? 'text-orange-500 group-hover:text-background' : 'text-primary group-hover:text-background'} transition-colors`} />
                 ) : (
