@@ -1,8 +1,29 @@
 import { Bell, Shield, Zap, Star, Users, Trophy } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
+import { useState, useEffect } from "react";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
 export default function About() {
+    const [stats, setStats] = useState({ users: 0, players: 0, matches: 0 });
+
+    useEffect(() => {
+        Promise.all([
+            fetch(`${API_URL}/users`).then(r => r.json()),
+            fetch(`${API_URL}/players`).then(r => r.json()),
+            fetch(`${API_URL}/matches`).then(r => r.json()),
+        ]).then(([users, players, matches]) => {
+            setStats({
+                users: Array.isArray(users) ? users.length : 0,
+                players: Array.isArray(players) ? players.length : 0,
+                matches: Array.isArray(matches) ? matches.length : 0,
+            });
+        }).catch(() => {
+            setStats({ users: 0, players: 0, matches: 0 });
+        });
+    }, []);
+
     return (
         <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden uppercase">
             {/* Desktop View Header (Hidden on Mobile) */}
@@ -53,7 +74,7 @@ export default function About() {
                                 <Users className="w-10 h-10" />
                             </div>
                             <div className="space-y-2">
-                                <p className="text-4xl md:text-6xl font-black text-white italic tracking-tighter transition-all group-hover:text-primary">2,500+</p>
+                                <p className="text-4xl md:text-6xl font-black text-white italic tracking-tighter transition-all group-hover:text-primary">{stats.users}</p>
                                 <p className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase">ACTIVE GAFFERS</p>
                             </div>
                             <div className="absolute bottom-[-10px] right-[-10px] opacity-5">
@@ -66,8 +87,8 @@ export default function About() {
                                 <Shield className="w-10 h-10" />
                             </div>
                             <div className="space-y-2">
-                                <p className="text-4xl md:text-6xl font-black text-white italic tracking-tighter transition-all group-hover:text-primary">120+</p>
-                                <p className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase">COMPETING TEAMS</p>
+                                <p className="text-4xl md:text-6xl font-black text-white italic tracking-tighter transition-all group-hover:text-primary">{stats.players}</p>
+                                <p className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase">PLAYERS IN DATABASE</p>
                             </div>
                             <div className="absolute bottom-[-10px] right-[-10px] opacity-5">
                                 <Shield className="w-32 h-32" />
@@ -79,8 +100,8 @@ export default function About() {
                                 <Trophy className="w-10 h-10" />
                             </div>
                             <div className="space-y-2 relative z-10">
-                                <p className="text-4xl md:text-6xl font-black text-background italic tracking-tighter leading-none">WEEKLY</p>
-                                <p className="text-xs font-black text-background/60 tracking-[0.3em] uppercase">PRIZE POOLS</p>
+                                <p className="text-4xl md:text-6xl font-black text-background italic tracking-tighter leading-none">{stats.matches}</p>
+                                <p className="text-xs font-black text-background/60 tracking-[0.3em] uppercase">MATCHES TRACKED</p>
                             </div>
                             <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
