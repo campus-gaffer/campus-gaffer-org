@@ -67,7 +67,6 @@ export default function Footer() {
                 { name: "RULES", path: "/rules" },
                 { name: "ABOUT", path: "/about" },
                 { name: "SCORES", path: "/scores" },
-                { name: "TRANSFERS", path: "/transfers" },
               ].map(link => (
                 <Link key={link.name} to={link.path} className="font-black text-xs text-slate-400 hover:text-primary tracking-[0.2em] uppercase transition-colors relative group">
                   {link.name}
@@ -101,13 +100,6 @@ export default function Footer() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">SEASON 2026 ACTIVE</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
-                  <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">TRANSFERS OPEN</span>
                 </div>
               </div>
             </div>

@@ -6,7 +6,7 @@ import Features from '@/components/Features'
 import Footer from '@/components/Footer'
 import Dashboard from '@/pages/Dashboard'
 import Leagues from '@/pages/Leagues'
-import Transfers from '@/pages/Transfers'
+// import Transfers from '@/pages/Transfers'
 import Scores from '@/pages/Scores'
 import Rules from '@/pages/Rules'
 import About from '@/pages/About'
@@ -56,7 +56,7 @@ function App() {
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/leagues" element={<ProtectedRoute><Leagues /></ProtectedRoute>} />
-          <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} />
+          {/* <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} /> */}
           <Route path="/scores" element={<ProtectedRoute><Scores /></ProtectedRoute>} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/about" element={<About />} />

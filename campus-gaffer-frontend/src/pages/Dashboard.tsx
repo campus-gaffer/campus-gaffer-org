@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [userBudget, setUserBudget] = useState(0);
+  const [_, _setUserBudget] = useState(0);
 
   useEffect(() => {
     if (searchParams.get('manage') === 'true') {
@@ -99,7 +99,7 @@ export default function Dashboard() {
           setProfile(found);
           setTeamName(found.team_name);
           setTotalPoints(found.total_points || 0);
-          setUserBudget(found.budget || 0);
+          _setUserBudget(found.budget || 0);
         }
       })
       .catch(e => console.error("Profile fetch error:", e));
@@ -221,11 +221,7 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <section className="grid sm:grid-cols-2 lg:grid-cols-1 gap-6 text-left">
-              <Link to="/transfers" className="bg-primary rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center hover:scale-[1.02] transition-all">
-                <h3 className="text-background font-black text-2xl uppercase">TRANSFER MARKET</h3>
-                <p className="text-background/70 text-[10px] font-black uppercase tracking-widest mt-2">£{userBudget.toFixed(1)}M budget available</p>
-              </Link>
+            <section className="grid gap-6 text-left">
               <Link to="/leagues" className="bg-secondary/40 border border-white/5 rounded-[2.5rem] p-8 min-h-[120px] flex flex-col justify-center hover:border-primary/30 transition-all">
                 <h3 className="text-white font-black text-2xl uppercase tracking-tighter">LEADERBOARD</h3>
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">{totalPoints} pts — view rankings</p>
