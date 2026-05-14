@@ -5,14 +5,17 @@ import (
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/scraper"
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 type GameService interface {
-	SyncGames(ctx context.Context, scraped []scraper.ScrapedGame) error
+	SyncGames(ctx context.Context, scraped []scraper.ScrapedGameSummary) error
 	ProcessCompletedGames(ctx context.Context) error
 }
 
@@ -22,6 +25,7 @@ type gameService struct {
 	gameRepo   repository.GameRepository
 	perfRepo   repository.PerformanceRepository
 	playerRepo repository.PlayerRepository
+	teamRepo   repository.TeamRepository
 }
 
 func NewGameService(
@@ -30,6 +34,7 @@ func NewGameService(
 	gameRepo repository.GameRepository,
 	perfRepo repository.PerformanceRepository,
 	playerRepo repository.PlayerRepository,
+	teamRepo repository.TeamRepository,
 ) GameService {
 	return &gameService{
 		discovery:  discovery,
@@ -37,6 +42,7 @@ func NewGameService(
 		gameRepo:   gameRepo,
 		perfRepo:   perfRepo,
 		playerRepo: playerRepo,
+		teamRepo:   teamRepo,
 	}
 }
 
@@ -47,102 +53,231 @@ func normaliseStatus(gameResultScore string) string {
 	return "Completed"
 }
 
-func toGame(game scraper.ScrapedGame) models.Game {
+func parseDate(dateStr string) *datatypes.Date {
+	// The date is in MM/DD/YYYY format, e.g. "09/15/1998"
+	layout := "1/2/2006"
+	parsed, err := time.Parse(layout, dateStr)
+	if err != nil {
+		// return nil, fmt.Errorf("parseDate: parse %s: %w", dateStr, err)
+		log.Printf("Failed to parse date %s: %v", dateStr, err)
+		return nil
+	}
+	d := datatypes.Date(parsed)
+	return &d
+}
+
+func toGame(game scraper.ScrapedGameSummary) models.Game {
 	return models.Game{
-		ExternalGameId: game.ExternalId,
-		ExternalSource: game.ExternalSource,
-		Status:         normaliseStatus(game.GameResultScore),
-		IsScraped:      false,
-		KickoffTime:    &game.KickoffTime,
-		UpdatedAt:      time.Now(),
+		ExternalGameId:     game.ExternalId,
+		ExternalSource:     game.ExternalSource,
+		ExternalGameType:   int16(game.GameType),
+		ExternalLeagueId:   game.LeagueId,
+		HomeTeamExternalId: game.HomeTeamId,
+		AwayTeamExternalId: game.OpponentTeamId,
+		Status:             normaliseStatus(game.GameResultScore),
+		IsScraped:          false,
 	}
 }
 
-func toPlayer(player scraper.ScrapedPlayerStat) models.ScrapedPlayer {
+func toPlayer(player scraper.ScrapedPlayerInfo) models.ScrapedPlayer {
 	return models.ScrapedPlayer{
-		ExternalId:     player.ExternalPlayerID,
-		ExternalSource: player.ExternalSource,
-		Name:           player.Name,
-		// BirthDate:      &player.BirthDate,
-		// Age:            player.Age,
-		// Gender:         &player.Gender,
-		// YearOfStudy:    &player.YearOfStudy,
-		// GraduationYear: &player.GraduationYear,
+		ExternalPlayerId: player.ExternalId,
+		ExternalSource:   player.ExternalSource,
+		Name:             player.PlayerName,
+		IsPrivate:        false,
+		BirthDate:        parseDate(player.BirthDate),
+		Gender:           &player.Gender,
+		YearOfStudy:      &player.YearOfStudy,
+		GraduationYear:   &player.GraduationYear,
 	}
 }
 
 func toPerformance(
 	s scraper.ScrapedPlayerStat,
 	gameID uuid.UUID,
+	playerId uuid.UUID,
 	teamID *uuid.UUID,
 ) models.PlayerPerformance {
 	return models.PlayerPerformance{
-		ExternalPlayerId: s.ExternalPlayerID,
-		ExternalSource:   scraper.EXTERNAL_SOURCE,
-		TeamId:           teamID,
-		GameId:           gameID,
-		Goals:            uint(s.Goals),
-		KickoffTime:      &s.KickoffTime,
-		IsMVP:            s.IsMVP,
-		PlayedGame:       s.GamePlayed,
+		PlayerId:   playerId,
+		GameId:     gameID,
+		TeamId:     teamID,
+		Goals:      s.Goals,
+		GamePlayed: s.GamePlayed,
+		IsMVP:      s.IsMVP,
 	}
 }
 
-func (svc *gameService) SyncGames(ctx context.Context, scraped []scraper.ScrapedGame) error {
+func toTeam(externaId, externalSource, name string) models.Team {
+	return models.Team{
+		ExternalTeamId: externaId,
+		ExternalSource: externalSource,
+		Name:           name,
+	}
+}
+
+func (svc *gameService) SyncGames(ctx context.Context, scraped []scraper.ScrapedGameSummary) error {
+	// Deduplicate the scraped payload and upsert each unique game.
+	// Upserts are idempotent, so we don't need to query the database.
+	// Map is per-call so it doesn't accumulate across runs.
+	processed := make(map[string]struct{})
+	inserted := 0
+	skipped := 0
+
 	for _, game := range scraped {
-		mappedGame := toGame(game)
-		existing, err := svc.gameRepo.FindByExternalId(ctx, mappedGame.ExternalGameId, mappedGame.ExternalSource)
-		if err != nil {
-			return err
+		if game.ExternalId == "" {
+			// skip malformed entries
+			skipped++
+			continue
 		}
 
-		if existing == nil {
-			_, err := svc.gameRepo.Upsert(ctx, &mappedGame)
-			if err != nil {
-				return err
-			}
+		// Avoid processing duplicates inside the scraped payload.
+		if _, ok := processed[game.ExternalId]; ok {
+			skipped++
+			continue
 		}
+		processed[game.ExternalId] = struct{}{}
+
+		mappedGame := toGame(game)
+		if _, err := svc.gameRepo.Upsert(ctx, &mappedGame); err != nil {
+			return fmt.Errorf("SyncGames: upsert game %s: %w", game.ExternalId, err)
+		}
+		inserted++
 	}
+	log.Printf("SyncGames: inserted %d new games, skipped %d (malformed or duplicates)\n", inserted, skipped)
 	return nil
 }
 
 func (svc *gameService) ProcessCompletedGames(ctx context.Context) error {
 	unscraped, err := svc.gameRepo.FindUnscraped(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("ProcessCompletedGames: find unscraped %w", err)
 	}
-
 	for _, game := range unscraped {
-		results, err := svc.stats.GetGameData(ctx, game.ExternalGameId)
+		ref := scraper.GameRef{
+			ExternalId:     game.ExternalGameId,
+			ExternalSource: game.ExternalSource,
+			GameType:       game.ExternalGameType,
+			LeagueId:       game.ExternalLeagueId,
+		}
+		scraped, err := svc.stats.GetGameData(ctx, ref)
 		if err != nil {
 			log.Printf("Failed to fetch stats for %s, %v", game.ExternalGameId, err)
 			continue
 		}
+		// Per-game counter gates MarkScraped so a single failed player
+		// keeps this game in the unscraped pool for retry, but doesn't
+		// poison subsequent games in the batch.
+		skippedPlayers := 0
 
-		// TeamId resolution requires TeamRepository which is not yet implemented.
-		// Performance rows are written with null TeamId until team resolution is added.
-		var inferredTeamId *uuid.UUID
+		homeTeam := toTeam(scraped.HomeTeamId, scraped.ExternalSource, scraped.HomeTeamName)
+		savedHome, err := svc.teamRepo.Upsert(ctx, &homeTeam)
+		if err != nil {
+			return fmt.Errorf("ProcessCompletedGames: upsert home team %s: %w", homeTeam.ExternalTeamId, err)
+		}
 
-		for _, player := range results.Players {
-			if player.ExternalPlayerID == "" {
+		awayTeam := toTeam(scraped.AwayTeamId, scraped.ExternalSource, scraped.AwayTeamName)
+		savedAway, err := svc.teamRepo.Upsert(ctx, &awayTeam)
+		if err != nil {
+			return fmt.Errorf("ProcessCompletedGames: upsert away team %s: %w", awayTeam.ExternalTeamId, err)
+		}
+
+		kickoff := scraped.KickoffTime
+		game.KickoffTime = &kickoff
+
+		// Lift forfeit signal from the scraper DTO onto the domain model.
+		// "" means no forfeit, leave Game.ForfeitedBy nil so the scoring
+		// service treats this as a normal game.
+		if scraped.ForfeitedBy != "" {
+			f := scraped.ForfeitedBy
+			game.ForfeitedBy = &f
+		}
+
+		if _, err := svc.gameRepo.Upsert(ctx, &game); err != nil {
+			log.Printf("Failed to update kickoff time for game %s, %v", game.ExternalGameId, err)
+			return fmt.Errorf("ProcessCompletedGames: update game kickoff %s: %w", game.ExternalGameId, err)
+		}
+
+		// Resolve which team UUID corresponds to each given player
+		teamIdFor := func(externalId string) *uuid.UUID {
+			switch externalId {
+			case scraped.HomeTeamId:
+				return &savedHome.Id
+			case scraped.AwayTeamId:
+				return &savedAway.Id
+			default:
+				return nil
+			}
+		}
+
+		for _, stat := range scraped.Players {
+			if stat.ExternalPlayerID == "" {
+				log.Printf("Skipping %s in game %s due to missing ExternalPlayerID", stat.Name, game.ExternalGameId)
+				skippedPlayers++
+				continue // skip players with no external ID - we won't be able to link them to performances
+			}
+
+			var savedPlayer *models.ScrapedPlayer
+			existing := svc.playerRepo.FindByExternalID(ctx, stat.ExternalPlayerID)
+
+			if existing != nil {
+				// Cache hit: skip enrichment entirely. Idempotent, and re-runs
+				// don't burn API quota on players we've already seen.
+				savedPlayer = existing
+			} else {
+				// New player: try enrichment, fall back to scrape context on
+				// non-fatal failure so the performance row still lands.
+				var player models.ScrapedPlayer
+				info, err := svc.stats.GetPlayerData(ctx, stat.ExternalPlayerID)
+				switch {
+				case err == nil:
+					player = toPlayer(*info)
+				case errors.Is(err, scraper.ErrPlayerPrivate):
+					player = models.ScrapedPlayer{
+						ExternalPlayerId: stat.ExternalPlayerID,
+						Name:             stat.Name,
+						ExternalSource:   stat.ExternalSource,
+						IsPrivate:        true,
+					}
+				case errors.Is(err, scraper.ErrUnauthorized), errors.Is(err, &scraper.ErrSessionExpired{}):
+					return err
+				default:
+					// Transient enrichment failure: persist what we know so
+					// the performance row isn't lost. Next run can retry the
+					// enrichment because IsPrivate stays false.
+					log.Printf("enrichment failed for %s, using scrape context: %v", stat.ExternalPlayerID, err)
+					player = models.ScrapedPlayer{
+						ExternalPlayerId: stat.ExternalPlayerID,
+						Name:             stat.Name,
+						ExternalSource:   stat.ExternalSource,
+					}
+				}
+
+				saved, err := svc.playerRepo.Upsert(ctx, &player)
+				if err != nil {
+					log.Printf("Failed to upsert player %s, %v", player.ExternalPlayerId, err)
+					skippedPlayers++
+					continue
+				}
+				savedPlayer = saved
+			}
+
+			// Always upsert the performance
+			teamId := teamIdFor(stat.ExternalTeamID)
+			performance := toPerformance(stat, game.Id, savedPlayer.Id, teamId)
+			if _, err := svc.perfRepo.Upsert(ctx, &performance); err != nil {
+				log.Printf("Failed to upsert performance for player %s in game %s, %v", savedPlayer.ExternalPlayerId, game.ExternalGameId, err)
+				skippedPlayers++
 				continue
 			}
-			p := toPlayer(player)
-			_, err := svc.playerRepo.Upsert(ctx, &p)
-			if err != nil {
-				return err
-			}
-
-			perf := toPerformance(player, game.Id, inferredTeamId)
-
-			if _, err := svc.perfRepo.Upsert(ctx, &perf); err != nil {
-				return err
+		}
+		log.Printf("info: skipped %d players in game %s", skippedPlayers, game.ExternalGameId)
+		if skippedPlayers == 0 {
+			if err := svc.gameRepo.MarkScraped(ctx, game.Id); err != nil {
+				return fmt.Errorf("ProcessCompletedGames: mark scraped %w", err)
 			}
 		}
-		
-		if err := svc.gameRepo.MarkScraped(ctx, game.Id); err != nil {
-			return err
-		}
+		log.Printf("info: processed game %s (%s vs %s)", game.ExternalGameId, scraped.HomeTeamName, scraped.AwayTeamName)
 	}
 	return nil
 }

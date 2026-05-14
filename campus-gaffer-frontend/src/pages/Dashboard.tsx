@@ -37,7 +37,7 @@ export default function Dashboard() {
       .then(data => {
         if (Array.isArray(data)) {
           const mapped = data.filter((m: any) => m.is_live).map((m: any) => ({
-            id: m.id,
+            id: m.ID,
             team1: m.home_team,
             team2: m.away_team,
             score1: m.home_score,
@@ -146,12 +146,7 @@ export default function Dashboard() {
       </div>
 
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-background font-black text-sm">C</span>
-          </div>
-          <h1 className="text-base italic font-extrabold tracking-wider text-white uppercase">CAMPUS GAFFER</h1>
-        </div>
+        <h1 className="text-base italic font-extrabold tracking-wider text-white uppercase">CAMPUS GAFFER</h1>
         <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
           <Bell className="w-5 h-5 text-slate-300" />
           <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-background"></span>

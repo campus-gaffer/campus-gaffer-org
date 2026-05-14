@@ -29,7 +29,7 @@ func getRouter() (*gin.Engine, error) {
 			return
 		}
 
-		database.Connect()
+		database.Connect(dbURL)
 		if database.DB == nil {
 			initErr = fmt.Errorf("failed to connect to database")
 			return
@@ -39,6 +39,7 @@ func getRouter() (*gin.Engine, error) {
 			&models.User{}, &models.Player{}, &models.Match{},
 			&models.SquadMember{}, &models.MatchEvent{},
 			&models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{},
+			&models.ScraperCookie{}, &models.ScrapedPlayer{}, &models.PlayerPerformance{},
 		)
 
 		// Warm up queries to refresh PgBouncer cached plans after schema changes

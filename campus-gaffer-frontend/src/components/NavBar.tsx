@@ -26,9 +26,6 @@ export default function Navbar() {
       <div className="flex items-center gap-16">
         <SignedIn>
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
-              <span className="text-background font-black text-2xl">C</span>
-            </div>
             <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
               CAMPUS <span className="text-primary italic">GAFFER</span>
             </h1>
@@ -36,9 +33,6 @@ export default function Navbar() {
         </SignedIn>
         <SignedOut>
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
-              <span className="text-background font-black text-2xl">C</span>
-            </div>
             <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
               CAMPUS <span className="text-primary italic">GAFFER</span>
             </h1>

@@ -1,0 +1,173 @@
+
+<link rel="stylesheet" href="/js/jquery.tablesorter/themes/blue/style.css?v=569" type="text/css" media="print, projection, screen" />
+<style>
+    .player-title{ border-bottom:#ddd solid 1px;}
+    .player-title img{margin-right:5px; width:24px; height:24px; overflow:hidden;}
+    .player-title .print{ color:#7e7e7e;}
+    .player-title .print:hover{text-decoration:none;  color:#000;}
+    .team-player th, .team-player td{ text-align:center; padding:4px 0px;}
+    .team-player th.th-0,.team-player td.td-0{ text-align:left; padding-left:8px; padding-right:8px; width:20%;}
+    .memberName{ color:#00A3E0;}
+    .stats-nav{font-size:14px;  padding:5px;}
+    .stats-nav .current{color:#000;font-weight: bold}
+    .stat-tab th{background:#ddd; border-right:#fff solid 1px;}
+    .stat-tab th, .stat-tab td{ border-bottom:#fff solid 1px;}
+
+    /* override existing classes since we don't need them in game schedule */
+    table.tablesorter thead tr .header {
+        background-image: none;
+        cursor: pointer;
+    }
+    table.tablesorter thead tr .headerSortUp {
+        background-image: none;
+        background-color: transparent;
+    }
+    table.tablesorter thead tr .headerSortDown {
+        background-image: none;
+        background-color: transparent;
+    }
+
+    table.tablesorter tr>td.sortedcolumn, table.tablesorter tr>th.sortedcolumn {
+        background-color: #ddd;
+        color: #000;
+        border: 1px solid #fff;
+    }
+    table.tablesorter th, table.tablesorter td { padding: 2px 0; }
+    div.team-player table th, div.team-player table td { border-top: 0; }
+    table.tablesorter tbody tr.odd{background:#fff;}
+    /* override bootstrap style */
+    .gamestattable th td {text-align:left}
+</style>
+<div id="divPlayerStatszzz1459318002913640448" >
+    <div id="divAveragesTab1zzz1459318002913640448" class="stats-nav">
+            <span id="spanCurGameStatszzz1459318002913640448">
+            <a href="javascript:void(0)" id="aLinkGameStatszzz1459318002913640448" onclick="changePlayerTableView(this,&#39;gvGamePlayerStatszzz1459318002913640448&#39;,&#39;zzz1459318002913640448&#39;)" class="current">Current Game</a> |
+            </span>
+        <a href="javascript:void(0)" id="alinkAverageStatszzz1459318002913640448" onclick="changePlayerTableView(this,&#39;gvPlayerStatszzz1459318002913640448&#39;,&#39;zzz1459318002913640448&#39;)">Team Member Stats</a>
+
+    </div>
+
+    <div class="table-container-stat" style="overflow: auto">
+        <div>
+            <table class="table-hover tablesorter stat-tab gamestattable team-player" border="0" id="gvGamePlayerStatszzz1459318002913640448" style="width:100%;">
+                <thead>
+                <tr>
+                    <th title="Player" class="th-0" scope="col"><span title="Player">Player</span></th><th title="Game Played" scope="col"><span title="Game Played">GP</span></th><th title="Most Valuable Player" scope="col"><span title="Most Valuable Player">MVP</span></th><th title="Goals" scope="col"><span title="Goals">GLS</span></th>
+                </tr>
+                </thead><tbody>
+            <tr>
+                <td class="td-0 memberName" title="Njanja Nyaga" style="width:20px"><a aria-label=Njanja Nyaga href='/Members/player_card.aspx?player=e932544691bf490bba13d5cccc112c6b' style='word-break:keep-all;white-space:nowrap;'>Njanja Nyaga</a></td><td>Y</td><td>&nbsp;</td><td>1</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Enoch Ogheneroro" style="width:20px"><a aria-label=Enoch Ogheneroro href='/Members/player_card.aspx?player=ace464d4ccb0440bbba38ac37de396c8' style='word-break:keep-all;white-space:nowrap;'>Enoch Ogheneroro</a></td><td>Y</td><td>Y</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Hunter Zamrykut" style="width:20px"><a aria-label=Hunter Zamrykut href='/Members/player_card.aspx?player=03115dc6f42c4a11854d42a978f9fab0' style='word-break:keep-all;white-space:nowrap;'>Hunter Zamrykut</a></td><td>Y</td><td>&nbsp;</td><td>1</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="MASUD ABDI" style="width:20px"><a aria-label=MASUD ABDI href='/Members/player_card.aspx?player=1d359ef41e934f928a39c1e86e18716e' style='word-break:keep-all;white-space:nowrap;'>MASUD ABDI</a></td><td>Y</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Oren Fungai" style="width:20px"><a aria-label=Oren Fungai href='/Members/player_card.aspx?player=22b0f0244cb2448b93f481476c3c2b7f' style='word-break:keep-all;white-space:nowrap;'>Oren Fungai</a></td><td>Y</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Mansib Hasan" style="width:20px"><a aria-label=Mansib Hasan href='/Members/player_card.aspx?player=955ec39821be4bdd93b30a50468e2d4b' style='word-break:keep-all;white-space:nowrap;'>Mansib Hasan</a></td><td>Y</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="ibrahimkhalil hussein" style="width:20px"><a aria-label=ibrahimkhalil hussein href='/Members/player_card.aspx?player=e7c3a51f8940449e81bfeee05498f1c6' style='word-break:keep-all;white-space:nowrap;'>ibrahimkhalil hussein</a></td><td>Y</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Rodrigo Licea" style="width:20px"><a aria-label=Rodrigo Licea href='/Members/player_card.aspx?player=aaa819ced0c141b78e608d9009d0c96f' style='word-break:keep-all;white-space:nowrap;'>Rodrigo Licea</a></td><td>&nbsp;</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Zoe Mora" style="width:20px"><a aria-label=Zoe Mora href='/Members/player_card.aspx?player=3f52d5aa6a6b431caaf8f36677995edc' style='word-break:keep-all;white-space:nowrap;'>Zoe Mora</a></td><td>&nbsp;</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Andrea Morrison" style="width:20px"><a aria-label=Andrea Morrison href='/Members/player_card.aspx?player=b8c98f149d5c4a5eb5b1fc5ff71db95e' style='word-break:keep-all;white-space:nowrap;'>Andrea Morrison</a></td><td>&nbsp;</td><td>&nbsp;</td><td>0</td>
+            </tr><tr>
+                <td class="td-0 memberName" title="Abdullah Mushtaq" style="width:20px"><a aria-label=Abdullah Mushtaq href='/Members/player_card.aspx?player=535021133f26436d9b71015f7450f1af' style='word-break:keep-all;white-space:nowrap;'>Abdullah Mushtaq</a></td><td>&nbsp;</td><td>&nbsp;</td><td>0</td>
+            </tr>
+            </tbody><tfoot>
+            <tr>
+                <td title="Total" class="td-0"><STRONG>TOTAL</STRONG></td><td>7</td><td>1</td><td>2</td>
+            </tr>
+            </tfoot>
+            </table>
+        </div><div>
+        <table class="table-hover tablesorter stat-tab team-player" border="0" id="gvPlayerStatszzz1459318002913640448" style="width:100%;display:none">
+            <thead>
+            <tr>
+                <th title="Player" class="th-0" scope="col"><span title="Player">Player</span></th><th title="Game Played" scope="col"><span title="Game Played">GP</span></th><th title="Most Valuable Player" scope="col"><span title="Most Valuable Player">MVP</span></th><th title="Goals Per Game" scope="col"><span title="Goals Per Game">GLSPG</span></th><th title="Total Goals" scope="col"><span title="Total Goals">GLSTOT</span></th>
+            </tr>
+            </thead><tbody>
+        <tr>
+            <td class="td-0 memberName" title="Hunter Zamrykut" style="width:20px"><a aria-label=Hunter Zamrykut href='/Members/player_card.aspx?player=03115dc6f42c4a11854d42a978f9fab0' style='word-break:keep-all;white-space:nowrap;'>Hunter Zamrykut</a></td><td>8</td><td>0</td><td>0.25</td><td>2</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="MASUD ABDI" style="width:20px"><a aria-label=MASUD ABDI href='/Members/player_card.aspx?player=1d359ef41e934f928a39c1e86e18716e' style='word-break:keep-all;white-space:nowrap;'>MASUD ABDI</a></td><td>8</td><td>0</td><td>0.5</td><td>4</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Oren Fungai" style="width:20px"><a aria-label=Oren Fungai href='/Members/player_card.aspx?player=22b0f0244cb2448b93f481476c3c2b7f' style='word-break:keep-all;white-space:nowrap;'>Oren Fungai</a></td><td>8</td><td>0</td><td>0.5</td><td>4</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Zoe Mora" style="width:20px"><a aria-label=Zoe Mora href='/Members/player_card.aspx?player=3f52d5aa6a6b431caaf8f36677995edc' style='word-break:keep-all;white-space:nowrap;'>Zoe Mora</a></td><td>3</td><td>0</td><td>0.33</td><td>1</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Abdullah Mushtaq" style="width:20px"><a aria-label=Abdullah Mushtaq href='/Members/player_card.aspx?player=535021133f26436d9b71015f7450f1af' style='word-break:keep-all;white-space:nowrap;'>Abdullah Mushtaq</a></td><td>3</td><td>1</td><td>0</td><td>0</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Mansib Hasan" style="width:20px"><a aria-label=Mansib Hasan href='/Members/player_card.aspx?player=955ec39821be4bdd93b30a50468e2d4b' style='word-break:keep-all;white-space:nowrap;'>Mansib Hasan</a></td><td>8</td><td>0</td><td>0.25</td><td>2</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Rodrigo Licea" style="width:20px"><a aria-label=Rodrigo Licea href='/Members/player_card.aspx?player=aaa819ced0c141b78e608d9009d0c96f' style='word-break:keep-all;white-space:nowrap;'>Rodrigo Licea</a></td><td>3</td><td>1</td><td>0</td><td>0</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Enoch Ogheneroro" style="width:20px"><a aria-label=Enoch Ogheneroro href='/Members/player_card.aspx?player=ace464d4ccb0440bbba38ac37de396c8' style='word-break:keep-all;white-space:nowrap;'>Enoch Ogheneroro</a></td><td>8</td><td>2</td><td>0</td><td>0</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Andrea Morrison" style="width:20px"><a aria-label=Andrea Morrison href='/Members/player_card.aspx?player=b8c98f149d5c4a5eb5b1fc5ff71db95e' style='word-break:keep-all;white-space:nowrap;'>Andrea Morrison</a></td><td>3</td><td>0</td><td>0</td><td>0</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="ibrahimkhalil hussein" style="width:20px"><a aria-label=ibrahimkhalil hussein href='/Members/player_card.aspx?player=e7c3a51f8940449e81bfeee05498f1c6' style='word-break:keep-all;white-space:nowrap;'>ibrahimkhalil hussein</a></td><td>7</td><td>0</td><td>1.14</td><td>8</td>
+        </tr><tr>
+            <td class="td-0 memberName" title="Njanja Nyaga" style="width:20px"><a aria-label=Njanja Nyaga href='/Members/player_card.aspx?player=e932544691bf490bba13d5cccc112c6b' style='word-break:keep-all;white-space:nowrap;'>Njanja Nyaga</a></td><td>8</td><td>5</td><td>1.12</td><td>9</td>
+        </tr>
+        </tbody><tfoot>
+        <tr>
+            <td title="Total" class="td-0"><STRONG>TOTAL</STRONG></td><td>67</td><td>9</td><td>4.09</td><td>30</td>
+        </tr>
+        </tfoot>
+        </table>
+    </div><div>
+
+    </div>
+    </div>
+
+</div>
+<script type="text/javascript" src="/js/jquery.tablesorter/jquery.tablesorter.min.js?v=569"></script>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        initalizeTableSort();
+    });
+    //add client id into the method name to avoid reference ascx twice issues
+    function initalizeTableSort() {
+        var curStatsDivID = "divPlayerStatszzz1459318002913640448";
+        $('#' + curStatsDivID).find('.tablesorter').tablesorter({ widgets: ['zebra'] });
+        $('#' + curStatsDivID).find('table.tablesorter thead>tr>th').click(function () {
+            var jTable = $(this).closest('table');
+
+            jTable.find('th').removeClass("sortedcolumn");
+            jTable.find('td').removeClass("sortedcolumn");
+
+            $(this).addClass("sortedcolumn");
+
+            var colNdx = $(this).index();
+            jTable.find('tbody tr').each(function (i) {
+                $(this).find('td:eq(' + colNdx + ')').addClass("sortedcolumn");
+            });
+        });
+
+        $('#' + curStatsDivID).find(".tablesorter").bind("sortStart", function () {
+            $(this).find('tr.ExpandedScoreCard').remove();
+        }).bind("sortEnd", function () {
+
+        });
+    }
+
+    function changePlayerTableView(element, currentDiv,teamId) {
+        var curStatsDivID = "divPlayerStats" + teamId;
+        $('#' + curStatsDivID).find('div[id*=divAveragesTab1'+teamId+']').find('a').removeAttr("class");
+        $(element).addClass("current");
+        $('#' + curStatsDivID).find('.table-container-stat').find('div').each(function () {
+            if($(this).attr("class") != "stats-nav")
+                $(this).hide();
+        });
+
+        $('#' + curStatsDivID).find('table[id*=' + currentDiv + ']').parent().show();
+        $('#' + curStatsDivID).find('table[id*=' + currentDiv + ']').show();
+    }
+</script>
+

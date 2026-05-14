@@ -13,6 +13,7 @@ import (
 type PerformanceRepository interface {
 	Upsert(ctx context.Context, perf *models.PlayerPerformance) (*models.PlayerPerformance, error)
 	FindByGameIdAndPlayerId(ctx context.Context, gameId, playerId uuid.UUID) (*models.PlayerPerformance, error)
+	FindByGameId(ctx context.Context, gameId uuid.UUID) ([]models.PlayerPerformance, error)
 }
 
 type perfRepo struct {
@@ -31,7 +32,9 @@ func (r *perfRepo) Upsert(ctx context.Context, perf *models.PlayerPerformance) (
 		Clauses(
 			clause.OnConflict{
 				Columns: []clause.Column{{Name: "player_id"}, {Name: "game_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"goals", "kickoff_time", "is_mvp", "played_game", "updated_at"}),
+				DoUpdates: clause.AssignmentColumns([]string{
+					"goals", "is_mvp", "game_played", "team_id", "updated_at",
+				}),
 			},
 		).
 		Create(perf)
@@ -41,4 +44,13 @@ func (r *perfRepo) Upsert(ctx context.Context, perf *models.PlayerPerformance) (
 
 func (r *perfRepo) FindByGameIdAndPlayerId(ctx context.Context, gameId, playerId uuid.UUID) (*models.PlayerPerformance, error) {
 	return nil, errors.New("not implemented")
+}
+
+func (r *perfRepo) FindByGameId(ctx context.Context, gameId uuid.UUID) ([]models.PlayerPerformance, error) {
+	var perfs []models.PlayerPerformance
+	err := r.db.
+		WithContext(ctx).
+		Where("game_id = ?", gameId).
+		Find(&perfs).Error
+	return perfs, err
 }

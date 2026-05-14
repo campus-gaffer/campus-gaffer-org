@@ -254,10 +254,7 @@ export default function Onboarding() {
 
             {/* Footer Branding */}
             <div className="absolute bottom-10 flex items-center gap-2 opacity-50">
-                <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
-                    <span className="text-background font-black text-sm">C</span>
-                </div>
-                <span className="text-xs font-black tracking-widest">CAMPUS GAFFER v2.4</span>
+            <span className="text-xs font-black tracking-widest">CAMPUS GAFFER v2.4</span>
             </div>
         </div>
     );

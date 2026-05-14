@@ -1,8 +1,29 @@
 .vercel
 .idea/
 .DS_Store
+.vscode/
 node_modules/
 dist/
 .env
+go.work
+go.work.sum
 
-campus_gaffer_design.docx
+# Design documents
+campus_gaffer_design*.pdf
+campus_gaffer_design*.docx
+
+# JSON files
+*.json
+
+# Claude
+.claude/
+
+# Compiled scripts
+campus-gaffer-backend/clean_game_stats
+__pycache__/
+
+# Dev files
+data/*.cleaned.*
+
+# LocalStack deployment artifacts
+dist/

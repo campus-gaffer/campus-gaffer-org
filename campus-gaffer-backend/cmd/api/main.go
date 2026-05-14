@@ -1,27 +1,24 @@
 package main
 
 import (
+	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
 	"campus-gaffer-backend/internal/models"
+	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load()
-	database.Connect()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	database.Connect(cfg.DBUri)
 
 	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{}, &models.ScrapedPlayer{}, &models.PlayerPerformance{})
-
-	// Warm up queries to refresh PgBouncer cached plans after schema changes
-	database.DB.Exec("SELECT * FROM users LIMIT 0")
-	database.DB.Exec("SELECT * FROM player_data LIMIT 0")
-	database.DB.Exec("SELECT * FROM squad_members LIMIT 0")
-	database.DB.Exec("SELECT * FROM matches LIMIT 0")
-	database.DB.Exec("SELECT * FROM match_events LIMIT 0")
 
 	// Warm up queries to refresh PgBouncer cached plans after schema changes
 	database.DB.Exec("SELECT * FROM users LIMIT 0")

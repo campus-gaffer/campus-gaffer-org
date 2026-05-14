@@ -19,9 +19,6 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start gap-6">
             <SignedIn>
               <Link to="/dashboard" className="flex items-center gap-3 group">
-                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/30">
-                  <span className="text-background font-black text-2xl">C</span>
-                </div>
                 <div>
                   <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
                     CAMPUS
@@ -34,9 +31,6 @@ export default function Footer() {
             </SignedIn>
             <SignedOut>
               <Link to="/" className="flex items-center gap-3 group">
-                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-12 transition-transform shadow-lg shadow-primary/30">
-                  <span className="text-background font-black text-2xl">C</span>
-                </div>
                 <div>
                   <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
                     CAMPUS

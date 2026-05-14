@@ -17,7 +17,7 @@ type MatchEvent = {
 };
 
 type Match = {
-  id: number;
+  ID: number;
   home_team: string;
   away_team: string;
   home_score: number;
@@ -69,23 +69,23 @@ export default function Scores() {
 
   useEffect(() => {
     if (selectedMatch) {
-      fetch(`${API_URL}/matches/${selectedMatch.id}/events`)
+      fetch(`${API_URL}/matches/${selectedMatch.ID}/events`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
             setEvents(data);
           } else {
-            setEvents(MOCK_EVENTS.filter(e => e.match_id === selectedMatch.id));
+            setEvents(MOCK_EVENTS.filter(e => e.match_id === selectedMatch.ID));
           }
         })
         .catch(() => {
-          setEvents(MOCK_EVENTS.filter(e => e.match_id === selectedMatch.id));
+          setEvents(MOCK_EVENTS.filter(e => e.match_id === selectedMatch.ID));
         });
     }
   }, [selectedMatch]);
 
   const displayedMatches = activeTab === "live" ? liveMatches : upcomingMatches;
-  const currentEvents = events.filter(e => selectedMatch && e.match_id === selectedMatch.id);
+  const currentEvents = events.filter(e => selectedMatch && e.match_id === selectedMatch.ID);
 
   return (
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden uppercase">
@@ -138,10 +138,10 @@ export default function Scores() {
               ) : (
                 displayedMatches.map(match => (
                   <div
-                    key={match.id}
+                    key={match.ID}
                     onClick={() => setSelectedMatch(match)}
                     className={`bg-card/40 border rounded-2xl p-5 cursor-pointer transition-all hover:scale-[1.02] ${
-                      selectedMatch?.id === match.id
+                      selectedMatch?.ID === match.ID
                         ? "border-primary/50 bg-primary/5 shadow-lg shadow-primary/10"
                         : "border-white/5 hover:border-white/20"
                     }`}
