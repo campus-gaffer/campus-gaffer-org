@@ -6,22 +6,24 @@ import { useState, useEffect } from "react";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
 export default function About() {
-    const [stats, setStats] = useState({ users: 0, players: 0, matches: 0 });
+    const [stats, setStats] = useState({ users: 0, players: 0, matches: 0, games: 0, performances: 0, teams: 0 });
 
     useEffect(() => {
-        Promise.all([
-            fetch(`${API_URL}/users`).then(r => r.json()),
-            fetch(`${API_URL}/players`).then(r => r.json()),
-            fetch(`${API_URL}/matches`).then(r => r.json()),
-        ]).then(([users, players, matches]) => {
-            setStats({
-                users: Array.isArray(users) ? users.length : 0,
-                players: Array.isArray(players) ? players.length : 0,
-                matches: Array.isArray(matches) ? matches.length : 0,
+        fetch(`${API_URL}/stats`)
+            .then(r => r.json())
+            .then(data => {
+                setStats({
+                    users: data.users || 0,
+                    players: data.players || 0,
+                    matches: data.games || 0,
+                    games: data.games || 0,
+                    performances: data.performances || 0,
+                    teams: data.teams || 0,
+                });
+            })
+            .catch(() => {
+                setStats({ users: 0, players: 0, matches: 0, games: 0, performances: 0, teams: 0 });
             });
-        }).catch(() => {
-            setStats({ users: 0, players: 0, matches: 0 });
-        });
     }, []);
 
     return (

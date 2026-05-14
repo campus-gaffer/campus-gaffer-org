@@ -56,6 +56,7 @@ func main() {
 	result.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
 	result.GET("/leaderboard", handlers.GetLeaderboard)
 	result.GET("/rewards", handlers.GetRewards)
+	result.GET("/stats", handlers.GetStats)
 	result.POST("/admin/update-cookie", handlers.UpdateCookie)
 	result.Run(":" + getPort())
 }
