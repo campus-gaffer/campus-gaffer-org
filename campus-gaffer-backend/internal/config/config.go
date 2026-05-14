@@ -47,7 +47,8 @@ func buildCookieString() (string, error) {
 	apiToken := firstNonEmpty(os.Getenv("APITokenForSPA"), os.Getenv("ApiTokenForSPA"))
 	sessionID := os.Getenv("ASPNET_SESSION_ID")
 	if apiToken == "" || sessionID == "" {
-		return "", fmt.Errorf("config: APITokenForSPA and ASPNET_SESSION_ID must be set")
+		// Not fatal for local dev / API-only mode
+		return "", nil
 	}
 	return fmt.Sprintf("ApiTokenForSPA=%s; ASP.NET_SessionId=%s", apiToken, sessionID), nil
 }
