@@ -18,7 +18,7 @@ func NewSquadHandler(svc service.SquadService) *SquadHandler {
 }
 
 type createSquadBody struct {
-	UserID   string   `json:"user_id" binding:"required"`
+	UserID   uint     `json:"user_id" binding:"required"`
 	Gameweek int      `json:"gameweek" binding:"required,min=1"`
 	Starters []string `json:"starters" binding:"required"`
 	Bench    []string `json:"bench" binding:"required"`
@@ -31,11 +31,6 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 		return
 	}
 
-	userID, err := uuid.Parse(body.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-		return
-	}
 	starters, err := parseUUIDs(body.Starters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid starter id: " + err.Error()})
@@ -48,7 +43,7 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	}
 
 	req := service.CreateSquadRequest{
-		UserID:   userID,
+		UserID:   body.UserID,
 		Gameweek: body.Gameweek,
 		Starters: starters,
 		Bench:    bench,
@@ -106,7 +101,9 @@ func isSquadValidationErr(err error) bool {
 		errors.Is(err, service.ErrWrongBenchCount) ||
 		errors.Is(err, service.ErrDuplicatePlayer) ||
 		errors.Is(err, service.ErrBudgetExceeded) ||
-		errors.Is(err, service.ErrSquadExists)
+		errors.Is(err, service.ErrSquadExists) ||
+		errors.Is(err, service.ErrDeadlinePassed) ||
+		errors.Is(err, service.ErrGameweekNotFound)
 }
 
 func parseUUIDs(ss []string) ([]uuid.UUID, error) {

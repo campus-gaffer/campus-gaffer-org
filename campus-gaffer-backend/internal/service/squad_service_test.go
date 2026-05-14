@@ -5,6 +5,7 @@ import (
 	"campus-gaffer-backend/internal/repository"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -57,7 +58,7 @@ func (f *fakeSquadRepo) FindByID(_ context.Context, id uuid.UUID) (*models.Squad
 	return squad, f.players[id], nil
 }
 
-func (f *fakeSquadRepo) FindByUserID(_ context.Context, userID uuid.UUID) (*models.Squad, error) {
+func (f *fakeSquadRepo) FindByUserID(_ context.Context, userID uint) (*models.Squad, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -101,6 +102,52 @@ func (f *fakeSquadPriceRepo) GetEffectivePrice(_ context.Context, playerID uuid.
 	return repository.PriceFloor, nil
 }
 
+// fakeGameRepoForSquad only implements FindRegularSeason; all other methods are no-ops.
+type fakeGameRepoForSquad struct {
+	games []models.Game
+}
+
+func (f *fakeGameRepoForSquad) FindRegularSeason(_ context.Context) ([]models.Game, error) {
+	return f.games, nil
+}
+func (f *fakeGameRepoForSquad) Upsert(_ context.Context, g *models.Game) (*models.Game, error) {
+	return g, nil
+}
+func (f *fakeGameRepoForSquad) FindByExternalId(_ context.Context, _, _ string) (*models.Game, error) {
+	return nil, nil
+}
+func (f *fakeGameRepoForSquad) FindUnscraped(_ context.Context) ([]models.Game, error) {
+	return nil, nil
+}
+func (f *fakeGameRepoForSquad) FindScraped(_ context.Context) ([]models.Game, error) {
+	return nil, nil
+}
+func (f *fakeGameRepoForSquad) MarkScraped(_ context.Context, _ uuid.UUID) error { return nil }
+
+// gameAtKickoff builds a minimal regular-season Game for schedule derivation.
+func gameAtKickoff(t time.Time) models.Game {
+	return models.Game{
+		Id:               uuid.New(),
+		ExternalGameId:   uuid.NewString(),
+		ExternalSource:   "imleagues",
+		ExternalGameType: 0,
+		KickoffTime:      &t,
+		Status:           "Completed",
+	}
+}
+
+// futureGameRepo returns a schedule where GW1 cutoff is 30 days away.
+func futureGameRepo() *fakeGameRepoForSquad {
+	k := time.Now().Add(30 * 24 * time.Hour)
+	return &fakeGameRepoForSquad{games: []models.Game{gameAtKickoff(k)}}
+}
+
+// pastGameRepo returns a schedule where GW1 cutoff has already elapsed.
+func pastGameRepo() *fakeGameRepoForSquad {
+	k := time.Now().Add(-30 * 24 * time.Hour)
+	return &fakeGameRepoForSquad{games: []models.Game{gameAtKickoff(k)}}
+}
+
 // --- helpers ---
 
 func makeIDs(n int) []uuid.UUID {
@@ -111,12 +158,12 @@ func makeIDs(n int) []uuid.UUID {
 	return ids
 }
 
-func newSquadSvc(sr *fakeSquadRepo, pr *fakeSquadPriceRepo) SquadService {
-	return &squadService{squadRepo: sr, priceRepo: pr}
+func newSquadSvc(sr *fakeSquadRepo, pr *fakeSquadPriceRepo, gr repository.GameRepository) SquadService {
+	return &squadService{squadRepo: sr, priceRepo: pr, gameRepo: gr, loc: time.UTC}
 }
 
 func validReq(starters, bench []uuid.UUID) CreateSquadRequest {
-	return CreateSquadRequest{UserID: uuid.New(), Gameweek: 1, Starters: starters, Bench: bench}
+	return CreateSquadRequest{UserID: 1, Gameweek: 1, Starters: starters, Bench: bench}
 }
 
 // --- tests ---
@@ -124,7 +171,7 @@ func validReq(starters, bench []uuid.UUID) CreateSquadRequest {
 func TestCreateSquad_Valid_Succeeds(t *testing.T) {
 	starters := makeIDs(OnFieldCount)
 	bench := makeIDs(BenchCount)
-	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 
 	squad, players, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
 	if err != nil {
@@ -154,7 +201,7 @@ func TestCreateSquad_Valid_Succeeds(t *testing.T) {
 
 func TestCreateSquad_WrongStarterCount_Rejected(t *testing.T) {
 	for _, n := range []int{0, 5, 7} {
-		svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+		svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 		_, _, err := svc.CreateSquad(context.Background(), validReq(makeIDs(n), makeIDs(BenchCount)))
 		if err != ErrWrongStarterCount {
 			t.Errorf("starters=%d: got %v, want ErrWrongStarterCount", n, err)
@@ -164,7 +211,7 @@ func TestCreateSquad_WrongStarterCount_Rejected(t *testing.T) {
 
 func TestCreateSquad_WrongBenchCount_Rejected(t *testing.T) {
 	for _, n := range []int{0, 3, 5} {
-		svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+		svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 		_, _, err := svc.CreateSquad(context.Background(), validReq(makeIDs(OnFieldCount), makeIDs(n)))
 		if err != ErrWrongBenchCount {
 			t.Errorf("bench=%d: got %v, want ErrWrongBenchCount", n, err)
@@ -176,10 +223,28 @@ func TestCreateSquad_DuplicatePlayer_Rejected(t *testing.T) {
 	starters := makeIDs(OnFieldCount)
 	bench := makeIDs(BenchCount)
 	bench[0] = starters[0] // same player on field and bench
-	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 	_, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
 	if err != ErrDuplicatePlayer {
 		t.Errorf("got %v, want ErrDuplicatePlayer", err)
+	}
+}
+
+func TestCreateSquad_AfterDeadline_Rejected(t *testing.T) {
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, pastGameRepo())
+	_, _, err := svc.CreateSquad(context.Background(), validReq(makeIDs(OnFieldCount), makeIDs(BenchCount)))
+	if err != ErrDeadlinePassed {
+		t.Errorf("got %v, want ErrDeadlinePassed", err)
+	}
+}
+
+func TestCreateSquad_GameweekNotInSchedule_Rejected(t *testing.T) {
+	// Gameweek 99 doesn't exist in a single-game schedule (only GW1 exists).
+	req := CreateSquadRequest{UserID: 1, Gameweek: 99, Starters: makeIDs(OnFieldCount), Bench: makeIDs(BenchCount)}
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
+	_, _, err := svc.CreateSquad(context.Background(), req)
+	if err != ErrGameweekNotFound {
+		t.Errorf("got %v, want ErrGameweekNotFound", err)
 	}
 }
 
@@ -190,7 +255,7 @@ func TestCreateSquad_BudgetExceeded_Rejected(t *testing.T) {
 	for _, id := range append(starters, bench...) {
 		prices[id] = PriceMax // 10 × 10 = 100 > 65
 	}
-	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{prices: prices})
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{prices: prices}, futureGameRepo())
 	_, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
 	if err != ErrBudgetExceeded {
 		t.Errorf("got %v, want ErrBudgetExceeded", err)
@@ -198,9 +263,9 @@ func TestCreateSquad_BudgetExceeded_Rejected(t *testing.T) {
 }
 
 func TestCreateSquad_UserAlreadyHasSquad_Rejected(t *testing.T) {
-	userID := uuid.New()
+	userID := uint(42)
 	sr := newFakeSquadRepo()
-	svc := newSquadSvc(sr, &fakeSquadPriceRepo{})
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
 
 	req1 := CreateSquadRequest{UserID: userID, Gameweek: 1, Starters: makeIDs(OnFieldCount), Bench: makeIDs(BenchCount)}
 	if _, _, err := svc.CreateSquad(context.Background(), req1); err != nil {
@@ -225,7 +290,7 @@ func TestCreateSquad_BudgetSpent_RecordedCorrectly(t *testing.T) {
 		prices[id] = 4.0
 	}
 	sr := newFakeSquadRepo()
-	svc := newSquadSvc(sr, &fakeSquadPriceRepo{prices: prices})
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{prices: prices}, futureGameRepo())
 
 	squad, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
 	if err != nil {
@@ -238,7 +303,7 @@ func TestCreateSquad_BudgetSpent_RecordedCorrectly(t *testing.T) {
 }
 
 func TestGetSquad_NotFound_ReturnsError(t *testing.T) {
-	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 	_, _, err := svc.GetSquad(context.Background(), uuid.New())
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
@@ -249,7 +314,7 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 	starters := makeIDs(OnFieldCount)
 	bench := makeIDs(BenchCount)
 	sr := newFakeSquadRepo()
-	svc := newSquadSvc(sr, &fakeSquadPriceRepo{})
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
 
 	squad, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
 	if err != nil {
@@ -279,9 +344,54 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 }
 
 func TestGetSquadPoints_NotFound_ReturnsError(t *testing.T) {
-	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{})
+	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 	_, err := svc.GetSquadPoints(context.Background(), uuid.New())
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
+	}
+}
+
+// TestHotPath_CreateGetPoints exercises the complete happy path:
+// draft a valid squad within deadline → fetch it → fetch points.
+func TestHotPath_CreateGetPoints(t *testing.T) {
+	starters := makeIDs(OnFieldCount)
+	bench := makeIDs(BenchCount)
+	sr := newFakeSquadRepo()
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
+
+	// Create
+	created, players, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
+	if err != nil {
+		t.Fatalf("CreateSquad: %v", err)
+	}
+	if created.LockedAt == nil {
+		t.Error("squad should be locked immediately on creation")
+	}
+
+	// Fetch
+	fetched, fetchedPlayers, err := svc.GetSquad(context.Background(), created.Id)
+	if err != nil {
+		t.Fatalf("GetSquad: %v", err)
+	}
+	if fetched.Id != created.Id {
+		t.Errorf("fetched squad id = %s, want %s", fetched.Id, created.Id)
+	}
+	if len(fetchedPlayers) != len(players) {
+		t.Errorf("fetched %d players, want %d", len(fetchedPlayers), len(players))
+	}
+
+	// Points (no games scored yet → all zeros, total = 0)
+	resp, err := svc.GetSquadPoints(context.Background(), created.Id)
+	if err != nil {
+		t.Fatalf("GetSquadPoints: %v", err)
+	}
+	if resp.SquadID != created.Id {
+		t.Errorf("points squad_id = %s, want %s", resp.SquadID, created.Id)
+	}
+	if resp.TotalPoints != 0 {
+		t.Errorf("total_points = %d, want 0 (no games scored)", resp.TotalPoints)
+	}
+	if len(resp.Players) != OnFieldCount+BenchCount {
+		t.Errorf("points has %d player entries, want %d", len(resp.Players), OnFieldCount+BenchCount)
 	}
 }

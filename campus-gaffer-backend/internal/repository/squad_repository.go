@@ -15,7 +15,7 @@ type SquadRepository interface {
 	// FindByID returns the squad and its players, or (nil, nil, nil) if not found.
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error)
 	// FindByUserID returns the user's squad if one exists, or nil if not.
-	FindByUserID(ctx context.Context, userID uuid.UUID) (*models.Squad, error)
+	FindByUserID(ctx context.Context, userID uint) (*models.Squad, error)
 	// TotalPointsByPlayerIDs sums player_game_points per player for the given
 	// weight version. Players with no points row are absent from the result map.
 	TotalPointsByPlayerIDs(ctx context.Context, playerIDs []uuid.UUID, weightVer string) (map[uuid.UUID]int, error)
@@ -56,7 +56,7 @@ func (r *squadRepo) FindByID(ctx context.Context, id uuid.UUID) (*models.Squad, 
 	return &squad, players, nil
 }
 
-func (r *squadRepo) FindByUserID(ctx context.Context, userID uuid.UUID) (*models.Squad, error) {
+func (r *squadRepo) FindByUserID(ctx context.Context, userID uint) (*models.Squad, error) {
 	var squad models.Squad
 	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&squad).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

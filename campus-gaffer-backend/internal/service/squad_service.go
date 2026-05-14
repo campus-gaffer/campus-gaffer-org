@@ -3,6 +3,7 @@ package service
 import (
 	"campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
+	"campus-gaffer-backend/internal/season"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ const (
 	OnFieldCount = 6
 	// BenchCount is the number of bench players in a 6v6 squad.
 	BenchCount = 4
-	// BudgetCap is the maximum total price a squad may cost at draft time.
+	// BudgetCap is the maximum total price at draft time.
 	// Provisional: 10 players × avg £6.50. Needs product sign-off before launch.
 	BudgetCap = 65.0
 )
@@ -28,10 +29,12 @@ var (
 	ErrBudgetExceeded    = errors.New("squad exceeds budget cap")
 	ErrSquadExists       = errors.New("user already has a squad this season")
 	ErrSquadNotFound     = errors.New("squad not found")
+	ErrDeadlinePassed    = errors.New("gameweek deadline has passed")
+	ErrGameweekNotFound  = errors.New("gameweek not found in schedule")
 )
 
 type CreateSquadRequest struct {
-	UserID   uuid.UUID   `json:"user_id"`
+	UserID   uint        `json:"user_id"`
 	Gameweek int         `json:"gameweek"`
 	Starters []uuid.UUID `json:"starters"`
 	Bench    []uuid.UUID `json:"bench"`
@@ -58,10 +61,20 @@ type SquadService interface {
 type squadService struct {
 	squadRepo repository.SquadRepository
 	priceRepo repository.PlayerPriceRepository
+	gameRepo  repository.GameRepository
+	loc       *time.Location
 }
 
-func NewSquadService(squadRepo repository.SquadRepository, priceRepo repository.PlayerPriceRepository) SquadService {
-	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo}
+func NewSquadService(
+	squadRepo repository.SquadRepository,
+	priceRepo repository.PlayerPriceRepository,
+	gameRepo repository.GameRepository,
+	loc *time.Location,
+) SquadService {
+	if loc == nil {
+		loc = time.UTC
+	}
+	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, loc: loc}
 }
 
 func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error) {
@@ -79,6 +92,10 @@ func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) 
 			return nil, nil, ErrDuplicatePlayer
 		}
 		seen[id] = struct{}{}
+	}
+
+	if err := s.checkDeadline(ctx, req.Gameweek); err != nil {
+		return nil, nil, err
 	}
 
 	existing, err := s.squadRepo.FindByUserID(ctx, req.UserID)
@@ -121,6 +138,25 @@ func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) 
 		return nil, nil, fmt.Errorf("CreateSquad: persist: %w", err)
 	}
 	return squad, players, nil
+}
+
+// checkDeadline derives the cutoff for the requested gameweek from the
+// regular-season schedule and returns ErrDeadlinePassed if it has elapsed.
+func (s *squadService) checkDeadline(ctx context.Context, gameweekNum int) error {
+	games, err := s.gameRepo.FindRegularSeason(ctx)
+	if err != nil {
+		return fmt.Errorf("checkDeadline: load schedule: %w", err)
+	}
+	schedule := season.RegularGameweeks(games, s.loc)
+	for _, gw := range schedule {
+		if gw.Number == gameweekNum {
+			if time.Now().After(gw.Cutoff) {
+				return ErrDeadlinePassed
+			}
+			return nil
+		}
+	}
+	return ErrGameweekNotFound
 }
 
 func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error) {
