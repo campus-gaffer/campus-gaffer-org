@@ -88,11 +88,11 @@ export default function Leagues() {
                     >
                       <div className="flex items-center gap-6 relative z-10">
                         <div className="relative">
-                          <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary transition-colors flex items-center justify-center ${
+                          <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary transition-colors ${
                             rank === 1 ? "border-[3px] border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-[float_3s_ease-in-out_infinite]" :
                             "border-2 border-white/10 group-hover:border-primary/40"
                           }`}>
-                            <span className="text-lg font-bold text-slate-500">{item.team_name?.charAt(0).toUpperCase() || "?"}</span>
+                            <img src={item.avatar ? `https://api.dicebear.com/7.x/${item.avatar}/svg?seed=${item.clerk_id}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.username}`} alt={item.team_name} className="w-full h-full object-cover" />
                           </div>
                           <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${
                             rank === 1 ? "bg-amber-400 text-background" :
