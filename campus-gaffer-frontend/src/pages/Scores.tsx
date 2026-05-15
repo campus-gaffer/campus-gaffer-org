@@ -141,7 +141,7 @@ export default function Scores() {
             </div>
 
             {/* Match List */}
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {loading ? (
                 <div className="text-center py-12 text-slate-500 font-black italic uppercase tracking-widest">Loading...</div>
               ) : displayedMatches.length === 0 ? (
