@@ -241,24 +241,10 @@ export default function Scores() {
                     <Zap className="w-4 h-4 text-primary opacity-50" />
                   </div>
 
-                  <div className="space-y-5">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <span className="text-[10px] font-black text-slate-400 tracking-widest">PossESSION</span>
-                        <div className="flex gap-4">
-                          <span className="text-xs font-black text-primary">{selectedMatch.possession_h || 50}%</span>
-                          <span className="text-xs font-black text-slate-500">{selectedMatch.possession_a || 50}%</span>
-                        </div>
-                      </div>
-                      <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden flex">
-                        <div className="h-full bg-primary shadow-[0_0_10px_rgba(139,92,246,0.4)]" style={{ width: `${selectedMatch.possession_h || 50}%` }}></div>
-                        <div className="h-full bg-slate-800" style={{ width: `${selectedMatch.possession_a || 50}%` }}></div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                       {[
-                        { label: "SHOTS", v1: selectedMatch.shots_h || 0, v2: selectedMatch.shots_a || 0 },
+                        { label: "GOAL SCORERS", v1: currentEvents.filter(e => e.team === "home").length, v2: currentEvents.filter(e => e.team === "away").length },
+                        { label: "GOALS", v1: selectedMatch.home_score, v2: selectedMatch.away_score },
                       ].map(stat => (
                         <div key={stat.label} className="bg-secondary/40 border border-white/5 rounded-2xl p-4 text-center group hover:border-primary/30 transition-colors">
                           <div className="text-lg md:text-xl font-black text-white mb-0.5 tracking-tighter">{stat.v1} / {stat.v2}</div>
@@ -266,7 +252,6 @@ export default function Scores() {
                         </div>
                       ))}
                     </div>
-                  </div>
                 </section>
 
                 {/* Match Events Timeline */}
