@@ -71,11 +71,6 @@ export default function Navbar() {
                   LEADERBOARD
                 </Link>
               </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link to="/support" className={navLinkClass("/support")}>
-                  CONTACT
-                </Link>
-              </NavigationMenuItem>
             </SignedIn>
             <SignedOut>
               <NavigationMenuItem>
