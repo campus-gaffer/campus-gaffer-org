@@ -34,7 +34,7 @@ export default function Pitch({ teamName = "THE VARSITY XI", players = [], total
                 <div className="text-right">
                     <div className="flex items-center gap-2 justify-end mb-1">
                         <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                        <span className="text-[10px] md:text-xs font-black text-primary tracking-widest uppercase">LIVE</span>
+                        <span className="text-[10px] md:text-xs font-black text-primary tracking-widest uppercase">TOTAL</span>
                     </div>
                     <div className="flex items-end gap-2 leading-none">
                         <span className="text-4xl md:text-6xl font-black text-primary italic transition-all group-hover:scale-105">{totalPoints}</span>

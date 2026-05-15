@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [_, _setUserBudget] = useState(0);
+  const [userBudget, setUserBudget] = useState(100);
   const [autoSaveMsg, setAutoSaveMsg] = useState("");
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function Dashboard() {
           setProfile(found);
           setTeamName(found.team_name);
           setTotalPoints(found.total_points || 0);
-          _setUserBudget(found.budget || 0);
+          setUserBudget(found.budget || 100);
         }
       })
       .catch(e => console.error("Profile fetch error:", e));
@@ -264,7 +264,14 @@ export default function Dashboard() {
                 </h2>
                 <div className="flex gap-4">
                   <span className="text-[10px] font-black text-primary tracking-widest uppercase">SLOTS: {starters.length} / 6</span>
-                  <span className="text-[10px] font-black text-slate-500 tracking-widest uppercase italic">BUILD YOUR ELITE TEAM</span>
+                  <span className={`text-[10px] font-black tracking-widest uppercase italic ${(() => {
+                    const cost = starters.reduce((sum: number, s: any) => sum + (s.price || 0), 0);
+                    const remaining = userBudget - cost;
+                    return remaining < 0 ? 'text-rose-400' : remaining < 20 ? 'text-amber-400' : 'text-slate-500';
+                  })()}`}>£{(() => {
+                    const cost = starters.reduce((sum: number, s: any) => sum + (s.price || 0), 0);
+                    return (userBudget - cost).toFixed(1);
+                  })()}M LEFT</span>
                 </div>
               </div>
               <button
@@ -313,14 +320,25 @@ export default function Dashboard() {
                         const currentInPos = starters.filter(s => s.position === pos).length;
 
                         if (currentInPos < max) {
-                          // Add to squad if there's room in this position
-                          newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: pos }];
+                          // Check budget: can we afford this player?
+                          const currentCost = starters.reduce((sum: number, s: any) => sum + (s.price || p.price || 0), 0);
+                          const newCost = currentCost + (p.price || 0);
+                          if (newCost > userBudget && starters.length > 0) {
+                            return; // Can't afford
+                          }
+                          newS = [...starters, { id: p.id, name: p.name, price: p.price, points: p.total_points || 0, position: pos }];
                         } else {
-                          // Replace the first player with same position
+                          // Replace - check if affordable (new price minus old price delta)
+                          const replaced = starters.find(s => s.position === pos);
+                          const currentCost = starters.reduce((sum: number, s: any) => sum + (s.price || 0), 0);
+                          const newCost = currentCost - (replaced?.price || 0) + (p.price || 0);
+                          if (newCost > userBudget) {
+                            return;
+                          }
                           const idx = starters.findIndex(s => s.position === pos);
                           if (idx !== -1) {
                             newS = [...starters];
-                            newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: pos };
+                            newS[idx] = { id: p.id, name: p.name, price: p.price, points: p.total_points || 0, position: pos };
                           } else {
                             return;
                           }
@@ -356,14 +374,18 @@ export default function Dashboard() {
                       </div>
                       <div className="text-left">
                         <p className="font-black italic text-white uppercase">{p.name}</p>
-                        <div className="flex gap-2 items-center">
+                        <div className="flex gap-2 items-center flex-wrap">
                           <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">{p.position}</span>
+                          <span className="text-[9px] font-black text-slate-400 px-2 py-0.5 rounded uppercase border border-white/10">£{p.price?.toFixed(1) || "?"}M</span>
                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{p.university || p.team}</p>
                         </div>
                       </div>
                     </div>
-                    {isSelected && <CheckCircle2 className="w-6 h-6 text-primary" />}
-                    {!isSelected && <div className="text-primary font-black italic uppercase text-xs">SELECT</div>}
+                    <div className="flex flex-col items-end gap-1">
+                      {isSelected && <CheckCircle2 className="w-6 h-6 text-primary" />}
+                      {!isSelected && <div className="text-primary font-black italic uppercase text-xs">SELECT</div>}
+                      <span className="text-[9px] font-black text-slate-600">{p.total_points || 0} pts</span>
+                    </div>
                   </div>
                 );
               }) : (

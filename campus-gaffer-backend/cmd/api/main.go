@@ -58,6 +58,9 @@ func main() {
 	result.GET("/rewards", handlers.GetRewards)
 	result.GET("/stats", handlers.GetStats)
 	result.POST("/admin/update-cookie", handlers.UpdateCookie)
+	result.POST("/admin/compute-points", handlers.ComputeUserPoints)
+	result.POST("/admin/compute-prices", handlers.ComputePrices)
+	result.POST("/admin/compute-gameweeks", handlers.ComputeGameweeks)
 	result.Run(":" + getPort())
 }
 
