@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useClerk } from "@clerk/clerk-react";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 
 type Props = {
   avatarSeed: string;
@@ -8,7 +9,8 @@ type Props = {
 };
 
 export default function ProfileDropdown({ avatarSeed, clerkId }: Props) {
-  const { signOut, openUserProfile } = useClerk();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,11 +42,11 @@ export default function ProfileDropdown({ avatarSeed, clerkId }: Props) {
       {open && (
         <div className="absolute right-0 top-16 w-56 bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
           <button
-            onClick={() => { openUserProfile(); setOpen(false); }}
+            onClick={() => { navigate("/profile"); setOpen(false); }}
             className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/5 transition-colors text-sm font-bold text-white"
           >
-            <Settings className="w-4 h-4 text-primary" />
-            MANAGE ACCOUNT
+            <User className="w-4 h-4 text-primary" />
+            PROFILE
           </button>
           <div className="h-px bg-white/5" />
           <button
