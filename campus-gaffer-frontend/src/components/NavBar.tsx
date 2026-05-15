@@ -63,16 +63,6 @@ export default function Navbar() {
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/about" className={navLinkClass("/about")}>
-                  ABOUT
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link to="/rewards" className={navLinkClass("/rewards")}>
-                  REWARDS
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <Link to="/profile" className={navLinkClass("/profile")}>
                   PROFILE
                 </Link>
