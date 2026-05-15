@@ -187,6 +187,8 @@ export default function Dashboard() {
     });
     sessionStorage.removeItem(`squad_${user?.id}`);
     fetchSquad();
+    // Recompute points after squad change
+    fetch(`${API_URL}/admin/compute-points`, { method: 'POST' }).catch(() => {});
     setAutoSaveMsg("SQUAD LOCKED!");
     setTimeout(() => {
       setAutoSaveMsg("");
