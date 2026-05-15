@@ -50,8 +50,13 @@ export default function Dashboard() {
           if (mapped.length > 0) setLiveMatches(mapped);
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch(e => console.error("Profile fetch error:", e));
+  }, [user]);
+
+  // Sync starters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('gaffer_squad_draft', JSON.stringify(starters));
+  }, [starters]);
 
   const fetchSquad = () => {
     if (!user) return;
@@ -78,6 +83,19 @@ export default function Dashboard() {
             };
           });
           setStarters(mapped);
+          // Clear localStorage draft since backend has the saved squad
+          localStorage.removeItem('gaffer_squad_draft');
+        } else {
+          // No squad saved on backend — check localStorage for a draft
+          const draft = localStorage.getItem('gaffer_squad_draft');
+          if (draft) {
+            try {
+              const parsed = JSON.parse(draft);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setStarters(parsed);
+              }
+            } catch {}
+          }
         }
       });
   };
