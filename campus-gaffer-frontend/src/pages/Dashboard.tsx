@@ -62,9 +62,37 @@ export default function Dashboard() {
 
   const fetchSquad = () => {
     if (!user) return;
+    const cached = sessionStorage.getItem(`squad_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        if (data.players && data.players.length > 0) {
+          const mapped = data.players.map((p: any, idx: number) => {
+            let pos = p.position;
+            if (!pos) {
+              if (idx === 0) pos = 'GK';
+              else if (idx === 1 || idx === 2) pos = 'DEF';
+              else if (idx === 3 || idx === 4) pos = 'MID';
+              else pos = 'FWD';
+            }
+            return {
+              id: p.id,
+              name: p.name,
+              points: p.total_points || 0,
+              price: p.price || 0,
+              position: pos,
+              isCaptain: p.id === data.captain_id,
+            };
+          });
+          setStarters(mapped);
+          return;
+        }
+      } catch {}
+    }
     fetch(`${API_URL}/squad/${user.id}`)
       .then(res => res.json())
       .then(data => {
+        sessionStorage.setItem(`squad_${user.id}`, JSON.stringify(data));
         if (data.players && data.players.length > 0) {
           const mapped = data.players.map((p: any, idx: number) => {
             let pos = p.position;
@@ -90,6 +118,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return;
+    const fetchProfile = () => {
+      const cached = sessionStorage.getItem(`profile_${user.id}`);
+      if (cached) {
+        try {
+          const found = JSON.parse(cached);
+          if (found && found.username) {
+            setTeamName(found.team_name);
+            setTotalPoints(found.total_points || 0);
+            setUserBudget(found.budget || 100);
+          }
+        } catch {}
+      }
+    };
+    fetchProfile();
+    // Load cached players immediately
+    const cachedPlayers = sessionStorage.getItem("players");
+    if (cachedPlayers) {
+      try { const data = JSON.parse(cachedPlayers); if (data.length > 0) setAllPlayers(data); } catch {}
+    }
     fetch(`${API_URL}/users/${user.id}`)
       .then(res => {
         if (res.status === 404) {
@@ -101,6 +148,7 @@ export default function Dashboard() {
       })
       .then(found => {
         if (found && found.username) {
+          sessionStorage.setItem(`profile_${user.id}`, JSON.stringify(found));
           setTeamName(found.team_name);
           setTotalPoints(found.total_points || 0);
           setUserBudget(found.budget || 100);
@@ -110,7 +158,12 @@ export default function Dashboard() {
 
     fetch(API_URL + "/players")
       .then(res => res.json())
-      .then(data => { if (data && data.length > 0) setAllPlayers(data); });
+      .then(data => {
+        if (data && data.length > 0) {
+          sessionStorage.setItem("players", JSON.stringify(data));
+          setAllPlayers(data);
+        }
+      });
 
     fetchSquad();
   }, [user]);
@@ -123,6 +176,7 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_ids: playerIds })
     });
+    sessionStorage.removeItem(`squad_${user?.id}`);
     fetchSquad();
     setAutoSaveMsg("SQUAD LOCKED!");
     setTimeout(() => {
