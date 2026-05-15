@@ -65,33 +65,19 @@ export default function HeroVisual() {
           </div>
         </div>
 
-        {/* Player avatar — geometric jersey silhouette */}
-        <div className="relative w-full aspect-[4/3] rounded-2xl bg-gradient-to-br from-violet-600/15 to-violet-900/5 border border-white/[0.04] mb-6 overflow-hidden">
-          {/* Diagonal stripe pattern */}
-          <div
-            className="absolute inset-0 opacity-[0.03] pointer-events-none"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(139,92,246,0.3) 20px, rgba(139,92,246,0.3) 21px)",
-            }}
-          />
-          {/* Abstract player shape — jersey silhouette */}
-          <svg
-            viewBox="0 0 120 160"
-            className="absolute inset-0 w-full h-full p-6 text-violet-400/20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M40 30 L80 30 L85 50 L95 45 L100 70 L90 75 L85 140 L80 145 L40 145 L35 140 L30 75 L20 70 L25 45 L35 50 Z"
-              className="fill-current"
-              stroke="currentColor"
-              strokeWidth="1"
-            />
-            <circle cx="60" cy="22" r="10" className="fill-current" />
-          </svg>
-          {/* Gradient overlay at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#0c0c14] to-transparent" />
+        {/* Player avatar — initials badge */}
+        <div className="relative w-full aspect-[4/3] rounded-2xl bg-gradient-to-br from-violet-600/10 to-violet-900/5 border border-white/[0.04] mb-6 overflow-hidden flex items-center justify-center">
+          <div className="w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-violet-500/20 to-violet-600/10 border-2 border-white/[0.06] flex items-center justify-center">
+            <span className="text-4xl md:text-5xl font-bold text-violet-400/60 uppercase tracking-tight select-none">
+              {topPlayer?.name
+                ? topPlayer.name
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                : "RS"}
+            </span>
+          </div>
         </div>
 
         {/* Player info */}
