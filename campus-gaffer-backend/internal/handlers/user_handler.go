@@ -84,9 +84,10 @@ func UpdateAvatar(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	result := database.DB.Model(&models.User{}).Where("clerk_id = ?", clerkID).Update("avatar", input.Avatar)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update avatar"})
+	err := database.DB.Exec("UPDATE users SET avatar = ? WHERE clerk_id = ?", input.Avatar, clerkID).Error
+	if err != nil {
+		log.Printf("Avatar update error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "avatar": input.Avatar})
