@@ -44,15 +44,7 @@ export default function Leagues() {
 
       {/* Mobile Header (Hidden on Desktop) */}
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/50">
-            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=anon`} alt="Profile" />
-          </div>
-          <h1 className="text-lg italic font-extrabold tracking-wider text-primary">CAMPUS GAFFER</h1>
-        </div>
-        <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background"></span>
-        </button>
+        <h1 className="text-lg font-bold tracking-tight text-white uppercase">Leaderboard</h1>
       </header>
 
       <main className="container mx-auto px-6 py-8 md:py-16 animate-in fade-in duration-500">
