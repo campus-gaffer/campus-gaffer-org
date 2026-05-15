@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useClerk } from "@clerk/clerk-react";
 import { LogOut, User } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
-
 type Props = {
   avatarSeed: string;
   clerkId: string;
@@ -15,8 +13,6 @@ export default function ProfileDropdown({ avatarSeed, clerkId, openUpward }: Pro
   const { signOut } = useClerk();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [teamName, setTeamName] = useState("");
-  const [username, setUsername] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,27 +22,6 @@ export default function ProfileDropdown({ avatarSeed, clerkId, openUpward }: Pro
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  useEffect(() => {
-    if (!clerkId || teamName) return;
-    const cached = sessionStorage.getItem(`team_${clerkId}`);
-    if (cached) {
-      const { team, user } = JSON.parse(cached);
-      setTeamName(team);
-      setUsername(user);
-      return;
-    }
-    fetch(`${API_URL}/users/${clerkId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data) {
-          setTeamName(data.team_name || "");
-          setUsername(data.username || "");
-          sessionStorage.setItem(`team_${clerkId}`, JSON.stringify({ team: data.team_name || "", user: data.username || "" }));
-        }
-      })
-      .catch(() => {});
-  }, [clerkId]);
 
   return (
     <div className="relative" ref={ref}>
@@ -66,11 +41,7 @@ export default function ProfileDropdown({ avatarSeed, clerkId, openUpward }: Pro
       </button>
 
       {open && (
-        <div className={`absolute right-0 ${openUpward ? 'bottom-16' : 'top-16'} w-64 bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50`}>
-          <div className="px-5 py-4 border-b border-white/5">
-            <p className="text-sm font-bold text-white truncate">{teamName || "No Team"}</p>
-            <p className="text-xs text-slate-500 truncate mt-0.5">{username || "Manager"}</p>
-          </div>
+        <div className={`absolute right-0 ${openUpward ? 'bottom-16' : 'top-16'} w-56 bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50`}>
           <button
             onClick={() => { navigate("/profile"); setOpen(false); }}
             className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/5 transition-colors text-sm font-bold text-white"
