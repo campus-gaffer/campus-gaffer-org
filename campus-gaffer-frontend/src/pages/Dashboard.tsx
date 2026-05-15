@@ -53,11 +53,6 @@ export default function Dashboard() {
       .catch(e => console.error("Profile fetch error:", e));
   }, [user]);
 
-  // Sync starters to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('gaffer_squad_draft', JSON.stringify(starters));
-  }, [starters]);
-
   const fetchSquad = () => {
     if (!user) return;
     fetch(`${API_URL}/squad/${user.id}`)
@@ -83,19 +78,6 @@ export default function Dashboard() {
             };
           });
           setStarters(mapped);
-          // Clear localStorage draft since backend has the saved squad
-          localStorage.removeItem('gaffer_squad_draft');
-        } else {
-          // No squad saved on backend — check localStorage for a draft
-          const draft = localStorage.getItem('gaffer_squad_draft');
-          if (draft) {
-            try {
-              const parsed = JSON.parse(draft);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setStarters(parsed);
-              }
-            } catch {}
-          }
         }
       });
   };
@@ -334,6 +316,8 @@ export default function Dashboard() {
                         };
                       });
                       setStarters(withP);
+                      // Auto-save to database immediately
+                      saveSquad(withP.map(s => s.id));
                       if (managingPosition !== 'all' && !isSelected) setManagingPosition(null); // Close after selection for specific position
                     }}
                     className={`bg-secondary/30 p-6 rounded-3xl flex items-center justify-between cursor-pointer border-2 transition-all hover:scale-[1.02] ${isSelected ? 'border-primary bg-primary/5' : 'border-white/5 opacity-60 hover:opacity-100'}`}
