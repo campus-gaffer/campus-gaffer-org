@@ -1,9 +1,7 @@
 import { SignedIn, SignedOut, SignInButton, useUser } from '@clerk/clerk-react';
 import { useLocation, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import CampusLogo from "@/assets/campus-logo.png"
-import { DollarSign } from 'lucide-react';
 import ProfileDropdown from "./ProfileDropdown";
 import {
   NavigationMenu,
@@ -16,19 +14,6 @@ import { cn } from "@/lib/utils"
 export default function Navbar() {
   const { user } = useUser();
   const location = useLocation();
-  const [userBudget, setUserBudget] = useState<number | null>(null);
-  const [avatarSeed, setAvatarSeed] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8082"}/users/${user.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.budget) setUserBudget(data.budget);
-        if (data && data.avatar) setAvatarSeed(data.avatar);
-      })
-      .catch(() => {});
-  }, [user]);
 
   const navLinkClass = (path: string) =>
     cn(
@@ -115,13 +100,7 @@ export default function Navbar() {
         </SignedOut>
         <SignedIn>
           <div className="flex items-center gap-4">
-            {userBudget !== null && (
-              <div className="hidden md:flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 rounded-xl px-4 py-2">
-                <DollarSign className="w-4 h-4 text-violet-400" />
-                <span className="text-sm font-bold text-white">£{userBudget.toFixed(1)}M</span>
-              </div>
-            )}
-            <ProfileDropdown avatarSeed={avatarSeed} clerkId={user?.id || ""} />
+            <ProfileDropdown avatarSeed={""} clerkId={user?.id || ""} />
           </div>
         </SignedIn>
       </div>
