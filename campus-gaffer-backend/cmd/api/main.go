@@ -55,8 +55,8 @@ func main() {
 	result.GET("/squad/:clerk_id", handlers.GetSquad)
 	result.PUT("/squad/:clerk_id/captain", handlers.SetCaptain)
 	result.GET("/leaderboard", handlers.GetLeaderboard)
-	result.GET("/rewards", handlers.GetRewards)
 	result.GET("/teams", handlers.GetTeams)
+	// result.GET("/rewards", handlers.GetRewards) // deactivated for now
 	result.GET("/stats", handlers.GetStats)
 	result.POST("/admin/update-cookie", handlers.UpdateCookie)
 	result.POST("/admin/compute-points", handlers.ComputeUserPoints)

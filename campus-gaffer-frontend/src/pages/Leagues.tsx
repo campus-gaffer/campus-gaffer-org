@@ -131,27 +131,6 @@ export default function Leagues() {
             </section>
           </div>
           )}
-
-          {/* Large Action Card */}
-          <section className="pt-8">
-            <div className="bg-primary rounded-[3rem] p-12 text-center shadow-2xl shadow-primary/20 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all">
-              <div className="relative z-10 text-left flex flex-col md:flex-row md:items-center justify-between gap-8">
-                <div className="max-w-xl">
-                  <h3 className="text-background font-black text-4xl md:text-6xl leading-none uppercase mb-4 italic">Win Weekly Prizes</h3>
-                  <p className="text-background/80 text-sm md:text-lg font-black uppercase tracking-widest">The top 3 gaflers in each university win campus rewards every week!</p>
-                </div>
-                <button
-                  onClick={() => navigate("/rewards")}
-                  className="px-10 py-5 bg-background text-primary font-black text-sm tracking-widest uppercase rounded-2xl shadow-xl hover:scale-105 transition-transform whitespace-nowrap"
-                >
-                  VIEW REWARDS
-                </button>
-              </div>
-              <div className="absolute top-1/2 -right-20 -translate-y-1/2 opacity-20 group-hover:rotate-12 transition-transform pointer-events-none">
-                <Trophy className="w-96 h-96 text-background" />
-              </div>
-            </div>
-          </section>
         </div>
       </main>
 
