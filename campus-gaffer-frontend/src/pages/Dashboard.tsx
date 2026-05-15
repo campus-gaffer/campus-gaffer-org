@@ -24,6 +24,69 @@ export default function Dashboard() {
   const [userBudget, setUserBudget] = useState(100);
   const [autoSaveMsg, setAutoSaveMsg] = useState("");
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [gameweekPoints, setGameweekPoints] = useState(0);
+  const [deadlineStr, setDeadlineStr] = useState("Fri 7:00 PM");
+
+  // Live countdown timer
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const day = now.getDay(); // 5 = Friday
+      const hour = now.getHours();
+      
+      
+      let target = new Date();
+      if (day < 5) {
+        // Next Friday
+        target.setDate(target.getDate() + (5 - day));
+      } else if (day === 5 && hour >= 19) {
+        // Past Friday deadline, next Friday
+        target.setDate(target.getDate() + 7);
+      }
+      target.setHours(19, 0, 0, 0);
+      
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setDeadlineStr("Deadline passed");
+        return;
+      }
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      
+      if (days > 0) setDeadlineStr(`${days}d ${hours}h`);
+      else if (hours > 0) setDeadlineStr(`${hours}h ${mins}m`);
+      else setDeadlineStr(`${mins}m`);
+    };
+    tick();
+    const iv = setInterval(tick, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Live match auto-refresh
+  useEffect(() => {
+    const fetchLiveMatches = () => {
+      fetch(API_URL + "/matches")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            const mapped = data.filter((m: any) => m.is_live).map((m: any) => ({
+              id: m.ID,
+              team1: m.home_team,
+              team2: m.away_team,
+              score1: m.home_score,
+              score2: m.away_score,
+              status: m.match_time || "LIVE",
+            }));
+            setLiveMatches(mapped);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchLiveMatches();
+    const iv = setInterval(fetchLiveMatches, 30000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     if (searchParams.get('manage') === 'true') {
@@ -31,26 +94,6 @@ export default function Dashboard() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams]);
-
-  // Fetch live matches
-  useEffect(() => {
-    fetch(API_URL + "/matches")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          const mapped = data.filter((m: any) => m.is_live).map((m: any) => ({
-            id: m.ID,
-            team1: m.home_team,
-            team2: m.away_team,
-            score1: m.home_score,
-            score2: m.away_score,
-            status: m.match_time || "LIVE",
-          }));
-          if (mapped.length > 0) setLiveMatches(mapped);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // Fetch leaderboard
   useEffect(() => {
@@ -163,6 +206,12 @@ export default function Dashboard() {
           setUserBudget(found.budget || 100);
         }
       })
+      .catch(() => {});
+
+    // Fetch gameweek points
+    fetch(`${API_URL}/users/${user.id}/gameweek-points`)
+      .then(res => res.json())
+      .then(data => { if (data && data.points !== undefined) setGameweekPoints(data.points); })
       .catch(() => {});
 
     fetch(API_URL + "/players")
@@ -287,7 +336,7 @@ export default function Dashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Deadline</span>
-                  <span className="text-xs font-bold text-white">Fri 7:00 PM</span>
+                  <span className="text-xs font-bold text-white">{deadlineStr}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Status</span>
@@ -357,7 +406,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Gameweek</span>
-                  <span className="text-sm font-black text-slate-400">0 pts</span>
+                  <span className="text-sm font-black text-slate-400">{gameweekPoints > 0 ? `${gameweekPoints} pts` : "—"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Rank</span>

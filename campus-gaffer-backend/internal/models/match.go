@@ -8,18 +8,19 @@ import (
 
 type Match struct {
 	gorm.Model
-	HomeTeam    string     `json:"home_team"`
-	AwayTeam    string     `json:"away_team"`
-	HomeScore   int        `json:"home_score"`
-	AwayScore   int        `json:"away_score"`
-	IsLive      bool       `json:"is_live"`
-	MatchTime   string     `json:"match_time"`
-	Venue       string     `json:"venue"`
-	PossessionH int        `json:"possession_h"`
-	PossessionA int        `json:"possession_a"`
-	ShotsH      int        `json:"shots_h"`
-	ShotsA      int        `json:"shots_a"`
-	KickoffTime *time.Time `json:"kickoff_time" gorm:"type:timestamptz"`
+	HomeTeam     string    `json:"home_team" gorm:"type:text"`
+	AwayTeam     string    `json:"away_team" gorm:"type:text"`
+	HomeScore    int       `json:"home_score"`
+	AwayScore    int       `json:"away_score"`
+	IsLive       bool      `json:"is_live"`
+	MatchTime    string    `json:"match_time"`
+	Venue        string    `json:"venue"`
+	PossessionH  int       `json:"possession_h"`
+	PossessionA  int       `json:"possession_a"`
+	ShotsH       int       `json:"shots_h"`
+	ShotsA       int       `json:"shots_a"`
+	KickoffTime  time.Time `json:"kickoff_time"`
+	Gameweek     int       `json:"gameweek" gorm:"default:0"`
 }
 
 type MatchEvent struct {
