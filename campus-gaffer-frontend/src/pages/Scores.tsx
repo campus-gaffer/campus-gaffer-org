@@ -91,6 +91,7 @@ export default function Scores() {
 
   const displayedMatches = activeTab === "live" ? liveMatches : activeTab === "results" ? resultsMatches : upcomingMatches;
   const currentEvents = events.filter(e => selectedMatch && e.match_id === selectedMatch.ID);
+  const filteredEvents = teamFilter === "all" ? currentEvents : currentEvents.filter(e => e.team === teamFilter);
 
   return (
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden uppercase">
@@ -277,14 +278,10 @@ export default function Scores() {
                   </div>
 
                   <div className="space-y-0">
-                    {(() => {
-                      const filtered = teamFilter === "all"
-                        ? currentEvents
-                        : currentEvents.filter(e => e.team === teamFilter);
-                      return filtered.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500 text-xs font-black italic uppercase tracking-widest">No events yet</div>
-                      ) : (
-                        filtered.map((event) => (
+                    {filteredEvents.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 text-xs font-black italic uppercase tracking-widest">No events yet</div>
+                    ) : (
+                      filteredEvents.map((event) => (
                         <div key={event.id} className="flex items-center gap-4 py-4 border-b border-white/5 last:border-0">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black ${
                             event.event_type === "goal" ? "bg-primary/20 border border-primary/30" :
@@ -319,7 +316,7 @@ export default function Scores() {
                           <div className="text-lg font-black italic text-primary">{event.event_time && event.event_time !== "FT" ? event.event_time : ""}</div>
                         </div>
                       ))
-                    })()}
+                    )}
                   </div>
                 </section>
               </>
