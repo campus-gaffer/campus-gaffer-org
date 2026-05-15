@@ -163,22 +163,26 @@ export default function MatchDetail() {
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       event.event_type === "goal" ? "bg-primary/15" : "bg-amber-500/15"
                     }`}>
-                      <div className={`w-2 h-2 rounded-full ${event.event_type === "goal" ? "bg-primary" : "bg-amber-400"}`}></div>
+                      <span className={`text-[8px] font-bold uppercase ${event.event_type === "goal" ? "text-primary" : "text-amber-400"}`}>
+                        {event.event_type === "goal" ? "G" : event.event_type === "card" ? "C" : "S"}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span
-                        onClick={() => navigate(`/player/${event.player_id}`)}
-                        className="text-sm font-bold text-white hover:text-primary transition-colors cursor-pointer"
-                      >
-                        {event.player_name}
-                      </span>
-                      <span className="text-xs text-slate-500 ml-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">
+                          {event.event_type?.toUpperCase() || "GOAL"}
+                        </span>
+                        <span
+                          onClick={() => navigate(`/player/${event.player_id}`)}
+                          className="text-sm font-bold text-white hover:text-primary transition-colors cursor-pointer"
+                        >
+                          {event.player_name}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500">
                         {event.team === "home" ? match.home_team : match.away_team}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-600 tabular-nums">
-                      {event.team === "home" ? match.home_team.substring(0, 3).toUpperCase() : match.away_team.substring(0, 3).toUpperCase()}
-                    </span>
                   </div>
                 ))}
               </div>
