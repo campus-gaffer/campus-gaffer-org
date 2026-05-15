@@ -1,7 +1,9 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { useLocation, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import CampusLogo from "@/assets/campus-logo.png"
+import { DollarSign } from 'lucide-react';
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -11,7 +13,19 @@ import {
 import { cn } from "@/lib/utils"
 
 export default function Navbar() {
+  const { user } = useUser();
   const location = useLocation();
+  const [userBudget, setUserBudget] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8082"}/users/${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.budget) setUserBudget(data.budget);
+      })
+      .catch(() => {});
+  }, [user]);
 
   const navLinkClass = (path: string) =>
     cn(
@@ -27,12 +41,12 @@ export default function Navbar() {
       <div className="flex items-center gap-16">
         <SignedIn>
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-24 w-auto" />
           </Link>
         </SignedIn>
         <SignedOut>
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-24 w-auto" />
           </Link>
         </SignedOut>
 
@@ -92,11 +106,19 @@ export default function Navbar() {
           </SignInButton>
         </SignedOut>
         <SignedIn>
-          <UserButton appearance={{
-            elements: {
-              userButtonAvatarBox: "w-12 h-12 rounded-xl border-2 border-primary/50 hover:border-primary transition-colors shadow-lg shadow-primary/20"
-            }
-          }} />
+          <div className="flex items-center gap-4">
+            {userBudget !== null && (
+              <div className="hidden md:flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 rounded-xl px-4 py-2">
+                <DollarSign className="w-4 h-4 text-violet-400" />
+                <span className="text-sm font-bold text-white">£{userBudget.toFixed(1)}M</span>
+              </div>
+            )}
+            <UserButton appearance={{
+              elements: {
+                userButtonAvatarBox: "w-12 h-12 rounded-xl border-2 border-primary/50 hover:border-primary transition-colors shadow-lg shadow-primary/20"
+              }
+            }} />
+          </div>
         </SignedIn>
       </div>
     </header>
