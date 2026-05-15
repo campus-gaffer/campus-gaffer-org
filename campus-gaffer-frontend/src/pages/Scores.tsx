@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CampusLogo from "@/assets/campus-logo.png";
+import { Shield, LayoutGrid, Zap, Video } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 
