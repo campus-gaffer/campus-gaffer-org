@@ -1,4 +1,4 @@
-import { Users, TrendingUp, Trophy, ArrowUpRight, Sparkles, Target, Zap } from "lucide-react"
+import { Users, TrendingUp, Trophy, Sparkles, Target, Zap } from "lucide-react"
 import { SignInButton } from '@clerk/clerk-react'
 
 const features = [
@@ -96,13 +96,6 @@ export default function Features() {
                   {feature.content}
                 </p>
 
-                {/* CTA */}
-                <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-                  <button className="flex items-center gap-2 text-violet-400 font-bold text-sm tracking-[0.1em] uppercase group/btn cursor-pointer">
-                    <span>JOIN NOW</span>
-                    <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
-                  </button>
-                </SignInButton>
               </div>
 
               {/* Hover glow */}

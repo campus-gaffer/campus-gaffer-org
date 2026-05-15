@@ -1,4 +1,3 @@
-import { Zap } from "lucide-react"
 import { Link } from "react-router-dom"
 import { SignedIn, SignedOut } from '@clerk/clerk-react'
 
@@ -44,18 +43,6 @@ export default function Footer() {
             <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em] text-center md:text-left italic">
               BECOME A CAMPUS LEGEND.
             </p>
-            
-            {/* Social proof dots */}
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center">
-                    <span className="text-[7px] font-black text-slate-500">CG</span>
-                  </div>
-                ))}
-              </div>
-              <span className="text-[9px] font-black text-slate-600 tracking-widest uppercase">12K+ PLAYERS</span>
-            </div>
           </div>
 
           {/* Links column */}
@@ -88,17 +75,9 @@ export default function Footer() {
             <span className="text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">SYSTEM STATUS</span>
             
             <div className="flex flex-col gap-4 items-center md:items-end">
-              {/* Status indicators */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)] animate-pulse" />
-                  <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">ALL SYSTEMS GO</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                   <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">SEASON 2026 ACTIVE</span>
                 </div>
               </div>
@@ -108,21 +87,6 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="font-black text-[10px] text-slate-700 tracking-[0.3em] uppercase">
-              ©2026 CG PROJECT V2.4
-            </span>
-            <div className="flex gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary/30" />
-              <div className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-              <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 text-slate-700">
-            <Zap className="w-4 h-4" />
-            <span className="font-black text-[9px] tracking-[0.2em] uppercase">POWERED BY REAL INTRAWURAL DATA</span>
-          </div>
         </div>
       </div>
     </footer>
