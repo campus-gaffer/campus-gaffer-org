@@ -90,7 +90,7 @@ export default function About() {
                             </div>
                             <div className="space-y-2">
                                 <p className="text-4xl md:text-6xl font-black text-white italic tracking-tighter transition-all group-hover:text-primary">{stats.players}</p>
-                                <p className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase">PLAYERS IN DATABASE</p>
+                                <p className="text-xs font-black text-slate-500 tracking-[0.3em] uppercase">PLAYERS</p>
                             </div>
                             <div className="absolute bottom-[-10px] right-[-10px] opacity-5">
                                 <Shield className="w-32 h-32" />

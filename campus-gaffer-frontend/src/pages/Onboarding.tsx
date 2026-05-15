@@ -212,10 +212,7 @@ export default function Onboarding() {
                                         className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-lg font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none appearance-none cursor-pointer"
                                     >
                                         <option value="" disabled>SELECT YOUR CAMPUS</option>
-                                        <option value="oxford">OXFORD UNIVERSITY</option>
-                                        <option value="cambridge">CAMBRIDGE UNIVERSITY</option>
-                                        <option value="stanford">STANFORD UNIVERSITY</option>
-                                        <option value="mit">MIT</option>
+                                        <option value="University of Manitoba">UNIVERSITY OF MANITOBA</option>
                                     </select>
                                 </div>
                             </div>

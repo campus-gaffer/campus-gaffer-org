@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
-import { Bell, Video, User, PlusCircle, CheckCircle2 } from "lucide-react";
+import { Bell, Video, User, PlusCircle, CheckCircle2, Search } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [managingPosition, setManagingPosition] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [_, _setUserBudget] = useState(0);
@@ -139,6 +140,10 @@ export default function Dashboard() {
     ? allPlayers
     : allPlayers.filter(p => p.position === managingPosition);
 
+  const searchedPlayers = searchTerm
+    ? filteredPlayers.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : filteredPlayers;
+
   return (
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
       <div className="hidden md:block">
@@ -253,8 +258,20 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredPlayers.length > 0 ? filteredPlayers.map(p => {
+            <div className="flex-1 overflow-y-auto p-10 space-y-4">
+              {/* Search bar */}
+              <div className="relative">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="SEARCH PLAYERS..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-secondary/50 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-sm font-black tracking-widest focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all outline-none uppercase placeholder:text-slate-600"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {searchedPlayers.length > 0 ? searchedPlayers.map(p => {
                 const isSelected = starters.some(s => s.id === p.id);
                 return (
                   <div
@@ -324,6 +341,7 @@ export default function Dashboard() {
                   <p className="text-slate-500 font-black italic uppercase tracking-widest">No {managingPosition}s available</p>
                 </div>
               )}
+            </div>
             </div>
 
             <div className="p-10 border-t border-white/5 bg-black/20">

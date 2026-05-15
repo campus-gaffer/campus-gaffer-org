@@ -95,7 +95,10 @@ export default function Pitch({ teamName = "THE VARSITY XI", players = [], total
                 </button>
                 <button
                     onClick={() => {
-                        if (players.length > 0) onSelectCaptain?.(players[0].id);
+                        // Cycle captain to next player on each click
+                        const currentIdx = players.findIndex(p => p.isCaptain);
+                        const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % players.length : 0;
+                        if (players[nextIdx]) onSelectCaptain?.(players[nextIdx].id);
                     }}
                     className="flex items-center justify-center gap-3 bg-secondary/50 border border-white/5 py-5 rounded-2xl hover:bg-secondary transition-all active:scale-[0.98] group shadow-xl shadow-black/20"
                 >
