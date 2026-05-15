@@ -27,12 +27,12 @@ export default function Navbar() {
       <div className="flex items-center gap-16">
         <SignedIn>
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-14 w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
           </Link>
         </SignedIn>
         <SignedOut>
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-14 w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
           </Link>
         </SignedOut>
 
