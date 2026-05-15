@@ -9,6 +9,7 @@ import Leagues from '@/pages/Leagues'
 // import Transfers from '@/pages/Transfers'
 import Scores from '@/pages/Scores'
 import Rules from '@/pages/Rules'
+import MatchDetail from '@/pages/MatchDetail'
 import About from '@/pages/About'
 import Rewards from '@/pages/Rewards'
 import PlayerProfile from '@/pages/PlayerProfile'
@@ -63,6 +64,7 @@ function App() {
           <Route path="/leagues" element={<ProtectedRoute><Leagues /></ProtectedRoute>} />
           {/* <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} /> */}
           <Route path="/scores" element={<ProtectedRoute><Scores /></ProtectedRoute>} />
+          <Route path="/matches/:id" element={<ProtectedRoute><MatchDetail /></ProtectedRoute>} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/about" element={<About />} />
           <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
