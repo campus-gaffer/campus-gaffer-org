@@ -62,11 +62,6 @@ export default function Navbar() {
             </SignedIn>
             <SignedOut>
               <NavigationMenuItem>
-                <Link to="/leagues" className={navLinkClass("/leagues")}>
-                  LEADERBOARD
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <Link to="/rules" className={navLinkClass("/rules")}>
                   RULES
                 </Link>
