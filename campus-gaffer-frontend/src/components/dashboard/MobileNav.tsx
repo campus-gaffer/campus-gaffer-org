@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { Home, LayoutGrid, BarChart3 } from "lucide-react";
-import ProfileDropdown from "./ProfileDropdown";
+import ProfileDropdown from "../ProfileDropdown";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
