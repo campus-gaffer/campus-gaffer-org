@@ -13,13 +13,7 @@ export default function MobileNav() {
   ];
 
   return (
-    <>
-      {/* Top bar with centered logo (mobile only) */}
-      <div className="fixed md:hidden top-0 left-0 right-0 bg-background/90 border-b border-white/5 px-4 py-3 backdrop-blur-xl z-50 flex items-center justify-center">
-        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
-      </div>
-
-      <nav className="fixed md:hidden bottom-0 left-0 right-0 bg-background/90 border-t border-white/5 px-8 py-5 backdrop-blur-xl z-50">
+    <nav className="fixed md:hidden bottom-0 left-0 right-0 bg-background/90 border-t border-white/5 px-8 py-5 backdrop-blur-xl z-50">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = location.pathname === item.path;
@@ -35,9 +29,8 @@ export default function MobileNav() {
                 <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? "" : "font-bold"}`}>{item.name}</span>
               </button>
             );
-          })}
-        </div>
-      </nav>
-    </>
+        })}
+      </div>
+    </nav>
   );
 }
