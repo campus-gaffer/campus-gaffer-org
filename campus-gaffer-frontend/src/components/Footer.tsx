@@ -19,12 +19,12 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start gap-6">
             <SignedIn>
               <Link to="/dashboard" className="flex items-center gap-3 group">
-                <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
+                <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
               </Link>
             </SignedIn>
             <SignedOut>
               <Link to="/" className="flex items-center gap-3 group">
-                <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
+                <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
               </Link>
             </SignedOut>
             <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em] text-center md:text-left italic">
@@ -34,13 +34,11 @@ export default function Footer() {
 
           {/* Links column */}
           <div className="flex flex-col items-center gap-6">
-            <span className="text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">NAVIGATION</span>
             <div className="flex flex-wrap justify-center gap-6">
               {[
                 { name: "LEAGUES", path: "/leagues" },
                 { name: "RULES", path: "/rules" },
                 { name: "ABOUT", path: "/about" },
-                { name: "SCORES", path: "/scores" },
               ].map(link => (
                 <Link key={link.name} to={link.path} className="font-black text-xs text-slate-400 hover:text-primary tracking-[0.2em] uppercase transition-colors relative group">
                   {link.name}

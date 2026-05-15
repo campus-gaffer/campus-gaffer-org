@@ -36,8 +36,7 @@ export default function Leagues() {
   }, []);
 
   const top3 = allEntries.slice(0, 3);
-  const userEntry = allEntries.find(e => e.clerk_id === user?.id);
-  const userUniversity = userEntry?.university || "";
+  const userUniversity = "University of Manitoba";
 
   // Campus standings: entries from same university + user always visible
   let campusEntries = allEntries.filter(e =>

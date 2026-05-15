@@ -27,12 +27,12 @@ export default function Navbar() {
       <div className="flex items-center gap-16">
         <SignedIn>
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-20 w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
           </Link>
         </SignedIn>
         <SignedOut>
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={CampusLogo} alt="Campus Gaffer" className="h-20 w-auto" />
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-[88px] w-auto" />
           </Link>
         </SignedOut>
 
@@ -52,6 +52,11 @@ export default function Navbar() {
               <NavigationMenuItem>
                 <Link to="/profile" className={navLinkClass("/profile")}>
                   PROFILE
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/support" className={navLinkClass("/support")}>
+                  CONTACT
                 </Link>
               </NavigationMenuItem>
             </SignedIn>
