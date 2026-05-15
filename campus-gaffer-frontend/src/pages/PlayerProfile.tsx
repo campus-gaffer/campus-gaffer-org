@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Loader2, Shield, Target, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Shield, Target, Zap } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 
@@ -98,7 +98,6 @@ export default function PlayerProfile() {
           <h1 className="text-lg italic font-extrabold tracking-wider text-primary uppercase">Player Profile</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Bell className="w-6 h-6 text-slate-300" />
           <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${player.name}`} alt="Profile" />
           </div>

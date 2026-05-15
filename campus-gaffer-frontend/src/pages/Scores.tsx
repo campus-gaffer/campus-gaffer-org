@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, ArrowLeft, Video, Zap, Shield, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Video, Zap, Shield, LayoutGrid } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 
@@ -108,7 +108,6 @@ export default function Scores() {
           <h1 className="text-lg italic font-black tracking-wider text-primary uppercase">Match Center</h1>
         </div>
         <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
-          <Bell className="w-6 h-6 text-slate-300" />
           <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background shadow-lg"></span>
         </button>
       </header>

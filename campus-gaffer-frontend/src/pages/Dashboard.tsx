@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
-import { Bell, Video, User, PlusCircle, CheckCircle2, Search } from "lucide-react";
+import { Video, User, PlusCircle, CheckCircle2 } from "lucide-react";
 import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
@@ -158,13 +158,8 @@ export default function Dashboard() {
       </div>
 
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <img src={CampusLogo} alt="Campus Gaffer" className="h-8 w-auto" />
-        <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
-          <Bell className="w-5 h-5 text-slate-300" />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-background"></span>
-        </button>
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-12 w-auto" />
       </header>
-
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="grid lg:grid-cols-12 gap-12">
 
@@ -286,7 +281,6 @@ export default function Dashboard() {
             <div className="flex-1 overflow-y-auto p-10 space-y-4">
               {/* Search bar */}
               <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type="text"
                   placeholder="SEARCH PLAYERS..."

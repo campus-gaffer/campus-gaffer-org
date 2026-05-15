@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useNavigate, Link, useParams } from "react-router-dom";
-import { Bell, ArrowLeft, Shield, TrendingUp, Users, DollarSign, RefreshCw, BarChart3, Trophy } from "lucide-react";
+import { ArrowLeft, Shield, TrendingUp, Users, DollarSign, RefreshCw, BarChart3, Trophy } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import AvatarPicker from "@/components/AvatarPicker";
@@ -65,7 +65,6 @@ export default function Profile() {
           </button>
           <h1 className="text-lg italic font-black tracking-wider text-primary uppercase">{isCurrentUser ? "MY PROFILE" : "MANAGER PROFILE"}</h1>
         </div>
-        <Bell className="w-6 h-6 text-slate-300" />
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8 animate-in fade-in duration-500">

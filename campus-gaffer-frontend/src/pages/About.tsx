@@ -1,4 +1,4 @@
-import { Bell, Shield, Zap, Star, Users, Trophy } from "lucide-react";
+import { Shield, Zap, Star, Users, Trophy } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import { useState, useEffect } from "react";
@@ -42,8 +42,6 @@ export default function About() {
                     <h1 className="text-lg italic font-extrabold tracking-wider text-primary">CAMPUS GAFFER</h1>
                 </div>
                 <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
-                    <Bell className="w-6 h-6 text-slate-300" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background"></span>
                 </button>
             </header>
 
