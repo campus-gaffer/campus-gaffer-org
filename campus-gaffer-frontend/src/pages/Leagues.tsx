@@ -87,7 +87,7 @@ export default function Leagues() {
                 <Trophy className="w-6 h-6 text-primary" />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {allEntries.map((item) => {
                   const rank = allEntries.indexOf(item) + 1;
                   return (
