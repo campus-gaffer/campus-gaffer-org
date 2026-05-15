@@ -157,7 +157,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-white font-sans relative overflow-x-hidden" style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom))" }}>
       <div className="hidden md:block"><Navbar /></div>
 
-      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
+      <header className="flex md:hidden items-center justify-between px-4 py-2 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
         <img src={CampusLogo} alt="Campus Gaffer" className="h-24 w-auto" />
       </header>
 
