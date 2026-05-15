@@ -1,4 +1,4 @@
-import { Shield, Zap, Heart } from "lucide-react"
+import { Zap } from "lucide-react"
 import { Link } from "react-router-dom"
 import { SignedIn, SignedOut } from '@clerk/clerk-react'
 
@@ -120,12 +120,8 @@ export default function Footer() {
           </div>
           
           <div className="flex items-center gap-4 text-slate-700">
-            <Shield className="w-4 h-4" />
-            <span className="font-black text-[9px] tracking-[0.2em] uppercase">SECURE & ENCRYPTED</span>
             <Zap className="w-4 h-4" />
-            <span className="font-black text-[9px] tracking-[0.2em] uppercase">POWERED BY REAL DATA</span>
-            <Heart className="w-4 h-4" />
-            <span className="font-black text-[9px] tracking-[0.2em] uppercase">MADE FOR STUDENTS</span>
+            <span className="font-black text-[9px] tracking-[0.2em] uppercase">POWERED BY REAL INTRAWURAL DATA</span>
           </div>
         </div>
       </div>

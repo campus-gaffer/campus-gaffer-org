@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { SignInButton } from '@clerk/clerk-react'
 import HeroImage from "@/assets/campus-gaffer-hero.jpeg"
-import { ArrowRight, Trophy, Zap, Flame, Swords, BadgeCheck, Sparkles } from "lucide-react"
+import { ArrowRight, Trophy, Flame, Swords, BadgeCheck, Sparkles } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
@@ -100,7 +100,6 @@ export default function Hero() {
           {/* Animated stats bar */}
           <div className="flex items-center gap-8 pt-6 border-t border-white/5">
             {[
-              { value: "12K+", label: "ACTIVE MANAGERS", icon: Zap },
               { value: "$0", label: "ENTRY FEE", icon: BadgeCheck },
               { value: "50+", label: "UNIVERSITIES", icon: Trophy },
             ].map((stat) => (

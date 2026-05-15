@@ -29,7 +29,6 @@ const features = [
 ]
 
 export default function Features() {
-  const scrollToCTA = () => document.getElementById('features-cta')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
     <section id="features-section" className="py-24 md:py-32 px-6 md:px-12 bg-background border-t border-white/5 relative overflow-hidden">
@@ -98,10 +97,12 @@ export default function Features() {
                 </p>
 
                 {/* CTA */}
-                <button onClick={scrollToCTA} className="flex items-center gap-2 text-violet-400 font-bold text-sm tracking-[0.1em] uppercase group/btn cursor-pointer">
-                  <span>LEARN MORE</span>
-                  <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
-                </button>
+                <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+                  <button className="flex items-center gap-2 text-violet-400 font-bold text-sm tracking-[0.1em] uppercase group/btn cursor-pointer">
+                    <span>JOIN NOW</span>
+                    <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                  </button>
+                </SignInButton>
               </div>
 
               {/* Hover glow */}
