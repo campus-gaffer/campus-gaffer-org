@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { Shield, Loader2 } from "lucide-react";
+import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import AvatarPicker from "@/components/AvatarPicker";
@@ -77,7 +78,7 @@ export default function Profile() {
       <div className="hidden md:block"><Navbar /></div>
 
       <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">

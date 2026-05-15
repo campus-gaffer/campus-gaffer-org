@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { PlusCircle, CheckCircle2 } from "lucide-react";
+import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
@@ -222,7 +223,7 @@ export default function Dashboard() {
       <div className="hidden md:block"><Navbar /></div>
 
       <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
@@ -278,7 +279,7 @@ export default function Dashboard() {
           </div>
 
           {/* Right Sidebar */}
-          <div className="lg:col-span-4 space-y-4">
+          <div className="hidden lg:block lg:col-span-4 space-y-4">
 
             {/* Gameweek Status */}
             <div className="bg-card/30 border border-white/5 rounded-2xl p-5 text-left">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Trophy, Crown, Loader2 } from "lucide-react";
+import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 
@@ -43,7 +44,7 @@ export default function Leagues() {
       </div>
 
       <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
       </header>
 
       {/* Mobile Header (Hidden on Desktop) */}
