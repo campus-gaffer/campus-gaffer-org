@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [_, _setUserBudget] = useState(0);
+  const [autoSaveMsg, setAutoSaveMsg] = useState("");
 
   useEffect(() => {
     if (searchParams.get('manage') === 'true') {
@@ -117,13 +118,15 @@ export default function Dashboard() {
 
   const saveSquad = async (playerIds: string[]) => {
     setSaving(true);
+    setAutoSaveMsg("SAVING SQUAD...");
     await fetch(`${API_URL}/squad/${user?.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_ids: playerIds })
     });
     fetchSquad();
-    setSaving(false);
+    setAutoSaveMsg("SQUAD LOCKED!");
+    setTimeout(() => { setAutoSaveMsg(""); setSaving(false); }, 1200);
     setManagingPosition(null);
   };
 
@@ -239,6 +242,17 @@ export default function Dashboard() {
       {/* Manage Squad Modal */}
       {managingPosition && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
+          {/* Saving Overlay */}
+          {autoSaveMsg && (
+            <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md rounded-[3rem]">
+              <div className="flex flex-col items-center gap-6 animate-in zoom-in-95 duration-300">
+                <div className="w-20 h-20 rounded-[2rem] bg-primary/20 border-2 border-primary/40 flex items-center justify-center">
+                  <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+                <span className="text-xl font-black italic text-primary tracking-widest uppercase animate-pulse">{autoSaveMsg}</span>
+              </div>
+            </div>
+          )}
           <div className="bg-card/90 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(139,92,246,0.15)] animate-in zoom-in-95 duration-300">
             <div className="p-10 border-b border-white/5 flex items-center justify-between">
               <div className="text-left">
@@ -316,8 +330,10 @@ export default function Dashboard() {
                         };
                       });
                       setStarters(withP);
-                      // Auto-save to database immediately
-                      saveSquad(withP.map(s => s.id));
+                      // Auto-save when all 6 positions are filled
+                      if (withP.length === 6) {
+                        saveSquad(withP.map(s => s.id));
+                      }
                       if (managingPosition !== 'all' && !isSelected) setManagingPosition(null); // Close after selection for specific position
                     }}
                     className={`bg-secondary/30 p-6 rounded-3xl flex items-center justify-between cursor-pointer border-2 transition-all hover:scale-[1.02] ${isSelected ? 'border-primary bg-primary/5' : 'border-white/5 opacity-60 hover:opacity-100'}`}
