@@ -223,7 +223,7 @@ export default function Dashboard() {
       <div className="hidden md:block"><Navbar /></div>
 
       <header className="flex md:hidden items-center justify-center px-4 py-1 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-20 w-auto" />
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
