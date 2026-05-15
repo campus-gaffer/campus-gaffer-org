@@ -27,3 +27,4 @@ data/*.cleaned.*
 
 # LocalStack deployment artifacts
 dist/
+.env*.local
