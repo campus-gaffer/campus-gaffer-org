@@ -43,15 +43,7 @@ export default function Leagues() {
 
       {/* Mobile Header (Hidden on Desktop) */}
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/50">
-            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=anon`} alt="Profile" />
-          </div>
-          <h1 className="text-lg italic font-extrabold tracking-wider text-primary">CAMPUS GAFFER</h1>
-        </div>
-        <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background"></span>
-        </button>
+        <h1 className="text-lg italic font-extrabold tracking-wider text-primary">LEAGUES</h1>
       </header>
 
       <main className="container mx-auto px-6 py-8 md:py-16 animate-in fade-in duration-500">
@@ -99,12 +91,32 @@ export default function Leagues() {
                     >
                       <div className="flex items-center gap-6 relative z-10">
                         <div className="relative">
-                          <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary border-2 border-white/10 group-hover:border-primary/40 transition-colors">
-                            <img src={item.avatar ? `https://api.dicebear.com/7.x/${item.avatar}/svg?seed=${item.clerk_id}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.username}`} alt={item.team_name} />
+                          <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary transition-colors ${
+                            rank === 1 ? "border-[3px] border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]" :
+                            rank === 2 ? "border-[3px] border-slate-300 shadow-[0_0_20px_rgba(203,213,225,0.3)]" :
+                            rank === 3 ? "border-[3px] border-amber-700 shadow-[0_0_20px_rgba(180,83,9,0.3)]" :
+                            "border-2 border-white/10 group-hover:border-primary/40"
+                          }`}>
+                            <img src={item.avatar ? `https://api.dicebear.com/7.x/${item.avatar}/svg?seed=${item.clerk_id}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.username}`} alt={item.team_name} className="w-full h-full object-cover" />
                           </div>
-                          <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${rank === 1 ? 'bg-amber-500 text-background' : 'bg-primary text-background'}`}>
+                          <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${
+                            rank === 1 ? "bg-amber-400 text-background" :
+                            rank === 2 ? "bg-slate-300 text-slate-900" :
+                            rank === 3 ? "bg-amber-700 text-background" :
+                            "bg-primary text-background"
+                          }`}>
                             {rank === 1 ? <Crown className="w-4 h-4" /> : rank}
                           </div>
+                          {/* Decorative glow for top 3 */}
+                          {rank === 1 && (
+                            <div className="absolute -inset-4 rounded-full bg-amber-400/10 blur-xl animate-pulse" />
+                          )}
+                          {rank === 2 && (
+                            <div className="absolute -inset-3 rounded-full bg-slate-300/10 blur-lg" />
+                          )}
+                          {rank === 3 && (
+                            <div className="absolute -inset-3 rounded-full bg-amber-700/10 blur-lg" />
+                          )}
                         </div>
                         <div>
                           <p className="text-lg md:text-xl font-black text-white uppercase leading-none mb-2">{item.team_name}</p>
