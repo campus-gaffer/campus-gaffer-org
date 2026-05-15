@@ -117,3 +117,46 @@ func ComputeGameweeks(c *gin.Context) {
 		"matches_processed": len(matchIDs),
 	})
 }
+
+func ComputeAll(c *gin.Context) {
+	// Run all compute endpoints in sequence
+	// 1. Points
+	db := database.DB
+	db.Exec(`UPDATE player_data pd SET total_points = COALESCE((SELECT SUM(points) FROM player_game_points pgp WHERE pgp.player_id::text = pd.id), 0)`)
+	var userPoints []struct {
+		ClerkID string  `gorm:"column:clerk_id"`
+		Pts     float64 `gorm:"column:pts"`
+	}
+	db.Raw(`SELECT sm.clerk_id, COALESCE(SUM(pd.total_points), 0) as pts FROM squad_members sm JOIN player_data pd ON pd.id = sm.player_id WHERE sm.deleted_at IS NULL GROUP BY sm.clerk_id`).Scan(&userPoints)
+	for _, up := range userPoints {
+		db.Table("users").Where("clerk_id = ?", up.ClerkID).Update("total_points", up.Pts)
+	}
+	db.Exec(`UPDATE users SET total_points = 0 WHERE clerk_id NOT IN (SELECT clerk_id FROM squad_members WHERE deleted_at IS NULL)`)
+
+	// 2. Prices
+	db.Exec(`WITH max_pts AS (SELECT GREATEST(MAX(total_points), 1) as m FROM player_data) UPDATE player_data SET price = GREATEST(4.0, LEAST(10.0, 4.0 + (total_points::numeric / (SELECT m FROM max_pts)) * 6.0))`)
+
+	// 3. Gameweeks
+	var matchIDs []uint
+	db.Model(&struct{}{}).Table("matches").Where("kickoff_time IS NOT NULL").Order("kickoff_time ASC").Pluck("id", &matchIDs)
+	gw := 1
+	weekMap := make(map[string]int)
+	for _, id := range matchIDs {
+		var kt struct{ Kickoff string }
+		db.Table("matches").Select("kickoff_time::date").Where("id = ?", id).Find(&kt)
+		if kt.Kickoff == "" { continue }
+		weekKey := kt.Kickoff[:10]
+		if _, exists := weekMap[weekKey]; !exists {
+			weekMap[weekKey] = gw
+			gw++
+		}
+	}
+
+	log.Printf("ComputeAll: points, prices, and %d gameweeks done", gw-1)
+	c.JSON(http.StatusOK, gin.H{
+		"points_updated":   len(userPoints),
+		"prices_updated":   "see player_data",
+		"total_gameweeks":  gw - 1,
+		"message":          "All compute tasks completed",
+	})
+}

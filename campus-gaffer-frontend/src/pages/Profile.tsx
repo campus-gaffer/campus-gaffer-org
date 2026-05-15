@@ -25,7 +25,7 @@ export default function Profile() {
       .then(([prof, lb, sq]) => {
         setProfile(prof);
         setLeaderboard(Array.isArray(lb) ? lb : []);
-        setSquad(Array.isArray(sq) ? sq : []);
+        setSquad(sq?.players || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -34,7 +34,7 @@ export default function Profile() {
   const rank = leaderboard.findIndex(u => u.clerk_id === user?.id) + 1;
   const totalRank = leaderboard.length;
   const squadValue = squad.reduce((sum: number, p: any) => sum + (p.price || 0), 0);
-  const unusedBudget = 100 - squadValue;
+  const unusedBudget = (profile?.budget || 100) - squadValue;
   const joinedDate = profile?.CreatedAt
     ? new Date(profile.CreatedAt).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
     : "—";
@@ -150,45 +150,15 @@ export default function Profile() {
                   <BarChart3 className="w-5 h-5 text-primary" />
                   <h3 className="text-xl italic font-black text-white tracking-widest uppercase">Gameweek History</h3>
                 </div>
-                <span className="text-[10px] font-black text-slate-500 tracking-widest uppercase">GW {profile?.last_gameweek || 0}</span>
+                <span className="text-[10px] font-black text-slate-500 tracking-widest uppercase">{profile?.last_gameweek ? `GW ${profile.last_gameweek}` : "Pre-season"}</span>
               </div>
 
-              {/* Placeholder gameweeks */}
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5].reverse().map(gw => {
-                  const isCurrent = gw === (profile?.last_gameweek || 0);
-                  return (
-                    <div key={gw} className={`flex items-center justify-between p-5 rounded-2xl text-left ${isCurrent ? 'bg-primary/10 border border-primary/20' : 'bg-secondary/20 border border-white/5'}`}>
-                      <div className="flex items-center gap-5">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${isCurrent ? 'bg-primary text-background' : 'bg-secondary text-slate-400'}`}>
-                          GW{gw}
-                        </div>
-                        <div>
-                          <div className="text-xs font-black text-white uppercase tracking-wider">
-                            {isCurrent ? "Current" : gw === 16 ? "Season Finale" : `Gameweek ${gw}`}
-                          </div>
-                          <div className="text-[9px] font-bold text-slate-500 tracking-widest uppercase mt-1">
-                            {gw === 16 ? "Final standings" : gw <= 5 ? "Completed" : "Upcoming"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-2xl font-black italic ${isCurrent ? 'text-primary' : 'text-slate-600'}`}>
-                          {gw <= 5 ? "—" : "—"}
-                        </div>
-                        <div className="text-[9px] font-bold text-slate-600 tracking-widest uppercase mt-1">
-                          {gw <= 5 ? "0 pts" : "—"}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 text-center">
-                <span className="text-[10px] font-bold text-slate-600 tracking-widest">
-                  Gameweeks 1–5 completed · Next gameweek starts soon
-                </span>
+              <div className="text-center py-16">
+                <BarChart3 className="w-16 h-16 text-slate-700 mx-auto mb-6" />
+                <p className="text-slate-500 font-black italic text-lg mb-2">Season data incoming</p>
+                <p className="text-[10px] font-bold text-slate-600 tracking-widest max-w-xs mx-auto leading-relaxed">
+                  Gameweek-by-gameweek points will appear here once the first competitive season kicks off. Run compute-points after match day to see your weekly scores.
+                </p>
               </div>
             </div>
           </section>
