@@ -164,7 +164,7 @@ export default function Scores() {
                           <span className="text-[9px] font-black text-primary tracking-widest">{match.match_time || "LIVE"}</span>
                         </div>
                       ) : (
-                        <span className="text-[9px] font-black text-slate-500 tracking-widest">UPCOMING</span>
+                        <span className="text-[9px] font-black text-green-400 tracking-widest">FT</span>
                       )}
                     </div>
                     <div className="flex items-center justify-between">
@@ -225,7 +225,7 @@ export default function Scores() {
                     <div className="bg-primary/20 border border-primary/30 px-6 py-2.5 rounded-full flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${selectedMatch.is_live ? "bg-primary animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.8)]" : "bg-slate-500"}`}></div>
                       <span className="text-[10px] md:text-xs font-black text-primary tracking-widest uppercase italic">
-                        {selectedMatch.is_live ? `In Progress (${selectedMatch.match_time || "0'"})` : "Upcoming"}
+                        {selectedMatch.is_live ? `In Progress (${selectedMatch.match_time || "0'"})` : selectedMatch.match_time === "FT" ? "Full Time" : "Upcoming"}
                       </span>
                     </div>
                   </div>
@@ -256,11 +256,9 @@ export default function Scores() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       {[
                         { label: "SHOTS", v1: selectedMatch.shots_h || 0, v2: selectedMatch.shots_a || 0 },
-                        { label: "FOULS", v1: 3, v2: 5 },
-                        { label: "CORNERS", v1: 4, v2: 2 },
                       ].map(stat => (
                         <div key={stat.label} className="bg-secondary/40 border border-white/5 rounded-2xl p-4 text-center group hover:border-primary/30 transition-colors">
                           <div className="text-lg md:text-xl font-black text-white mb-0.5 tracking-tighter">{stat.v1} / {stat.v2}</div>
@@ -294,20 +292,27 @@ export default function Scores() {
                             {event.event_type === "substitution" && <span className="text-blue-400 text-[10px]">S</span>}
                           </div>
                           <div className="flex-1">
-                            <div
-                              onClick={() => navigate(`/player/${event.player_id}`)}
-                              className="text-sm font-black text-white uppercase italic cursor-pointer hover:text-primary transition-colors"
-                            >
-                              {event.player_name}
-                              {event.assist_player && (
-                                <span className="text-slate-500 font-normal text-xs"> (assist: {event.assist_player})</span>
-                              )}
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                event.event_type === "goal" ? "bg-primary/20 text-primary" :
+                                event.event_type === "card" ? "bg-amber-500/20 text-amber-400" :
+                                "bg-blue-500/20 text-blue-400"
+                              }`}>{event.event_type}</span>
+                              <span
+                                onClick={() => navigate(`/player/${event.player_id}`)}
+                                className="text-sm font-black text-white uppercase italic cursor-pointer hover:text-primary transition-colors"
+                              >
+                                {event.player_name}
+                                {event.assist_player && (
+                                  <span className="text-slate-500 font-normal text-xs"> (assist: {event.assist_player})</span>
+                                )}
+                              </span>
                             </div>
                             <div className={`text-[10px] font-black uppercase tracking-widest ${
                               event.team === "home" ? "text-primary" : "text-slate-400"
                             }`}>{selectedMatch.home_team}</div>
                           </div>
-                          <div className="text-lg font-black italic text-primary">{event.event_time || `${event.minute}'`}</div>
+                          <div className="text-lg font-black italic text-primary">{event.event_time && event.event_time !== "FT" ? event.event_time : ""}</div>
                         </div>
                       ))
                     )}
