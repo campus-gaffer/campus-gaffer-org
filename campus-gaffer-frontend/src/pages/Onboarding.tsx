@@ -17,6 +17,7 @@ export default function Onboarding() {
     const [age, setAge] = useState(18);
     const [gender, setGender] = useState("");
     const [error, setError] = useState("");
+    const [avatarSeed, setAvatarSeed] = useState("");
 
     // Clear any stale localStorage flag so it doesn't skip onboarding
     localStorage.removeItem("gaffer_onboarded");
@@ -63,6 +64,9 @@ export default function Onboarding() {
 
         if (step < 4) {
             setStep(step + 1);
+        } else if (step === 4) {
+            // Move to avatar picker step
+            setStep(5);
         } else {
             setLoading(true);
             try {
@@ -85,6 +89,15 @@ export default function Onboarding() {
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.error || "Failed to save");
+                }
+
+                // Save avatar if chosen
+                if (avatarSeed && user?.id) {
+                    await fetch(`${API_URL}/users/${user.id}/avatar`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ avatar: avatarSeed }),
+                    });
                 }
 
                 localStorage.setItem("gaffer_onboarded", "true");
@@ -242,6 +255,45 @@ export default function Onboarding() {
                         </div>
                     )}
 
+                    {step === 5 && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase text-center block">CHOOSE AVATAR (OPTIONAL)</label>
+                                <p className="text-[9px] font-bold text-slate-600 tracking-widest uppercase text-center">Pick a profile picture or leave blank</p>
+                            </div>
+                            <div className="grid grid-cols-4 gap-3">
+                                {[
+                                    "", "avataaars", "avataaars-neutral", "bottts",
+                                    "bottts-neutral", "fun-emoji", "icons", "lorelei",
+                                    "lorelei-neutral", "notionists", "open-peeps", "personas",
+                                    "pixel-art", "pixel-art-neutral", "rings", "thumbs",
+                                ].map((seed) => (
+                                    <button
+                                        key={seed || "none"}
+                                        type="button"
+                                        onClick={() => setAvatarSeed(seed)}
+                                        className={`relative rounded-xl border-2 p-1.5 transition-all hover:scale-105 ${
+                                            avatarSeed === seed ? "border-primary bg-primary/10" : "border-white/10 bg-white/[0.03]"
+                                        }`}
+                                    >
+                                        {seed ? (
+                                            <img src={`https://api.dicebear.com/7.x/${seed}/svg?seed=${user?.id || "anon"}`} alt="" className="w-full aspect-square rounded-lg" />
+                                        ) : (
+                                            <div className="w-full aspect-square rounded-lg bg-white/[0.03] flex items-center justify-center">
+                                                <span className="text-lg font-black text-slate-500">?</span>
+                                            </div>
+                                        )}
+                                        {avatarSeed === seed && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                                                <CheckCircle2 className="w-2.5 h-2.5 text-background" />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Navigation Buttons */}
                     <div className="flex flex-col gap-4">
                         <button
@@ -253,7 +305,7 @@ export default function Onboarding() {
                                 <Loader2 className="w-6 h-6 text-background animate-spin" />
                             ) : (
                                 <>
-                                    <span className="text-lg font-black italic text-background uppercase tracking-[0.2em]">{step === 4 ? 'FINALIZE & JOIN' : 'CONTINUE'}</span>
+                                    <span className="text-lg font-black italic text-background uppercase tracking-[0.2em]">{step === 4 ? 'CONTINUE' : step === 5 ? 'FINISH' : 'CONTINUE'}</span>
                                     <ChevronRight className="w-6 h-6 text-background group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}

@@ -74,3 +74,20 @@ func GetUserByClerkID(c *gin.Context) {
 	log.Printf("✅ Found User [%s]: %s (%s)", id, user.Username, user.TeamName)
 	c.JSON(http.StatusOK, user)
 }
+
+func UpdateAvatar(c *gin.Context) {
+	clerkID := c.Param("clerk_id")
+	var input struct {
+		Avatar string `json:"avatar"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	result := database.DB.Model(&models.User{}).Where("clerk_id = ?", clerkID).Update("avatar", input.Avatar)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update avatar"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "avatar": input.Avatar})
+}

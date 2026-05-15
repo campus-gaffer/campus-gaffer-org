@@ -4,6 +4,7 @@ import { useNavigate, Link, useParams } from "react-router-dom";
 import { Bell, ArrowLeft, Shield, TrendingUp, Users, DollarSign, RefreshCw, BarChart3, Trophy } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
+import AvatarPicker from "@/components/AvatarPicker";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
@@ -16,6 +17,8 @@ export default function Profile() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [squad, setSquad] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
+  const [avatarSeed, setAvatarSeed] = useState("");
   useEffect(() => {
     if (!viewClerkId) return;
     setLoading(true);
@@ -26,6 +29,7 @@ export default function Profile() {
     ])
       .then(([prof, lb, sq]) => {
         setProfile(prof);
+        setAvatarSeed(prof?.avatar || "");
         setLeaderboard(Array.isArray(lb) ? lb : []);
         setSquad(sq?.players || []);
         setLoading(false);
@@ -74,10 +78,22 @@ export default function Profile() {
 
             <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
               {/* Avatar */}
-              <div className="w-28 h-28 rounded-[2rem] bg-secondary border-2 border-primary/30 flex items-center justify-center shadow-xl shrink-0">
-                <span className="text-5xl font-black text-primary/40">
-                  {(profile?.username || user?.username || "?")[0].toUpperCase()}
-                </span>
+              <div
+                onClick={() => isCurrentUser && setShowPicker(true)}
+                className={`w-28 h-28 rounded-[2rem] bg-secondary border-2 border-primary/30 flex items-center justify-center shadow-xl shrink-0 overflow-hidden ${isCurrentUser ? "cursor-pointer hover:border-primary transition-colors group relative" : ""}`}
+              >
+                {avatarSeed ? (
+                  <img src={`https://api.dicebear.com/7.x/${avatarSeed}/svg?seed=${viewClerkId}`} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-5xl font-black text-primary/40">
+                    {(profile?.username || "?")[0].toUpperCase()}
+                  </span>
+                )}
+                {isCurrentUser && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[9px] font-bold text-white tracking-widest uppercase">CHANGE</span>
+                  </div>
+                )}
               </div>
 
               {/* Info */}
@@ -229,6 +245,15 @@ export default function Profile() {
       </main>
 
       <MobileNav />
+
+      {showPicker && (
+        <AvatarPicker
+          currentAvatar={avatarSeed}
+          clerkId={viewClerkId || ""}
+          onClose={() => setShowPicker(false)}
+          onSaved={(seed) => setAvatarSeed(seed)}
+        />
+      )}
     </div>
   );
 }

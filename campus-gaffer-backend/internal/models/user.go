@@ -15,4 +15,5 @@ type User struct {
 	TotalPoints  int     `json:"total_points" gorm:"default:0"`
 	FreeTransfers int    `json:"free_transfers" gorm:"default:1"`
 	LastGameweek int     `json:"last_gameweek" gorm:"default:0"`
+	Avatar       string  `json:"avatar" gorm:"default:''"`
 }
