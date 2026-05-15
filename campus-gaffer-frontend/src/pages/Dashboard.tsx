@@ -158,7 +158,7 @@ export default function Dashboard() {
       </div>
 
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <img src={CampusLogo} alt="Campus Gaffer" className="h-12 w-auto" />
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
       </header>
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="grid lg:grid-cols-12 gap-12">

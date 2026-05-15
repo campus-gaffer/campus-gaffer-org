@@ -250,7 +250,13 @@ export default function Profile() {
           currentAvatar={avatarSeed}
           clerkId={viewClerkId || ""}
           onClose={() => setShowPicker(false)}
-          onSaved={(seed) => setAvatarSeed(seed)}
+          onSaved={(seed) => {
+            setAvatarSeed(seed);
+            // Re-fetch profile to update everything
+            if (viewClerkId) {
+              fetch(`${API_URL}/users/${viewClerkId}`).then(r => r.json()).then(setProfile).catch(() => {});
+            }
+          }}
         />
       )}
     </div>

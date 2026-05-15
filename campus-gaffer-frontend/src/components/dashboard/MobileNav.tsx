@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, LayoutGrid, Users, BarChart3, User } from "lucide-react";
+import { Home, LayoutGrid, BarChart3, User } from "lucide-react";
 
 export default function MobileNav() {
     const navigate = useNavigate();
@@ -7,10 +7,9 @@ export default function MobileNav() {
 
     const NAV_ITEMS = [
         { name: 'HOME', path: '/dashboard', icon: Home },
-        { name: 'SCORES', path: '/scores', icon: LayoutGrid },
-        { name: 'SQUAD', path: '/dashboard?manage=true', icon: Users },
-        { name: 'PROFILE', path: '/profile', icon: User },
+        { name: 'MATCHES', path: '/scores', icon: LayoutGrid },
         { name: 'LEADERBOARD', path: '/leagues', icon: BarChart3 },
+        { name: 'PROFILE', path: '/profile', icon: User },
     ];
 
     return (
