@@ -288,7 +288,15 @@ export default function Dashboard() {
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {searchedPlayers.length > 0 ? searchedPlayers.map(p => {
+              {(searchTerm ? searchedPlayers : [...searchedPlayers].sort((a: any, b: any) => {
+                const aSel = starters.some((s: any) => s.id === a.id) ? 0 : 1;
+                const bSel = starters.some((s: any) => s.id === b.id) ? 0 : 1;
+                return aSel - bSel;
+              })).length > 0 ? (searchTerm ? searchedPlayers : [...searchedPlayers].sort((a: any, b: any) => {
+                const aSel = starters.some((s: any) => s.id === a.id) ? 0 : 1;
+                const bSel = starters.some((s: any) => s.id === b.id) ? 0 : 1;
+                return aSel - bSel;
+              })).map((p: any) => {
                 const isSelected = starters.some(s => s.id === p.id);
                 return (
                   <div
@@ -304,24 +312,18 @@ export default function Dashboard() {
                         const max = maxPerPos[pos] || 1;
                         const currentInPos = starters.filter(s => s.position === pos).length;
 
-                        if (managingPosition !== 'all') {
-                          if (currentInPos < max) {
-                            // Add to squad if there's room in this position
-                            newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: pos }];
-                          } else {
-                            // Replace the first player with same position
-                            const idx = starters.findIndex(s => s.position === pos);
-                            if (idx !== -1) {
-                              newS = [...starters];
-                              newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: pos };
-                            } else {
-                              return;
-                            }
-                          }
-                        } else if (starters.length < 6) {
+                        if (currentInPos < max) {
+                          // Add to squad if there's room in this position
                           newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: pos }];
                         } else {
-                          return;
+                          // Replace the first player with same position
+                          const idx = starters.findIndex(s => s.position === pos);
+                          if (idx !== -1) {
+                            newS = [...starters];
+                            newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: pos };
+                          } else {
+                            return;
+                          }
                         }
                       }
 
