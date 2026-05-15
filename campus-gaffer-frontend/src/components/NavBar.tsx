@@ -72,6 +72,11 @@ export default function Navbar() {
                   REWARDS
                 </Link>
               </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/profile" className={navLinkClass("/profile")}>
+                  PROFILE
+                </Link>
+              </NavigationMenuItem>
             </SignedIn>
             <SignedOut>
               <NavigationMenuItem>

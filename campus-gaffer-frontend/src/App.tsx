@@ -13,6 +13,7 @@ import About from '@/pages/About'
 import Rewards from '@/pages/Rewards'
 import PlayerProfile from '@/pages/PlayerProfile'
 import Onboarding from '@/pages/Onboarding'
+import Profile from '@/pages/Profile'
 
 function LandingPage() {
   return (
@@ -61,6 +62,7 @@ function App() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/about" element={<About />} />
           <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/player/:id" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
