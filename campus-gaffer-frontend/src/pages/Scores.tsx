@@ -42,9 +42,10 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
 export default function Scores() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"live" | "upcoming">("live");
+  const [activeTab, setActiveTab] = useState<"live" | "results" | "upcoming">("results");
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
+  const [resultsMatches, setResultsMatches] = useState<Match[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,10 +56,13 @@ export default function Scores() {
       .then(data => {
         if (Array.isArray(data)) {
           const live = data.filter((m: Match) => m.is_live);
-          const upcoming = data.filter((m: Match) => !m.is_live);
+          const results = data.filter((m: Match) => !m.is_live && m.match_time === "FT");
+          const upcoming = data.filter((m: Match) => !m.is_live && m.match_time !== "FT");
           setLiveMatches(live);
+          setResultsMatches(results);
           setUpcomingMatches(upcoming);
-          if (live.length > 0) setSelectedMatch(live[0]);
+          if (results.length > 0) setSelectedMatch(results[0]);
+          else if (live.length > 0) setSelectedMatch(live[0]);
         }
         setLoading(false);
       })
@@ -84,7 +88,7 @@ export default function Scores() {
     }
   }, [selectedMatch]);
 
-  const displayedMatches = activeTab === "live" ? liveMatches : upcomingMatches;
+  const displayedMatches = activeTab === "live" ? liveMatches : activeTab === "results" ? resultsMatches : upcomingMatches;
   const currentEvents = events.filter(e => selectedMatch && e.match_id === selectedMatch.ID);
 
   return (
@@ -114,16 +118,22 @@ export default function Scores() {
             {/* Tab Switcher */}
             <div className="flex bg-secondary/40 rounded-2xl p-1.5 border border-white/5">
               <button
+                onClick={() => setActiveTab("results")}
+                className={`flex-1 py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all ${activeTab === "results" ? "bg-primary text-background shadow-lg" : "text-slate-400 hover:text-white"}`}
+              >
+                Results ({resultsMatches.length})
+              </button>
+              <button
                 onClick={() => setActiveTab("live")}
                 className={`flex-1 py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all ${activeTab === "live" ? "bg-primary text-background shadow-lg" : "text-slate-400 hover:text-white"}`}
               >
-                Live
+                Live ({liveMatches.length})
               </button>
               <button
                 onClick={() => setActiveTab("upcoming")}
                 className={`flex-1 py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all ${activeTab === "upcoming" ? "bg-primary text-background shadow-lg" : "text-slate-400 hover:text-white"}`}
               >
-                Upcoming
+                Upcoming ({upcomingMatches.length})
               </button>
             </div>
 
