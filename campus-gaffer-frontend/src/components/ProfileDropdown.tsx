@@ -6,9 +6,10 @@ import { LogOut, User } from "lucide-react";
 type Props = {
   avatarSeed: string;
   clerkId: string;
+  openUpward?: boolean;
 };
 
-export default function ProfileDropdown({ avatarSeed, clerkId }: Props) {
+export default function ProfileDropdown({ avatarSeed, clerkId, openUpward }: Props) {
   const { signOut } = useClerk();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function ProfileDropdown({ avatarSeed, clerkId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-16 w-56 bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+        <div className={`absolute right-0 ${openUpward ? 'bottom-16' : 'top-16'} w-56 bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50`}>
           <button
             onClick={() => { navigate("/profile"); setOpen(false); }}
             className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/5 transition-colors text-sm font-bold text-white"
