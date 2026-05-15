@@ -43,7 +43,7 @@ export default function Leagues() {
         <Navbar />
       </div>
 
-      <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="flex md:hidden items-center justify-center px-4 py-1 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <img src={CampusLogo} alt="Campus Gaffer" className="h-16 w-auto" />
       </header>
 
