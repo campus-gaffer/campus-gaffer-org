@@ -58,11 +58,6 @@ export default function Navbar() {
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/rules" className={navLinkClass("/rules")}>
-                  RULES
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <Link to="/profile" className={navLinkClass("/profile")}>
                   PROFILE
                 </Link>
