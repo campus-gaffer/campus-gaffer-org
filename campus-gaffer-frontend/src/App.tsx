@@ -17,6 +17,7 @@ import Profile from '@/pages/Profile'
 import Privacy from '@/pages/Privacy'
 import Terms from '@/pages/Terms'
 import Support from '@/pages/Support'
+import Teams from '@/pages/Teams'
 
 function LandingPage() {
   return (
@@ -70,6 +71,7 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/teams" element={<Teams />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

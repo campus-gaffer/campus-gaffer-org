@@ -25,6 +25,7 @@ type Match = {
   is_live: boolean;
   match_time: string;
   venue: string;
+  kickoff_time?: string;
   possession_h: number;
   possession_a: number;
   shots_h: number;
@@ -160,7 +161,11 @@ export default function Scores() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[9px] font-black text-slate-500 tracking-widest">{match.venue || "CAMPUS PITCH"}</span>
-                      {match.is_live ? (
+                      <div className="flex items-center gap-2">
+                        {match.kickoff_time && (
+                          <span className="text-[8px] font-black text-slate-600 tracking-widest">{new Date(match.kickoff_time).toLocaleDateString("en-GB", { day: "numeric", month: "short" }).toUpperCase()}</span>
+                        )}
+                        {match.is_live ? (
                         <div className="flex items-center gap-1.5">
                           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(139,92,246,0.8)]"></div>
                           <span className="text-[9px] font-black text-primary tracking-widest">{match.match_time || "LIVE"}</span>
@@ -168,6 +173,7 @@ export default function Scores() {
                       ) : (
                         <span className="text-[9px] font-black text-green-400 tracking-widest">FT</span>
                       )}
+                    </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col items-center gap-2 flex-1">

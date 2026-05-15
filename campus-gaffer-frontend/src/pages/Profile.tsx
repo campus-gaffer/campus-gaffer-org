@@ -103,6 +103,18 @@ export default function Profile() {
                   <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">
                     Team: {profile?.team_name || "UNNAMED"}
                   </span>
+                  {profile?.age && (
+                    <>
+                      <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                      <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">{profile.age} YRS</span>
+                    </>
+                  )}
+                  {profile?.gender && (
+                    <>
+                      <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                      <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">{profile.gender.toUpperCase()}</span>
+                    </>
+                  )}
                 </div>
 
                 {/* Team Value Bar */}

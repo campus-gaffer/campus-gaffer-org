@@ -36,6 +36,7 @@ export default function Footer() {
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-wrap justify-center gap-6">
               {[
+                { name: "TEAMS", path: "/teams" },
                 { name: "RULES", path: "/rules" },
                 { name: "ABOUT", path: "/about" },
               ].map(link => (
