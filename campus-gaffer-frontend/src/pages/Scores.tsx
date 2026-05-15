@@ -129,10 +129,10 @@ export default function Scores() {
 
           {/* Left: Match List */}
           <div className="lg:col-span-4">
-            <div className="flex items-center justify-between mb-6 px-1">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-l-4 border-primary pl-6 py-2 mb-6">
               <div>
-                <h2 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-white">Matches</h2>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">
+                <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white">Matches</h2>
+                <p className="text-slate-500 font-bold text-xs md:text-sm uppercase tracking-[0.3em] mt-2">
                   {resultsMatches.length} played / {liveMatches.length} live / {upcomingMatches.length} upcoming
                 </p>
               </div>
