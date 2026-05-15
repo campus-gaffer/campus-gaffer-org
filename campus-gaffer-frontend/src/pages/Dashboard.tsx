@@ -298,40 +298,47 @@ export default function Dashboard() {
                       if (isSelected) {
                         newS = starters.filter(s => s.id !== p.id);
                       } else {
-                        // If it's a specific position, we might want to replace the existing one or just add
-                        // For simplicity, let's allow adding if space or replacing if same position
+                        const pos = managingPosition !== 'all' ? managingPosition : (p.position || 'MID');
+                        // Max players per position: GK=1, DEF=2, MID=2, FWD=1
+                        const maxPerPos: Record<string, number> = { GK: 1, DEF: 2, MID: 2, FWD: 1 };
+                        const max = maxPerPos[pos] || 1;
+                        const currentInPos = starters.filter(s => s.position === pos).length;
+
                         if (managingPosition !== 'all') {
-                          // Find if there's already a player in this EXACT slot/position logic
-                          // Current logic is index-based so it's tricky.
-                          // Let's just allow adding up to 6 for now, but prioritize the selected position.
-                          if (starters.length < 6) {
-                            newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || managingPosition }];
+                          if (currentInPos < max) {
+                            // Add to squad if there's room in this position
+                            newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: pos }];
                           } else {
-                            // Replace first player with same position?
-                            const idx = starters.findIndex(s => s.position === managingPosition);
+                            // Replace the first player with same position
+                            const idx = starters.findIndex(s => s.position === pos);
                             if (idx !== -1) {
                               newS = [...starters];
-                              newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || managingPosition };
+                              newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: pos };
                             } else {
                               return;
                             }
                           }
                         } else if (starters.length < 6) {
-                          newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || 'MID' }];
+                          newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: pos }];
                         } else {
                           return;
                         }
                       }
 
-                      // Normalize positions to ensure they fit the 1-2-2-1 formation if possible
-                      const withP = newS.map((s, idx) => {
-                        // If we are in position-specific mode, keep the position assigned
-                        if (managingPosition !== 'all' && s.id === p.id) return s;
-                        return {
-                          ...s,
-                          position: s.position || (idx === 0 ? 'GK' : idx === 1 || idx === 2 ? 'DEF' : idx === 3 || idx === 4 ? 'MID' : 'FWD')
-                        };
-                      });
+                      // Normalize positions to formation: [GK, DEF, DEF, MID, MID, FWD]
+                      const picked: any[] = [];
+                      // Assign picked players to formation slots in order of their position
+                      const posOrder = ['GK', 'DEF', 'MID', 'FWD'];
+                      for (const slotPos of posOrder) {
+                        for (const s of (newS || [])) {
+                          if (s.position === slotPos) {
+                            picked.push({ ...s });
+                            if (picked.length >= 6) break;
+                          }
+                        }
+                        if (picked.length >= 6) break;
+                      }
+                      const withP = picked.length > 0 ? picked : (newS || []);
                       setStarters(withP);
                       // Auto-save when all 6 positions are filled
                       if (withP.length === 6) {

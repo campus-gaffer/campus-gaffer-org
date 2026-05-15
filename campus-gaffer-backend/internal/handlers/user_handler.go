@@ -10,11 +10,24 @@ import (
 )
 
 func CreateUser(c *gin.Context) {
-	var user models.User
+	var input struct {
+		Username  string `json:"username"`
+		Email     string `json:"email"`
+		ClerkID   string `json:"clerk_id"`
+	}
 
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	user := models.User{
+		Username:      input.Username,
+		Email:         input.Email,
+		ClerkID:       input.ClerkID,
+		TotalPoints:   0,
+		Budget:        100,
+		FreeTransfers: 1,
 	}
 
 	result := database.DB.Create(&user)
