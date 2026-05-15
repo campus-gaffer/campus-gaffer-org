@@ -102,28 +102,18 @@ export default function Leagues() {
                         <div className="relative">
                           <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary transition-colors flex items-center justify-center ${
                             rank === 1 ? "border-[3px] border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] animate-[float_3s_ease-in-out_infinite]" :
-                            rank === 2 ? "border-[3px] border-slate-300 shadow-[0_0_20px_rgba(203,213,225,0.3)]" :
-                            rank === 3 ? "border-[3px] border-amber-700 shadow-[0_0_20px_rgba(180,83,9,0.3)]" :
                             "border-2 border-white/10 group-hover:border-primary/40"
                           }`}>
                             <span className="text-lg font-bold text-slate-500">{item.team_name?.charAt(0).toUpperCase() || "?"}</span>
                           </div>
                           <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${
                             rank === 1 ? "bg-amber-400 text-background" :
-                            rank === 2 ? "bg-slate-300 text-slate-900" :
-                            rank === 3 ? "bg-amber-700 text-background" :
                             "bg-primary text-background"
                           }`}>
                             {rank === 1 ? <Crown className="w-4 h-4" /> : rank}
                           </div>
                           {rank === 1 && (
                             <div className="absolute -inset-4 rounded-full bg-amber-400/10 blur-xl animate-pulse" />
-                          )}
-                          {rank === 2 && (
-                            <div className="absolute -inset-3 rounded-full bg-slate-300/10 blur-lg" />
-                          )}
-                          {rank === 3 && (
-                            <div className="absolute -inset-3 rounded-full bg-amber-700/10 blur-lg" />
                           )}
                         </div>
                         <div>
