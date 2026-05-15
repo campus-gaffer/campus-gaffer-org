@@ -204,7 +204,7 @@ export default function Profile() {
           {isCurrentUser && (
             <button
               onClick={() => signOut()}
-              className="w-full py-4 border border-white/10 rounded-2xl text-sm font-bold text-rose-400 hover:bg-rose-500/10 transition-all"
+              className="w-full md:hidden py-4 border border-white/10 rounded-2xl text-sm font-bold text-rose-400 hover:bg-rose-500/10 transition-all"
             >
               SIGN OUT
             </button>
