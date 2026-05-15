@@ -32,7 +32,7 @@ func GetLiveMatch(c *gin.Context) {
 
 func GetAllMatches(c *gin.Context) {
 	var matches []models.Match
-	result := database.DB.Order("created_at DESC").Find(&matches)
+	result := database.DB.Order("kickoff_time DESC NULLS LAST, created_at DESC").Find(&matches)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch matches"})
 		return

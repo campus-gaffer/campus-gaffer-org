@@ -136,7 +136,7 @@ export default function PlayerProfile() {
 
               <div className="inline-flex items-center gap-3 px-6 py-3 bg-secondary/50 rounded-2xl border border-white/5 mx-auto hover:border-primary/30 transition-colors cursor-default">
                 <Shield className="w-5 h-5 text-primary fill-primary/20" />
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-200 leading-none">£{player.price}M</span>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-200 leading-none">£{(player.price || 0).toFixed(1)}M</span>
               </div>
 
               {/* Quick Stats Grid */}
