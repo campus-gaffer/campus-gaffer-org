@@ -71,7 +71,7 @@ export default function Dashboard() {
             return {
               id: p.id,
               name: p.name,
-              points: p.weekly_points || 0,
+              points: p.total_points || 0,
               position: pos,
               isCaptain: p.id === data.captain_id,
               img: p.img_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.name}`
@@ -288,19 +288,19 @@ export default function Dashboard() {
                           // Current logic is index-based so it's tricky.
                           // Let's just allow adding up to 6 for now, but prioritize the selected position.
                           if (starters.length < 6) {
-                            newS = [...starters, { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || managingPosition }];
+                            newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || managingPosition }];
                           } else {
                             // Replace first player with same position?
                             const idx = starters.findIndex(s => s.position === managingPosition);
                             if (idx !== -1) {
                               newS = [...starters];
-                              newS[idx] = { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || managingPosition };
+                              newS[idx] = { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || managingPosition };
                             } else {
                               return;
                             }
                           }
                         } else if (starters.length < 6) {
-                          newS = [...starters, { id: p.id, name: p.name, points: p.weekly_points || 0, position: p.position || 'MID' }];
+                          newS = [...starters, { id: p.id, name: p.name, points: p.total_points || 0, position: p.position || 'MID' }];
                         } else {
                           return;
                         }
