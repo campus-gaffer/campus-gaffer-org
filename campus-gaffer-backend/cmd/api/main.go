@@ -62,6 +62,7 @@ func main() {
 	result.POST("/admin/compute-prices", handlers.ComputePrices)
 	result.POST("/admin/compute-gameweeks", handlers.ComputeGameweeks)
 	result.POST("/admin/compute-all", handlers.ComputeAll)
+	result.POST("/api/contact", handlers.HandleContact)
 	result.Run(":" + getPort())
 }
 

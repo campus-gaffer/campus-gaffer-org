@@ -50,11 +50,6 @@ export default function Navbar() {
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/leagues" className={navLinkClass("/leagues")}>
-                  LEADERBOARD
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <Link to="/profile" className={navLinkClass("/profile")}>
                   PROFILE
                 </Link>
