@@ -124,6 +124,10 @@ export default function Scores() {
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
       <div className="hidden md:block"><Navbar /></div>
 
+      <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
+      </header>
+
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 

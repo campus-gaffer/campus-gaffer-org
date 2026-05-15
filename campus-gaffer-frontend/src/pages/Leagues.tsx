@@ -42,6 +42,10 @@ export default function Leagues() {
         <Navbar />
       </div>
 
+      <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
+      </header>
+
       {/* Mobile Header (Hidden on Desktop) */}
       <main className="container mx-auto px-6 py-8 md:py-16 animate-in fade-in duration-500">
         <div className="max-w-6xl mx-auto space-y-12">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { useNavigate, Link, useParams } from "react-router-dom";
-import { ArrowLeft, Shield, Loader2 } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import AvatarPicker from "@/components/AvatarPicker";
@@ -76,13 +76,8 @@ export default function Profile() {
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
       <div className="hidden md:block"><Navbar /></div>
 
-      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-white/5 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-primary" />
-          </button>
-          <h1 className="text-sm font-bold text-white">{isCurrentUser ? "My Profile" : "Manager Profile"}</h1>
-        </div>
+      <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">

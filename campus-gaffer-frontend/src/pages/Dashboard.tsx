@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { PlusCircle, CheckCircle2 } from "lucide-react";
-import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
@@ -222,8 +221,8 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-white font-sans relative overflow-x-hidden" style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom))" }}>
       <div className="hidden md:block"><Navbar /></div>
 
-      <header className="flex md:hidden items-center justify-between px-4 py-1 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <img src={CampusLogo} alt="Campus Gaffer" className="h-[120px] w-auto" />
+      <header className="flex md:hidden items-center justify-center px-4 py-2 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <span className="text-sm font-black tracking-widest text-white uppercase">Campus Gaffer</span>
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8">
