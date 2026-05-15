@@ -184,10 +184,9 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-slate-500 tracking-widest uppercase">Total Points</div>
-                  <div className="text-2xl font-black text-primary">{totalPoints}</div>
+                  <div className="text-xs text-slate-500">{totalPoints} pts total</div>
                 </div>
               </div>
             </div>
@@ -227,7 +226,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Status</span>
-                  <span className="text-xs font-bold text-amber-400">Squad unlocked</span>
+                  <span className="text-xs font-bold text-slate-400">Squad unlocked</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-slate-500">Players</span>
