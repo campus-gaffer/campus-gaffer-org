@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { User, Shield, GraduationCap, CheckCircle2, ChevronRight, Loader2, Cake, Users } from "lucide-react";
+import CampusLogo from "@/assets/campus-logo.png";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
@@ -251,7 +252,8 @@ export default function Onboarding() {
 
             {/* Footer Branding */}
             <div className="absolute bottom-10 flex items-center gap-2 opacity-50">
-            <span className="text-xs font-black tracking-widest">CAMPUS GAFFER v2.4</span>
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-5 w-auto" />
+            <span className="text-xs font-black tracking-widest">v2.4</span>
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { useLocation, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
+import CampusLogo from "@/assets/campus-logo.png"
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -26,16 +27,12 @@ export default function Navbar() {
       <div className="flex items-center gap-16">
         <SignedIn>
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
-              CAMPUS <span className="text-primary italic">GAFFER</span>
-            </h1>
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
           </Link>
         </SignedIn>
         <SignedOut>
           <Link to="/" className="flex items-center gap-2 group">
-            <h1 className="text-2xl italic font-black tracking-tighter text-white uppercase group-hover:text-primary transition-colors">
-              CAMPUS <span className="text-primary italic">GAFFER</span>
-            </h1>
+            <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
           </Link>
         </SignedOut>
 

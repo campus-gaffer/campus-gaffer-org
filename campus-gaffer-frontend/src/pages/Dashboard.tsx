@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { Bell, Video, User, PlusCircle, CheckCircle2, Search } from "lucide-react";
+import CampusLogo from "@/assets/campus-logo.png";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import Pitch from "@/components/dashboard/Pitch";
@@ -157,7 +158,7 @@ export default function Dashboard() {
       </div>
 
       <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <h1 className="text-base italic font-extrabold tracking-wider text-white uppercase">CAMPUS GAFFER</h1>
+        <img src={CampusLogo} alt="Campus Gaffer" className="h-8 w-auto" />
         <button className="p-2 rounded-full hover:bg-secondary transition-colors relative">
           <Bell className="w-5 h-5 text-slate-300" />
           <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-background"></span>

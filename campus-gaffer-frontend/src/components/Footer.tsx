@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import { SignedIn, SignedOut } from '@clerk/clerk-react'
+import CampusLogo from "@/assets/campus-logo.png"
 
 export default function Footer() {
   return (
@@ -18,26 +19,12 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start gap-6">
             <SignedIn>
               <Link to="/dashboard" className="flex items-center gap-3 group">
-                <div>
-                  <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
-                    CAMPUS
-                  </h1>
-                  <h1 className="text-xl italic font-black tracking-tighter text-primary uppercase leading-tight -mt-1">
-                    GAFFER
-                  </h1>
-                </div>
+                <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
               </Link>
             </SignedIn>
             <SignedOut>
               <Link to="/" className="flex items-center gap-3 group">
-                <div>
-                  <h1 className="text-xl italic font-black tracking-tighter text-white uppercase leading-tight">
-                    CAMPUS
-                  </h1>
-                  <h1 className="text-xl italic font-black tracking-tighter text-primary uppercase leading-tight -mt-1">
-                    GAFFER
-                  </h1>
-                </div>
+                <img src={CampusLogo} alt="Campus Gaffer" className="h-10 w-auto" />
               </Link>
             </SignedOut>
             <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em] text-center md:text-left italic">
