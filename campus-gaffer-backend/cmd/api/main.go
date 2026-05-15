@@ -5,8 +5,11 @@ import (
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
 	"campus-gaffer-backend/internal/models"
+	"campus-gaffer-backend/internal/repository"
+	"campus-gaffer-backend/internal/service"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,7 +21,21 @@ func main() {
 	}
 	database.Connect(cfg.DBUri)
 
-	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{}, &models.ScrapedPlayer{}, &models.PlayerPerformance{})
+	database.DB.AutoMigrate(&models.User{}, &models.Player{}, &models.Match{}, &models.SquadMember{}, &models.MatchEvent{}, &models.Division{}, &models.Team{}, &models.Game{}, &models.GameData{}, &models.ScraperCookie{}, &models.ScrapedPlayer{}, &models.PlayerPerformance{}, &models.Squad{}, &models.SquadPlayer{})
+
+	// Load timezone for squad deadline enforcement
+	loc, err := time.LoadLocation("America/Winnipeg")
+	if err != nil {
+		log.Fatalf("api: load timezone: %v", err)
+	}
+
+	gameRepo := repository.NewGameRepo(database.DB)
+	squadRepo := repository.NewSquadRepo(database.DB)
+	priceRepo := repository.NewPlayerPriceRepo(database.DB)
+	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, loc)
+
+	// Dev squad system handler
+	squadHandler := handlers.NewSquadHandler(squadSvc)
 
 	// Warm up queries to refresh PgBouncer cached plans after schema changes
 	database.DB.Exec("SELECT * FROM users LIMIT 0")
@@ -65,6 +82,9 @@ func main() {
 	result.POST("/admin/compute-gameweeks", handlers.ComputeGameweeks)
 	result.POST("/admin/compute-all", handlers.ComputeAll)
 	result.POST("/api/contact", handlers.HandleContact)
+	result.POST("/squads", squadHandler.CreateSquad)
+	result.GET("/squads/:id", squadHandler.GetSquad)
+	result.GET("/squads/:id/points", squadHandler.GetSquadPoints)
 	result.Run(":" + getPort())
 }
 
