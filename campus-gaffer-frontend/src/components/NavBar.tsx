@@ -85,6 +85,11 @@ export default function Navbar() {
                   ABOUT
                 </Link>
               </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/support" className={navLinkClass("/support")}>
+                  CONTACT
+                </Link>
+              </NavigationMenuItem>
             </SignedOut>
           </NavigationMenuList>
         </NavigationMenu>

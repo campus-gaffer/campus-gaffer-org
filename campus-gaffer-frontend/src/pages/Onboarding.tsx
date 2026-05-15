@@ -34,9 +34,31 @@ export default function Onboarding() {
             setError("Username must be at least 2 characters");
             return;
         }
+        // Check username uniqueness
+        if (step === 2) {
+            try {
+                const res = await fetch(`${API_URL}/users`);
+                const users = await res.json();
+                if (Array.isArray(users) && users.some((u: any) => u.username?.toLowerCase() === username.toLowerCase())) {
+                    setError("Username already taken");
+                    return;
+                }
+            } catch { }
+        }
         if (step === 3 && teamName.length < 2) {
             setError("Team name must be at least 2 characters");
             return;
+        }
+        // Check team name uniqueness
+        if (step === 3) {
+            try {
+                const res = await fetch(`${API_URL}/users`);
+                const users = await res.json();
+                if (Array.isArray(users) && users.some((u: any) => u.team_name?.toLowerCase() === teamName.toLowerCase())) {
+                    setError("Team name already taken");
+                    return;
+                }
+            } catch { }
         }
 
         if (step < 4) {
