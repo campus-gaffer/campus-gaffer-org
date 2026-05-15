@@ -9,13 +9,14 @@ import (
 )
 
 type LeaderboardEntry struct {
-	ClerkID    string `json:"clerk_id"`
-	Username   string `json:"username"`
-	TeamName   string `json:"team_name"`
-	University string `json:"university"`
-	TotalPoints int   `json:"total_points"`
-	Budget     float64 `json:"budget"`
-	SquadValue float64 `json:"squad_value"`
+	ClerkID     string  `json:"clerk_id"`
+	Username    string  `json:"username"`
+	TeamName    string  `json:"team_name"`
+	University  string  `json:"university"`
+	TotalPoints int     `json:"total_points"`
+	Budget      float64 `json:"budget"`
+	SquadValue  float64 `json:"squad_value"`
+	Avatar      string  `json:"avatar"`
 }
 
 func GetLeaderboard(c *gin.Context) {
@@ -44,6 +45,7 @@ func GetLeaderboard(c *gin.Context) {
 			TotalPoints: u.TotalPoints,
 			Budget:      u.Budget,
 			SquadValue:  squadValue,
+			Avatar:      u.Avatar,
 		})
 	}
 

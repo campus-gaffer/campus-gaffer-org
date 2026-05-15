@@ -1,9 +1,10 @@
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, useUser } from '@clerk/clerk-react';
 import { useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import CampusLogo from "@/assets/campus-logo.png"
 import { DollarSign } from 'lucide-react';
+import ProfileDropdown from "./ProfileDropdown";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -16,6 +17,7 @@ export default function Navbar() {
   const { user } = useUser();
   const location = useLocation();
   const [userBudget, setUserBudget] = useState<number | null>(null);
+  const [avatarSeed, setAvatarSeed] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -23,6 +25,7 @@ export default function Navbar() {
       .then(res => res.json())
       .then(data => {
         if (data && data.budget) setUserBudget(data.budget);
+        if (data && data.avatar) setAvatarSeed(data.avatar);
       })
       .catch(() => {});
   }, [user]);
@@ -128,11 +131,7 @@ export default function Navbar() {
                 <span className="text-sm font-bold text-white">£{userBudget.toFixed(1)}M</span>
               </div>
             )}
-            <UserButton appearance={{
-              elements: {
-                userButtonAvatarBox: "w-12 h-12 rounded-xl border-2 border-primary/50 hover:border-primary transition-colors shadow-lg shadow-primary/20"
-              }
-            }} />
+            <ProfileDropdown avatarSeed={avatarSeed} clerkId={user?.id || ""} />
           </div>
         </SignedIn>
       </div>

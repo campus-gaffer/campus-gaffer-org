@@ -14,6 +14,7 @@ type LeaderEntry = {
   total_points: number;
   budget: number;
   squad_value: number;
+  avatar?: string;
 };
 
 export default function Leagues() {
@@ -99,7 +100,7 @@ export default function Leagues() {
                       <div className="flex items-center gap-6 relative z-10">
                         <div className="relative">
                           <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-secondary border-2 border-white/10 group-hover:border-primary/40 transition-colors">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${item.username}`} alt={item.team_name} />
+                            <img src={item.avatar ? `https://api.dicebear.com/7.x/${item.avatar}/svg?seed=${item.clerk_id}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.username}`} alt={item.team_name} />
                           </div>
                           <div className={`absolute -top-1 -left-1 w-8 h-8 font-black text-xs flex items-center justify-center rounded-full border-2 border-background shadow-lg ${rank === 1 ? 'bg-amber-500 text-background' : 'bg-primary text-background'}`}>
                             {rank === 1 ? <Crown className="w-4 h-4" /> : rank}
