@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useClerk } from "@clerk/clerk-react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { ArrowLeft, Shield, Loader2 } from "lucide-react";
 import Navbar from "@/components/NavBar";
@@ -20,6 +20,7 @@ function TeamInitials({ name, size = "md" }: { name: string; size?: "sm" | "md" 
 
 export default function Profile() {
   const { user } = useUser();
+  const { signOut } = useClerk();
   const { clerk_id: urlClerkId } = useParams();
   const navigate = useNavigate();
   const viewClerkId = urlClerkId || user?.id;
@@ -198,6 +199,16 @@ export default function Profile() {
               <p className="text-xs text-slate-600 mt-1">Scores will appear after your first completed gameweek</p>
             </div>
           </div>
+
+          {/* Sign Out (own profile only) */}
+          {isCurrentUser && (
+            <button
+              onClick={() => signOut()}
+              className="w-full py-4 border border-white/10 rounded-2xl text-sm font-bold text-rose-400 hover:bg-rose-500/10 transition-all"
+            >
+              SIGN OUT
+            </button>
+          )}
 
         </div>
       </main>
