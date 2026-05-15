@@ -54,9 +54,18 @@ export default function Dashboard() {
 
   // Fetch leaderboard
   useEffect(() => {
+    const cached = sessionStorage.getItem("leaderboard");
+    if (cached) {
+      try { const data = JSON.parse(cached); if (Array.isArray(data)) setLeaderboard(data.slice(0, 3)); } catch {}
+    }
     fetch(API_URL + "/leaderboard")
       .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setLeaderboard(data.slice(0, 3)); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          sessionStorage.setItem("leaderboard", JSON.stringify(data));
+          setLeaderboard(data.slice(0, 3));
+        }
+      })
       .catch(() => {});
   }, []);
 
