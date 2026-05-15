@@ -30,6 +30,15 @@ func CreateUser(c *gin.Context) {
 		FreeTransfers: 1,
 	}
 
+	// Check username uniqueness
+	if user.Username != "" {
+		var dup models.User
+		if err := database.DB.Where("username = ?", user.Username).First(&dup).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Username already taken"})
+			return
+		}
+	}
+
 	result := database.DB.Create(&user)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})

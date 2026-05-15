@@ -84,6 +84,24 @@ func UpdateUserOnboarding(c *gin.Context) {
 	log.Printf("📥 Onboarding User [%s]: %+v", clerkID, user)
 	user.ClerkID = clerkID
 
+	// Check username uniqueness (exclude current user)
+	if user.Username != "" {
+		var dup models.User
+		if err := database.DB.Where("username = ? AND clerk_id != ?", user.Username, clerkID).First(&dup).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Username already taken"})
+			return
+		}
+	}
+
+	// Check team_name uniqueness (exclude current user)
+	if user.TeamName != "" {
+		var dup models.User
+		if err := database.DB.Where("team_name = ? AND clerk_id != ?", user.TeamName, clerkID).First(&dup).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Team name already taken"})
+			return
+		}
+	}
+
 	// Look for existing user
 	var existing models.User
 	if err := database.DB.Where("clerk_id = ?", clerkID).First(&existing).Error; err != nil {
