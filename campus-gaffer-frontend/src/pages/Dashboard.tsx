@@ -116,7 +116,7 @@ export default function Dashboard() {
     fetchSquad();
   }, [user]);
 
-  const saveSquad = async (playerIds: string[]) => {
+  const saveSquad = async (playerIds: string[], closeModal = true) => {
     setSaving(true);
     setAutoSaveMsg("SAVING SQUAD...");
     await fetch(`${API_URL}/squad/${user?.id}`, {
@@ -126,8 +126,11 @@ export default function Dashboard() {
     });
     fetchSquad();
     setAutoSaveMsg("SQUAD LOCKED!");
-    setTimeout(() => { setAutoSaveMsg(""); setSaving(false); }, 1200);
-    setManagingPosition(null);
+    setTimeout(() => {
+      setAutoSaveMsg("");
+      setSaving(false);
+      if (closeModal) setManagingPosition(null);
+    }, 1200);
   };
 
   const setCaptain = async (playerId: string) => {
@@ -332,7 +335,7 @@ export default function Dashboard() {
                       setStarters(withP);
                       // Auto-save when all 6 positions are filled
                       if (withP.length === 6) {
-                        saveSquad(withP.map(s => s.id));
+                        saveSquad(withP.map(s => s.id), false);
                       }
                       if (managingPosition !== 'all' && !isSelected) setManagingPosition(null); // Close after selection for specific position
                     }}
