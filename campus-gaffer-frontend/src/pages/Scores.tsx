@@ -49,6 +49,7 @@ export default function Scores() {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamFilter, setTeamFilter] = useState<"all" | "home" | "away">("all");
 
   useEffect(() => {
     fetch(API_URL + "/matches")
@@ -258,14 +259,32 @@ export default function Scores() {
                 <section className="bg-card/20 border border-white/5 rounded-[2.5rem] p-8 shadow-xl text-left">
                   <div className="flex items-center justify-between px-1 mb-6">
                     <h2 className="text-xs md:text-sm font-black text-slate-500 tracking-[0.3em] uppercase">Match Events</h2>
-                    <div className="w-1.5 h-4 bg-primary rounded-full"></div>
+                    <div className="flex items-center gap-2">
+                      {["all", "home", "away"].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setTeamFilter(t as "all" | "home" | "away")}
+                          className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all ${
+                            teamFilter === t
+                              ? "bg-primary text-background shadow-md"
+                              : "bg-white/5 text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {t === "all" ? "ALL" : t === "home" ? selectedMatch.home_team.split(" ").slice(0, 2).join(" ").toUpperCase() : selectedMatch.away_team.split(" ").slice(0, 2).join(" ").toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-0">
-                    {currentEvents.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500 text-xs font-black italic uppercase tracking-widest">No events yet</div>
-                    ) : (
-                      currentEvents.map((event) => (
+                    {(() => {
+                      const filtered = teamFilter === "all"
+                        ? currentEvents
+                        : currentEvents.filter(e => e.team === teamFilter);
+                      return filtered.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500 text-xs font-black italic uppercase tracking-widest">No events yet</div>
+                      ) : (
+                        filtered.map((event) => (
                         <div key={event.id} className="flex items-center gap-4 py-4 border-b border-white/5 last:border-0">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black ${
                             event.event_type === "goal" ? "bg-primary/20 border border-primary/30" :
@@ -300,7 +319,7 @@ export default function Scores() {
                           <div className="text-lg font-black italic text-primary">{event.event_time && event.event_time !== "FT" ? event.event_time : ""}</div>
                         </div>
                       ))
-                    )}
+                    })()}
                   </div>
                 </section>
               </>
