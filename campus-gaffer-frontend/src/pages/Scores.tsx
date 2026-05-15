@@ -124,10 +124,6 @@ export default function Scores() {
     <div className="min-h-screen bg-background text-white pb-24 font-sans relative overflow-x-hidden">
       <div className="hidden md:block"><Navbar /></div>
 
-      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <h1 className="text-lg italic font-extrabold tracking-wider text-primary uppercase">Matches</h1>
-      </header>
-
       <main className="container mx-auto px-4 md:px-6 py-6 md:py-8 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 

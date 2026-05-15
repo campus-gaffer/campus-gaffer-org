@@ -43,10 +43,6 @@ export default function Leagues() {
       </div>
 
       {/* Mobile Header (Hidden on Desktop) */}
-      <header className="flex md:hidden items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <h1 className="text-lg font-bold tracking-tight text-white uppercase">Leaderboard</h1>
-      </header>
-
       <main className="container mx-auto px-6 py-8 md:py-16 animate-in fade-in duration-500">
         <div className="max-w-6xl mx-auto space-y-12">
           {/* Section Header */}
