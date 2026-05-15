@@ -67,6 +67,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/profile/:clerk_id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/player/:id" element={<ProtectedRoute><PlayerProfile /></ProtectedRoute>} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />

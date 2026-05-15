@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import { Bell, ArrowLeft, Shield, TrendingUp, Users, DollarSign, RefreshCw, BarChart3, Trophy } from "lucide-react";
 import Navbar from "@/components/NavBar";
 import MobileNav from "@/components/dashboard/MobileNav";
@@ -9,18 +9,20 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8082";
 
 export default function Profile() {
   const { user } = useUser();
+  const { clerk_id: urlClerkId } = useParams();
   const navigate = useNavigate();
+  const viewClerkId = urlClerkId || user?.id;
   const [profile, setProfile] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [squad, setSquad] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    if (!user) return;
+    if (!viewClerkId) return;
+    setLoading(true);
     Promise.all([
-      fetch(`${API_URL}/users/${user.id}`).then(r => r.json()),
-      fetch(`${API_URL}/leaderboard`).then(r => r.json()),
-      fetch(`${API_URL}/squad/${user.id}`).then(r => r.json()),
+      fetch(`${API_URL}/users/${viewClerkId}`).then(r => r.json()),
+      fetch(API_URL + "/leaderboard").then(r => r.json()),
+      fetch(`${API_URL}/squad/${viewClerkId}`).then(r => r.json()),
     ])
       .then(([prof, lb, sq]) => {
         setProfile(prof);
@@ -29,10 +31,11 @@ export default function Profile() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [user]);
+  }, [viewClerkId]);
 
-  const rank = leaderboard.findIndex(u => u.clerk_id === user?.id) + 1;
+  const rank = leaderboard.findIndex(u => u.clerk_id === viewClerkId) + 1;
   const totalRank = leaderboard.length;
+  const isCurrentUser = !urlClerkId || urlClerkId === user?.id;
   const squadValue = squad.reduce((sum: number, p: any) => sum + (p.price || 0), 0);
   const unusedBudget = (profile?.budget || 100) - squadValue;
   const joinedDate = profile?.CreatedAt
@@ -56,7 +59,7 @@ export default function Profile() {
           <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="w-6 h-6 text-primary" />
           </button>
-          <h1 className="text-lg italic font-black tracking-wider text-primary uppercase">MY PROFILE</h1>
+          <h1 className="text-lg italic font-black tracking-wider text-primary uppercase">{isCurrentUser ? "MY PROFILE" : "MANAGER PROFILE"}</h1>
         </div>
         <Bell className="w-6 h-6 text-slate-300" />
       </header>

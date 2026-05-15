@@ -94,7 +94,7 @@ export default function Leagues() {
                   return (
                     <div
                       key={item.clerk_id}
-                      onClick={() => navigate(`/profile`)}
+                      onClick={() => navigate(`/profile/${item.clerk_id}`)}
                       className="bg-card border border-white/5 rounded-[2.5rem] p-8 flex items-center justify-between hover:border-primary/30 transition-all cursor-pointer group text-left relative overflow-hidden shadow-2xl"
                     >
                       <div className="flex items-center gap-6 relative z-10">
