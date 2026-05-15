@@ -76,13 +76,13 @@ export default function Navbar() {
             </SignedIn>
             <SignedOut>
               <NavigationMenuItem>
-                <Link to="/rules" className={navLinkClass("/rules")}>
-                  RULES
+                <Link to="/about" className={navLinkClass("/about")}>
+                  ABOUT
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/about" className={navLinkClass("/about")}>
-                  ABOUT
+                <Link to="/rules" className={navLinkClass("/rules")}>
+                  RULES
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
