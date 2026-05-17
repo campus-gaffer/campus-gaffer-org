@@ -83,13 +83,6 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, loc *time.Location) {
 	ctx := c.Request.Context()
 
-	// loc, err := time.LoadLocation(leagueTz)
-	// if err != nil {
-	// 	log.Printf("GetCurrentGameweek: load timezone %q: %v", leagueTz, err)
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "timezone configuration error"})
-	// 	return
-	// }
-
 	gw, cutoff, err := currentGameweek(ctx, gameRepo, loc)
 	if err != nil {
 		// No games yet; return gameweek 1 with a safe future deadline
@@ -145,13 +138,7 @@ func currentGameweek(ctx context.Context, gameRepo repository.GameRepository, lo
 	if err != nil || len(games) == 0 {
 		return 0, time.Time{}, err
 	}
-	// cfg, err := config.Load()
-	// if err != nil {
-	// 	// In case config fails to load, ensure the timezone is still populated
-	// 	cfg.LeagueTz = "America/Winnipeg"
-	// 	log.Printf("currentGameweek: failed to load config, using default timezone: %v\n", err)
-	// }
-	// loc, _ := time.LoadLocation(cfg.LeagueTz)
+	
 	gws := season.RegularGameweeks(games, loc)
 	if len(gws) == 0 {
 		return 0, time.Time{}, err
