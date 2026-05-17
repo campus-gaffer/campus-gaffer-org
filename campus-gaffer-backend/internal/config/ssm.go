@@ -12,6 +12,7 @@ import (
 const (
 	SSMParamDBUri   = "/campus-gaffer/db-uri"
 	SSMParamCookies = "/campus-gaffer/imleagues-cookie"
+	SSMLeagueTZ = "/campus-gaffer/league-tz"
 )
 
 // LoadFromSSM fetches secrets from AWS Systems Manager Parameter Store and
@@ -25,7 +26,7 @@ func LoadFromSSM(ctx context.Context) (Config, error) {
 
 	client := ssm.NewFromConfig(awsCfg)
 	out, err := client.GetParameters(ctx, &ssm.GetParametersInput{
-		Names:          []string{SSMParamDBUri, SSMParamCookies},
+		Names:          []string{SSMParamDBUri, SSMParamCookies, SSMLeagueTZ},
 		WithDecryption: aws.Bool(true),
 	})
 	if err != nil {
@@ -42,15 +43,20 @@ func LoadFromSSM(ctx context.Context) (Config, error) {
 
 	dbUri := values[SSMParamDBUri]
 	cookies := values[SSMParamCookies]
+	leagueTz := values[SSMLeagueTZ]
 	if dbUri == "" {
 		return Config{}, fmt.Errorf("ssm config: %s is empty", SSMParamDBUri)
 	}
 	if cookies == "" {
 		return Config{}, fmt.Errorf("ssm config: %s is empty", SSMParamCookies)
 	}
+	if leagueTz == "" {
+		return Config{}, fmt.Errorf("ssm config: %s is empty", SSMLeagueTZ)
+	}
 
 	return Config{
 		DBUri:   dbUri,
 		Cookies: cookies,
+		LeagueTz: leagueTz,
 	}, nil
 }

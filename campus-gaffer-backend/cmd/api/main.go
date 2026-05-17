@@ -4,10 +4,12 @@ import (
 	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
-	"campus-gaffer-backend/internal/models"
+
+	// "campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/service"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,40 +24,72 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	database.Connect(cfg.DBUri)
+	db := database.Connect(cfg.DBUri)
 
-	loc, err := time.LoadLocation(LeagueTZ)
+	// Initialize repositories
+	squadRepo := repository.NewSquadRepo(db)
+	priceRepo := repository.NewPlayerPriceRepo(db)
+	gameRepo := repository.NewGameRepo(db)
+	playerRepo := repository.NewPlayerRepo(db)
+	gamePointRepo := repository.NewPlayerGamePointRepo(db)
+
+	// Load timezone for services
+	loc, err := time.LoadLocation(cfg.LeagueTz)
 	if err != nil {
 		log.Fatalf("api: load timezone %q: %v", LeagueTZ, err)
 	}
 
-	database.DB.AutoMigrate(&models.User{}, &models.Squad{}, &models.SquadPlayer{})
-
-	gameRepo := repository.NewGameRepo(database.DB)
-	squadRepo := repository.NewSquadRepo(database.DB)
-	priceRepo := repository.NewPlayerPriceRepo(database.DB)
+	// Initialize services
 	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, loc)
 	squadHandler := handlers.NewSquadHandler(squadSvc)
+
+	// Pre-fetch priced player payload on startup; refreshed only when needed.
+	playerCache, err := handlers.NewPlayerCache(playerRepo, priceRepo, gameRepo)
+	if err != nil {
+		log.Printf("warning: failed to pre-fetch players cache: %v", err)
+	}
 
 	result := gin.Default()
 
 	result.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+        c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
+        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(204)
+            return
+        }
+        c.Next()
+    })
+
+	// User endpoints
 	result.POST("/users", handlers.CreateUser)
 	result.GET("/users", handlers.GetUser)
 
+	// Squad endpoints
 	result.POST("/squads", squadHandler.CreateSquad)
 	result.GET("/squads/:id", squadHandler.GetSquad)
 	result.GET("/squads/:id/points", squadHandler.GetSquadPoints)
 
-	result.Run(":8081")
+	// Game/Player/Gameweek endpoints
+	result.GET("/players", func(c *gin.Context) {
+		if playerCache != nil {
+			handlers.GetPlayersFromCache(c, playerCache)
+			return
+		}
+		handlers.GetPlayers(c, gameRepo, playerRepo, priceRepo)
+	})
+	result.GET("/gameweeks/current", func(c *gin.Context) {
+		handlers.GetCurrentGameweek(c, gameRepo, cfg.LeagueTz)
+	})
+	result.GET("/leaderboard", func(c *gin.Context) {
+		handlers.GetLeaderboard(c, squadRepo, gamePointRepo)
+	})
+
+	port := ":8081"
+	if p := os.Getenv("PORT"); p != "" {
+		port = ":" + p
+	}
+	result.Run(port)
 }

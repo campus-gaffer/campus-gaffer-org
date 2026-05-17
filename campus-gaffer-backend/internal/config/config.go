@@ -10,6 +10,7 @@ import (
 type Config struct {
 	DBUri   string
 	Cookies string
+	LeagueTz string
 }
 
 func Load() (Config, error) {
@@ -28,9 +29,16 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("config: DATABASE_DEV_URL or DATABASE_URL must be set")
 	}
 
+	leagueTz := firstNonEmpty(os.Getenv("LEAGUE_TZ"))
+
+	if leagueTz == "" {
+		return Config{}, fmt.Errorf("config: LEAGUE_TZ must be set")
+	}
+
 	return Config{
 		DBUri:   dbUri,
 		Cookies: cookies,
+		LeagueTz: leagueTz,
 	}, nil
 }
 
