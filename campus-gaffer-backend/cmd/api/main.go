@@ -15,9 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// LeagueTZ mirrors the constant in cmd/pricing — will move to per-league
-// config when multi-league support is added.
-const LeagueTZ = "America/Winnipeg"
 
 func main() {
 	cfg, err := config.Load()
@@ -31,12 +28,12 @@ func main() {
 	priceRepo := repository.NewPlayerPriceRepo(db)
 	gameRepo := repository.NewGameRepo(db)
 	playerRepo := repository.NewPlayerRepo(db)
-	gamePointRepo := repository.NewPlayerGamePointRepo(db)
+
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
 	if err != nil {
-		log.Fatalf("api: load timezone %q: %v", LeagueTZ, err)
+		log.Fatalf("api: load timezone %q: %v", cfg.LeagueTz, err)
 	}
 
 	// Initialize services
@@ -44,7 +41,7 @@ func main() {
 	squadHandler := handlers.NewSquadHandler(squadSvc)
 
 	// Pre-fetch priced player payload on startup; refreshed only when needed.
-	playerCache, err := handlers.NewPlayerCache(playerRepo, priceRepo, gameRepo)
+	playerCache, err := handlers.NewPlayerCache(playerRepo, priceRepo, gameRepo, loc)
 	if err != nil {
 		log.Printf("warning: failed to pre-fetch players cache: %v", err)
 	}
@@ -78,13 +75,13 @@ func main() {
 			handlers.GetPlayersFromCache(c, playerCache)
 			return
 		}
-		handlers.GetPlayers(c, gameRepo, playerRepo, priceRepo)
+		handlers.GetPlayers(c, gameRepo, playerRepo, priceRepo, loc)
 	})
 	result.GET("/gameweeks/current", func(c *gin.Context) {
-		handlers.GetCurrentGameweek(c, gameRepo, cfg.LeagueTz)
+		handlers.GetCurrentGameweek(c, gameRepo, loc)
 	})
 	result.GET("/leaderboard", func(c *gin.Context) {
-		handlers.GetLeaderboard(c, squadRepo, gamePointRepo)
+		handlers.GetLeaderboard(c, squadRepo)
 	})
 
 	port := ":8081"

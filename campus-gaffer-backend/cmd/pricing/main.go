@@ -12,11 +12,12 @@ import (
 	"time"
 )
 
-// LeagueTZ is the timezone used to bucket games into gameweeks. Will
-// move to per-league config when we host more than one league.
-const LeagueTZ = "America/Winnipeg"
 
 func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("pricing: failed to load config %v\n", err)
+	}
 	gameweek := flag.Int("gameweek", 0, "Gameweek number to price (required, >= 1)")
 	flag.Parse()
 
@@ -24,15 +25,11 @@ func main() {
 		log.Fatal("pricing: -gameweek must be >= 1")
 	}
 
-	loc, err := time.LoadLocation(LeagueTZ)
+	loc, err := time.LoadLocation(cfg.LeagueTz)
 	if err != nil {
-		log.Fatalf("pricing: load timezone %q: %v", LeagueTZ, err)
+		log.Fatalf("pricing: load timezone %q: %v", cfg.LeagueTz, err)
 	}
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("pricing: config load: %v", err)
-	}
 	db := database.Connect(cfg.DBUri)
 	ctx := context.Background()
 
