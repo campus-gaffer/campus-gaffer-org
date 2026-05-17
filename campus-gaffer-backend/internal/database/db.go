@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 	"sync"
-	
+	"time"
+
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ import (
 
 var (
 	initDB sync.Once
-	DB *gorm.DB
+	DB     *gorm.DB
 )
 
 func LoadDBUri() string {
@@ -35,6 +36,16 @@ func Connect(db_uri string) *gorm.DB {
 		if DB == nil {
 			log.Fatal("Failed to set DB to db!")
 		}
+
+		// Keep DB usage bounded for cost safety on small plans.
+		sqlDB, err := DB.DB()
+		if err != nil {
+			log.Fatal("Failed to access sql.DB from gorm")
+		}
+		sqlDB.SetMaxOpenConns(5)
+		sqlDB.SetMaxIdleConns(2)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute)
+		sqlDB.SetConnMaxIdleTime(2 * time.Minute)
 	})
 	// db, err := gorm.Open(postgres.Open(db_uri), &gorm.Config{})
 	// err = db.AutoMigrate(
