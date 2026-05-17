@@ -114,9 +114,9 @@ func (r *squadRepo) Leaderboard(ctx context.Context, limit, offset int) ([]Leade
 				u.id as user_id,
 				u.username,
 				COALESCE(SUM(pgp.points), 0) as total_points`).
-		Joins("LEFT JOIN squads s ON s.user_id = u.id").
-		Joins("LEFT JOIN squad_players sp ON sp.squad_id = s.id").
-		Joins("LEFT JOIN player_game_points pgp ON pgp.player_id = sp.player_id AND pgp.weight_ver = 'v1.0'").
+		Joins("JOIN squads s ON s.user_id = u.id").
+		Joins("JOIN squad_players sp ON sp.squad_id = s.id").
+		Joins("JOIN player_game_points pgp ON pgp.player_id = sp.player_id AND pgp.weight_ver = 'v1.0'").
 		Group("u.id, u.username").
 		Order("total_points DESC").
 		Limit(limit).
