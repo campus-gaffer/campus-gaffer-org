@@ -17,6 +17,9 @@ type fakeSquadRepo struct {
 	players             map[uuid.UUID][]models.SquadPlayer
 	err                 error
 	totalPointsOverride map[uuid.UUID]int
+	leaderboardRows     []repository.LeaderboardRow
+	leaderboardTotal    int
+	leaderboardErr      error
 }
 
 func newFakeSquadRepo() *fakeSquadRepo {
@@ -78,6 +81,21 @@ func (f *fakeSquadRepo) TotalPointsByPlayerIDs(_ context.Context, _ []uuid.UUID,
 		return f.totalPointsOverride, nil
 	}
 	return map[uuid.UUID]int{}, nil
+}
+
+func (f *fakeSquadRepo) Leaderboard(_ context.Context, limit, offset int) ([]repository.LeaderboardRow, int, error) {
+	if f.leaderboardErr != nil {
+		return nil, 0, f.leaderboardErr
+	}
+	if offset >= len(f.leaderboardRows) {
+		return []repository.LeaderboardRow{}, f.leaderboardTotal, nil
+	}
+
+	end := limit + offset
+	if end > len(f.leaderboardRows) {
+		end = len(f.leaderboardRows)
+	}
+	return f.leaderboardRows[offset:end], f.leaderboardTotal, nil
 }
 
 type fakeSquadPriceRepo struct {
@@ -394,4 +412,71 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 	if len(resp.Players) != OnFieldCount+BenchCount {
 		t.Errorf("points has %d player entries, want %d", len(resp.Players), OnFieldCount+BenchCount)
 	}
+}
+
+// TestLeaderboard_PreSeason_ZeroPointsAppear is the regression test for the
+// INNER JOIN bug: squad owners with no game points yet must still appear.
+func TestLeaderboard_PreSeason_ZeroPointsAppear(t *testing.T) {
+    sr := newFakeSquadRepo()
+    sr.leaderboardRows = []repository.LeaderboardRow{
+        {UserID: uuid.New(), Username: "alice", TotalPoints: 0, Rank: 1},
+    }
+    sr.leaderboardTotal = 1
+
+    rows, total, err := sr.Leaderboard(context.Background(), 50, 0)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if total != 1 {
+        t.Errorf("total = %d, want 1", total)
+    }
+    if len(rows) != 1 {
+        t.Fatalf("rows = %d, want 1 (squad owner with 0 points must appear)", len(rows))
+    }
+    if rows[0].TotalPoints != 0 {
+        t.Errorf("total_points = %d, want 0", rows[0].TotalPoints)
+    }
+}
+
+func TestLeaderboard_WithPoints_RankedDescending(t *testing.T) {
+    sr := newFakeSquadRepo()
+    sr.leaderboardRows = []repository.LeaderboardRow{
+        {UserID: uuid.New(), Username: "alice", TotalPoints: 80, Rank: 1},
+        {UserID: uuid.New(), Username: "bob",   TotalPoints: 60, Rank: 2},
+        {UserID: uuid.New(), Username: "carol", TotalPoints: 0,  Rank: 3},
+    }
+    sr.leaderboardTotal = 3
+
+    rows, _, err := sr.Leaderboard(context.Background(), 50, 0)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    for i := 1; i < len(rows); i++ {
+        if rows[i].TotalPoints > rows[i-1].TotalPoints {
+            t.Errorf("row %d (%d pts) outranks row %d (%d pts): not descending",
+                i, rows[i].TotalPoints, i-1, rows[i-1].TotalPoints)
+        }
+    }
+}
+
+func TestLeaderboard_Pagination_HonorsLimitOffset(t *testing.T) {
+    sr := newFakeSquadRepo()
+	num_squads := 5
+    for i := range num_squads {
+        sr.leaderboardRows = append(sr.leaderboardRows, repository.LeaderboardRow{
+            UserID: uuid.New(), Username: "user", TotalPoints: (num_squads - i) * 10, Rank: i + 1,
+        })
+    }
+    sr.leaderboardTotal = num_squads
+
+    rows, total, err := sr.Leaderboard(context.Background(), 2, 1)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if total != num_squads {
+        t.Errorf("total = %d, want %d", total, num_squads)
+    }
+    if len(rows) != 2 {
+        t.Errorf("rows = %d, want 2 (limit=2 offset=1)", len(rows))
+    }
 }

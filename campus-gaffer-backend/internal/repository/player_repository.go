@@ -4,9 +4,14 @@ import (
 	"campus-gaffer-backend/internal/models"
 	"context"
 
+	"sync"
+	"time"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+const playerListCacheTTL = 5 * time.Minute
 
 type PlayerRepository interface {
 	Upsert(ctx context.Context, p *models.Player) (*models.Player, error)
@@ -15,7 +20,10 @@ type PlayerRepository interface {
 }
 
 type playerRepo struct {
-	db *gorm.DB
+	db        *gorm.DB
+	cacheMu   sync.RWMutex
+	players   []models.Player
+	playersAt time.Time
 }
 
 func NewPlayerRepo(db *gorm.DB) PlayerRepository {
@@ -48,6 +56,7 @@ func (r *playerRepo) Upsert(ctx context.Context, player *models.Player) (*models
 	if result.Error != nil {
 		return nil, result.Error
 	}
+	r.invalidatePlayersCache()
 	return player, nil
 }
 
@@ -69,11 +78,36 @@ func (r *playerRepo) FindByExternalID(ctx context.Context, externalID string) *m
 
 
 func (r *playerRepo) FindAll(ctx context.Context) ([]models.Player, error) {
+	r.cacheMu.RLock()
+	if len(r.players) > 0 && time.Since(r.playersAt) < playerListCacheTTL {
+		cached := make([]models.Player, len(r.players))
+		copy(cached, r.players)
+		r.cacheMu.RUnlock()
+		return cached, nil
+	}
+	r.cacheMu.RUnlock()
+
 	var players []models.Player
 	err := r.db.
 		WithContext(ctx).
 		Find(&players).
 		Error
-		
-	return players, err
+	if err != nil {
+		return nil, err
+	}
+
+	r.cacheMu.Lock()
+	r.players = make([]models.Player, len(players))
+	copy(r.players, players)
+	r.playersAt = time.Now()
+	r.cacheMu.Unlock()
+
+	return players, nil
+}
+
+func (r *playerRepo) invalidatePlayersCache() {
+	r.cacheMu.Lock()
+	r.players = nil
+	r.playersAt = time.Time{}
+	r.cacheMu.Unlock()
 }

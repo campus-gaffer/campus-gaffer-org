@@ -4,13 +4,18 @@ import (
 	// "campus-gaffer-backend/internal/models"
 	"log"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+var (
+	initDB sync.Once
+	DB     *gorm.DB
+)
 
 func LoadDBUri() string {
 	err := godotenv.Load()
@@ -21,11 +26,28 @@ func LoadDBUri() string {
 }
 
 func Connect(db_uri string) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(db_uri), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Failed to connect to Neon")
-	}
-	log.Println("Connected to Neon")
+	initDB.Do(func() {
+		db, err := gorm.Open(postgres.Open(db_uri), &gorm.Config{})
+		if err != nil {
+			log.Fatal("Failed to connect to Neon")
+		}
+		log.Println("Connected to Neon")
+		DB = db
+		if DB == nil {
+			log.Fatal("Failed to set DB to db!")
+		}
+
+		// Keep DB usage bounded for cost safety on small plans.
+		sqlDB, err := DB.DB()
+		if err != nil {
+			log.Fatal("Failed to access sql.DB from gorm")
+		}
+		sqlDB.SetMaxOpenConns(5)
+		sqlDB.SetMaxIdleConns(2)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute)
+		sqlDB.SetConnMaxIdleTime(2 * time.Minute)
+	})
+	// db, err := gorm.Open(postgres.Open(db_uri), &gorm.Config{})
 	// err = db.AutoMigrate(
 	// 	&models.Game{},
 	// 	&models.Player{},
@@ -38,6 +60,6 @@ func Connect(db_uri string) *gorm.DB {
 	// 	log.Fatal("Failed to automigrate")
 	// }
 	// log.Println("Successfully ran automigrate!")
-	DB = db
+	// DB = db
 	return DB
 }
