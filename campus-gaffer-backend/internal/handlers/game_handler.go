@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"campus-gaffer-backend/internal/config"
+	// "campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/season"
 	"context"
@@ -15,10 +15,33 @@ import (
 	"github.com/google/uuid"
 )
 
+// PlayerCache holds pre-fetched players with their current prices.
+// Pre-fetches on startup to avoid SELECT * on every /players request.
+// Valid for the entire gameweek; invalidated when scraper runs at gameweek boundary.
+type PlayerCache struct {
+	mu             sync.RWMutex
+	players        []playerResponse
+	cachedGameweek int
+	nextCheckAt    time.Time
+	checkInterval  time.Duration
+	playerRepo     repository.PlayerRepository
+	priceRepo      repository.PlayerPriceRepository
+	gameRepo       repository.GameRepository
+	loc            *time.Location
+}
+
+type playerResponse struct {
+	ID               uuid.UUID `json:"id"`
+	Name             string    `json:"name"`
+	Position         string    `json:"position"` // Will be empty/unknown for now; can be enriched later
+	Price            float64   `json:"price"`
+	ExternalPlayerID string    `json:"external_player_id"`
+}
+
 // GetPlayers returns the full player pool for the draft screen.
 // Includes current gameweek prices from the player_prices table.
 // Response: [{id, name, position, price, externalPlayerId}]
-func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo repository.PlayerRepository, priceRepo repository.PlayerPriceRepository) {
+func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo repository.PlayerRepository, priceRepo repository.PlayerPriceRepository, loc *time.Location) {
 	ctx := c.Request.Context()
 
 	// Get all active players
@@ -30,19 +53,10 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 	}
 
 	// Get current gameweek
-	currentGW, _, err := currentGameweek(ctx, gameRepo)
+	currentGW, _, err := currentGameweek(ctx, gameRepo, loc)
 	if err != nil {
 		// If we can't determine gameweek, use gameweek 1 and proceed
 		currentGW = 1
-	}
-
-	// Fetch prices for current gameweek for each player
-	type playerResponse struct {
-		ID               uuid.UUID `json:"id"`
-		Name             string    `json:"name"`
-		Position         string    `json:"position"` // Will be empty/unknown for now; can be enriched later
-		Price            float64   `json:"price"`
-		ExternalPlayerID string    `json:"external_player_id"`
 	}
 
 	result := make([]playerResponse, len(players))
@@ -66,17 +80,17 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 
 // GetCurrentGameweek returns the current gameweek number and its deadline (kickoff time).
 // Response: {gameweek: int, deadline: RFC3339}
-func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, leagueTz string) {
+func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, loc *time.Location) {
 	ctx := c.Request.Context()
 
-	loc, err := time.LoadLocation(leagueTz)
-	if err != nil {
-		log.Printf("GetCurrentGameweek: load timezone %q: %v", leagueTz, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "timezone configuration error"})
-		return
-	}
+	// loc, err := time.LoadLocation(leagueTz)
+	// if err != nil {
+	// 	log.Printf("GetCurrentGameweek: load timezone %q: %v", leagueTz, err)
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "timezone configuration error"})
+	// 	return
+	// }
 
-	gw, cutoff, err := currentGameweek(ctx, gameRepo)
+	gw, cutoff, err := currentGameweek(ctx, gameRepo, loc)
 	if err != nil {
 		// No games yet; return gameweek 1 with a safe future deadline
 		c.JSON(http.StatusOK, gin.H{
@@ -95,7 +109,7 @@ func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, leag
 // GetLeaderboard returns global standings: all users ranked by total points.
 // Paginated: ?limit=50&offset=0
 // Response: {total: int, leaderboard: [{rank, user_id, username, total_points}]}
-func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository, gamePointRepo repository.PlayerGamePointRepo) {
+func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository) {
 	ctx := c.Request.Context()
 
 	limit := 50
@@ -119,25 +133,25 @@ func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository, gamePo
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total":        total,
-		"leaderboard":  rows,
+		"total":       total,
+		"leaderboard": rows,
 	})
 }
 
 // Helper: currentGameweek returns (gameweekNumber, cutoffTime, error)
 // Computes the current gameweek from the games schedule in the DB.
-func currentGameweek(ctx context.Context, gameRepo repository.GameRepository) (int, time.Time, error) {
+func currentGameweek(ctx context.Context, gameRepo repository.GameRepository, loc *time.Location) (int, time.Time, error) {
 	games, err := gameRepo.FindRegularSeason(ctx)
 	if err != nil || len(games) == 0 {
 		return 0, time.Time{}, err
 	}
-	cfg, err := config.Load()
-	if err != nil {
-		// In case config fails to load, ensure the timezone is still populated
-		cfg.LeagueTz = "America/Winnipeg"
-		log.Printf("currentGameweek: failed to load config, using default timezone: %v\n", err)
-	}
-	loc, _ := time.LoadLocation(cfg.LeagueTz)
+	// cfg, err := config.Load()
+	// if err != nil {
+	// 	// In case config fails to load, ensure the timezone is still populated
+	// 	cfg.LeagueTz = "America/Winnipeg"
+	// 	log.Printf("currentGameweek: failed to load config, using default timezone: %v\n", err)
+	// }
+	// loc, _ := time.LoadLocation(cfg.LeagueTz)
 	gws := season.RegularGameweeks(games, loc)
 	if len(gws) == 0 {
 		return 0, time.Time{}, err
@@ -156,36 +170,15 @@ func currentGameweek(ctx context.Context, gameRepo repository.GameRepository) (i
 	return last.Number, last.Cutoff, nil
 }
 
-// PlayerCache holds pre-fetched players with their current prices.
-// Pre-fetches on startup to avoid SELECT * on every /players request.
-// Valid for the entire gameweek; invalidated when scraper runs at gameweek boundary.
-type PlayerCache struct {
-	mu            sync.RWMutex
-	players       []playerResponse
-	cachedGameweek int
-	nextCheckAt   time.Time
-	checkInterval time.Duration
-	playerRepo    repository.PlayerRepository
-	priceRepo     repository.PlayerPriceRepository
-	gameRepo      repository.GameRepository
-}
-
-type playerResponse struct {
-	ID               uuid.UUID `json:"id"`
-	Name             string    `json:"name"`
-	Position         string    `json:"position"` // Will be empty/unknown for now; can be enriched later
-	Price            float64   `json:"price"`
-	ExternalPlayerID string    `json:"external_player_id"`
-}
-
 // NewPlayerCache pre-fetches all players and their prices on startup.
 // Returns an error if pre-fetch fails; the API can continue with a warning.
-func NewPlayerCache(playerRepo repository.PlayerRepository, priceRepo repository.PlayerPriceRepository, gameRepo repository.GameRepository) (*PlayerCache, error) {
+func NewPlayerCache(playerRepo repository.PlayerRepository, priceRepo repository.PlayerPriceRepository, gameRepo repository.GameRepository, loc *time.Location) (*PlayerCache, error) {
 	cache := &PlayerCache{
 		checkInterval: 2 * time.Minute,
 		playerRepo:    playerRepo,
 		priceRepo:     priceRepo,
 		gameRepo:      gameRepo,
+		loc:           loc,
 	}
 	if err := cache.refreshIfNeeded(true); err != nil {
 		return nil, err
@@ -233,7 +226,7 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	currentGW, _, err := currentGameweek(ctx, cache.gameRepo)
+	currentGW, _, err := currentGameweek(ctx, cache.gameRepo, cache.loc)
 	if err != nil {
 		if cache.cachedGameweek != 0 {
 			cache.nextCheckAt = now.Add(cache.checkInterval)
