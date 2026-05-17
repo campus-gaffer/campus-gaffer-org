@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	// "campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/season"
 	"context"
