@@ -16,9 +16,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-// LeagueTZ defines the wall-clock the pricing schedule runs on. Sunday
-// 23:59:59 in this zone is the gameweek cutoff. Per-league config later.
-const LeagueTZ = "America/Winnipeg"
 
 var (
 	gameRepo  repository.GameRepository
@@ -35,11 +32,16 @@ var (
 // than as opaque container-startup timeouts (same pattern as the scraper
 // lambda at cmd/lambda).
 func setup(ctx context.Context) error {
+	cfg, err := config.LoadFromSSM(ctx)
+	if err != nil {
+		log.Fatalf("unable to load SDK config: %v", err)
+	}
+
 	initOnce.Do(func() {
 		log.Println("pricing-lambda setup: loading timezone")
-		loc, err := time.LoadLocation(LeagueTZ)
+		loc, err := time.LoadLocation(cfg.LeagueTz)
 		if err != nil {
-			initErr = fmt.Errorf("load timezone %q: %w", LeagueTZ, err)
+			initErr = fmt.Errorf("load timezone %q: %w", cfg.LeagueTz, err)
 			return
 		}
 		leagueLoc = loc

@@ -24,7 +24,7 @@ lambda-zip: lambda-build
 	cd $(LAMBDA_DIST) && zip -j scraper-lambda.zip bootstrap
 
 pricing-zip: pricing-build
-	cd $(LAMBDA_DIST) && zip -j pricing-lambda.zip pricing-lambda-bootstrap
+	cd $(LAMBDA_DIST) && cp pricing-lambda-bootstrap bootstrap && rm -f pricing-lambda.zip && zip -j pricing-lambda.zip bootstrap
 
 lambda-clean:
 	rm -rf $(LAMBDA_DIST)

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"sync"
 
 	"campus-gaffer-backend/internal/config"
@@ -13,6 +14,9 @@ import (
 	"campus-gaffer-backend/internal/service"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
 // Heavy setup runs lazily on the first invocation rather than in init() so
@@ -64,6 +68,28 @@ func handler(ctx context.Context) error {
 		return err
 	}
 	log.Println("lambda: pipeline run complete")
+
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return err
+	}
+	topicArn := os.Getenv("SNS_TOPIC_ARN")
+
+	if topicArn == "" {
+		log.Println("lambda: SNS_TOPIC_ARN not set; skipping pricing trigger")
+		return nil
+	}
+
+	snsClient := sns.NewFromConfig(awsCfg)
+	_, err = snsClient.Publish(ctx, &sns.PublishInput{
+		TopicArn: aws.String(topicArn),
+		Message:  aws.String(`{"event": "scraper_complete"}`),
+		Subject:  aws.String("campus-gaffer-pipeline"),
+	})
+	if err != nil {
+		return err // Fail so CloudWatch can log it
+	}
+	log.Println("lambda: published SNS trigger for pricing lambda")
 	return nil
 }
 
