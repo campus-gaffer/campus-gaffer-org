@@ -255,7 +255,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{
-      position: 'relative', width: 390, height: 844,
+      position: 'relative', width: '100%', height: '100%',
       background: `radial-gradient(120% 60% at 50% 0%, ${pal.bg} 0%, ${pal.bg2} 70%)`,
       color: '#fff', fontFamily: "'DM Sans', sans-serif",
       overflow: 'hidden', display: 'flex', flexDirection: 'column',

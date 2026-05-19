@@ -42,6 +42,8 @@ const SQUAD = {
   ] as Player[],
 };
 
+const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
+
 const FORMATION = [2, 2, 2]; // 2-2-2
 const GAMEWEEK = 7;
 const SEASON_TOTAL = 142;
@@ -119,21 +121,21 @@ function PitchBackground() {
 function StarterTile({ p }: { p: Player }) {
   const teamColor = TEAM_COLORS[p.team] || PAL.accent;
   return (
-    <div style={{ width: 104, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+    <div style={{ width: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
       {p.mvp && (
-        <div style={{ position: 'absolute', top: -4, right: 10, zIndex: 4, width: 22, height: 22, borderRadius: '50%', background: PAL.starGlow, color: '#1a1503', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 11, boxShadow: `0 4px 14px -4px ${PAL.starGlow}`, border: '2px solid rgba(10,15,28,0.95)' }} aria-label="Match MVP">★</div>
+        <div style={{ position: 'absolute', top: -3, right: 6, zIndex: 4, width: 17, height: 17, borderRadius: '50%', background: PAL.starGlow, color: '#1a1503', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 9, boxShadow: `0 4px 14px -4px ${PAL.starGlow}`, border: '2px solid rgba(10,15,28,0.95)' }} aria-label="Match MVP">★</div>
       )}
-      <div style={{ marginBottom: -22, zIndex: 2, position: 'relative' }}>
-        <Jersey color={teamColor} num={p.squadNum} size={54} />
+      <div style={{ marginBottom: -10, zIndex: 2, position: 'relative' }}>
+        <Jersey color={teamColor} num={p.squadNum} size={32} />
       </div>
-      <div style={{ width: 100, background: PAL.cardGlass, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: `1px solid rgba(255,255,255,${p.mvp ? 0.18 : 0.09})`, borderRadius: 12, paddingTop: 26, paddingBottom: 0, textAlign: 'center', position: 'relative', boxShadow: '0 8px 18px -10px rgba(0,0,0,0.75)', overflow: 'hidden' }}>
-        <div style={{ padding: '0 6px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, color: PAL.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', lineHeight: 1.1 }}>{p.surname}</div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.06em', color: PAL.textFaint, fontVariantNumeric: 'tabular-nums' }}>£{p.price.toFixed(1)}</div>
+      <div style={{ width: 72, background: PAL.cardGlass, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: `1px solid rgba(255,255,255,${p.mvp ? 0.18 : 0.09})`, borderRadius: 10, paddingTop: 14, paddingBottom: 0, textAlign: 'center', position: 'relative', boxShadow: '0 8px 18px -10px rgba(0,0,0,0.75)', overflow: 'hidden' }}>
+        <div style={{ padding: '0 4px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 10, color: PAL.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', lineHeight: 1.1 }}>{p.surname}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: '0.06em', color: PAL.textFaint, fontVariantNumeric: 'tabular-nums' }}>£{p.price.toFixed(1)}</div>
         </div>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '6px 8px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 5 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', color: p.pts >= 10 ? PAL.accent : PAL.text }}>{p.pts}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '4px 6px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 14, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', color: p.pts >= 10 ? PAL.accent : PAL.text }}>{p.pts}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7.5, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
         </div>
       </div>
     </div>
@@ -165,7 +167,7 @@ function ScoreCard() {
     <div style={{ margin: '4px 16px 14px', background: PAL.card, border: `1px solid ${PAL.lineDim}`, borderRadius: 18, padding: '14px 18px 16px', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 28px -16px rgba(0,0,0,0.6)' }}>
       <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: `radial-gradient(circle, oklch(0.82 0.19 142 / 0.18), transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ padding: '4px 10px', borderRadius: 6, background: `oklch(from ${PAL.accent} l c h / 0.18)`, color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {GAMEWEEK}</span>
+        <span style={{ padding: '4px 10px', borderRadius: 6, background: withAlpha(PAL.accent, 0.18), color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {GAMEWEEK}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.18em', color: PAL.textDim, textTransform: 'uppercase', fontWeight: 600 }}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <rect x="2" y="4.5" width="6" height="4.5" rx="0.6" stroke="currentColor" strokeWidth="1" />
@@ -204,12 +206,10 @@ function ScoreCard() {
 export default function SquadScreen({ onBack }: { onBack: () => void }) {
   const rows = useMemo(() => partitionByFormation(SQUAD.starters, FORMATION), []);
   const benchPoints = SQUAD.bench.reduce((s, p) => s + p.pts, 0);
-  const pitchHeight = 400;
+  const pitchHeight = 280;
 
   return (
-    <div style={{ position: 'relative', width: 390, height: 844, background: PAL.bg2, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 50, flexShrink: 0 }} />
-
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg2, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ padding: '6px 18px 4px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: PAL.bg2, zIndex: 4 }}>
         <button type="button" aria-label="Back" onClick={onBack} style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>

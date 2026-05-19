@@ -20,6 +20,8 @@ const TEAM_COLORS: Record<string, string> = {
   NTH: 'oklch(0.72 0.14 220)',
 };
 
+const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
+
 const APPEARANCE = 2, GOAL_PTS = 4, WIN_PTS = 2, DRAW_PTS = 1, MVP_PTS = 3;
 
 interface PlayerData {
@@ -92,7 +94,7 @@ function BallMark({ size = 18 }: { size?: number }) {
 function ResultBadge({ result, bench }: { result: string; bench: boolean }) {
   if (!result) return <span style={{ color: PAL.textFaint }}>—</span>;
   const color = bench ? PAL.benchText : result === 'W' ? PAL.accent : result === 'D' ? PAL.warn : PAL.textFaint;
-  const bg = bench ? 'transparent' : result === 'W' ? `oklch(from ${PAL.accent} l c h / 0.12)` : result === 'D' ? `oklch(from ${PAL.warn} l c h / 0.12)` : 'transparent';
+  const bg = bench ? 'transparent' : result === 'W' ? withAlpha(PAL.accent, 0.12) : result === 'D' ? withAlpha(PAL.warn, 0.12) : 'transparent';
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: bg, color, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '0.02em' }}>{result}</span>
   );
@@ -101,7 +103,7 @@ function ResultBadge({ result, bench }: { result: string; bench: boolean }) {
 function CheckCross({ yes, bench, isGold }: { yes: boolean; bench: boolean; isGold?: boolean }) {
   if (bench) return <span style={{ color: PAL.benchText, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{yes ? '✓' : '·'}</span>;
   if (yes) return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: isGold ? `oklch(from ${PAL.starGlow} l c h / 0.16)` : `oklch(from ${PAL.accent} l c h / 0.16)`, color: isGold ? PAL.starGlow : PAL.accent }} aria-label="Yes">
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: isGold ? withAlpha(PAL.starGlow, 0.16) : withAlpha(PAL.accent, 0.16), color: isGold ? PAL.starGlow : PAL.accent }} aria-label="Yes">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
         <path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -155,7 +157,7 @@ function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; 
     <div style={{ background: expanded ? (bench ? PAL.benchCard : PAL.cardAlt) : 'transparent', borderRadius: 14, marginBottom: 2, transition: 'background 180ms', cursor: 'pointer', overflow: 'hidden', border: `1px solid ${expanded ? PAL.line : 'transparent'}` }} onClick={() => onToggle(player.id)}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 44px 44px 44px', alignItems: 'center', padding: '0 6px', height: 52, gap: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, paddingLeft: 6 }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: `oklch(from ${teamColor} l c h / ${dim ? 0.10 : 0.18})`, color: dim ? PAL.benchText : teamColor, border: `1.5px solid oklch(from ${teamColor} l c h / ${dim ? 0.25 : 0.45})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: withAlpha(teamColor, dim ? 0.10 : 0.18), color: dim ? PAL.benchText : teamColor, border: `1.5px solid ${withAlpha(teamColor, dim ? 0.25 : 0.45)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
             {player.name.charAt(0)}
           </div>
           <div style={{ minWidth: 0 }}>
@@ -168,7 +170,7 @@ function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; 
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {player.goals > 0 ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: dim ? 'transparent' : `oklch(from ${PAL.accent} l c h / 0.14)`, color: dim ? PAL.benchText : PAL.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{player.goals}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: dim ? 'transparent' : withAlpha(PAL.accent, 0.14), color: dim ? PAL.benchText : PAL.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{player.goals}</span>
           ) : (
             <span style={{ color: PAL.textFaint, fontFamily: "'JetBrains Mono',monospace", fontSize: 13 }}>·</span>
           )}
@@ -222,9 +224,9 @@ function SummaryCard({ gwTotal, seasonTotal, gameweek, mode, setMode }: { gwTota
     <div style={{ margin: '4px 16px 14px', background: PAL.card, border: `1px solid ${PAL.lineDim}`, borderRadius: 18, padding: '16px 18px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: -50, right: -50, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, oklch(0.82 0.19 142 / 0.14), transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <span style={{ padding: '4px 10px', borderRadius: 6, background: `oklch(from ${PAL.accent} l c h / 0.18)`, color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {gameweek}</span>
+        <span style={{ padding: '4px 10px', borderRadius: 6, background: withAlpha(PAL.accent, 0.18), color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {gameweek}</span>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', background: `oklch(from ${PAL.bg2} l c h / 0.8)`, border: `1px solid ${PAL.lineDim}`, borderRadius: 8, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', background: withAlpha(PAL.bg2, 0.8), border: `1px solid ${PAL.lineDim}`, borderRadius: 8, padding: 3, gap: 2 }}>
           {(['gw', 'season'] as const).map(m => (
             <button key={m} type="button" onClick={() => setMode(m)} style={{ height: 24, padding: '0 10px', borderRadius: 6, border: 'none', background: mode === m ? PAL.accent : 'transparent', color: mode === m ? PAL.accentInk : PAL.textDim, fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', transition: 'all 140ms' }}>
               {m === 'gw' ? `GW${gameweek}` : 'Season'}
@@ -274,9 +276,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
   const benchPts = GW_DATA.bench.reduce((s, p) => s + calcPts(p), 0);
 
   return (
-    <div style={{ position: 'relative', width: 390, height: 844, background: PAL.bg, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 50, flexShrink: 0, background: PAL.bg }} />
-
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ padding: '6px 18px 8px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: PAL.bg, zIndex: 4 }}>
         <button type="button" aria-label="Back" onClick={onBack} style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -323,7 +323,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
             ))}
           </div>
 
-          <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 10, background: `oklch(from ${PAL.accent} l c h / 0.06)`, border: `1px solid oklch(from ${PAL.accent} l c h / 0.12)`, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.08em', color: PAL.textFaint, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 10, background: withAlpha(PAL.accent, 0.06), border: `1px solid ${withAlpha(PAL.accent, 0.12)}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.08em', color: PAL.textFaint, lineHeight: 1.5 }}>
             Tap any player to see their full scoring breakdown.
           </div>
         </div>

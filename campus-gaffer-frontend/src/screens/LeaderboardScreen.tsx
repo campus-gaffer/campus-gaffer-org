@@ -17,6 +17,14 @@ const AV_COLORS = [
   'oklch(0.70 0.15 305)', 'oklch(0.72 0.14 150)',
 ];
 
+const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
+
+const MEDAL_COLORS = {
+  gold:   { color: PAL.gold,   lighter: 'oklch(0.93 0.14 85)'  },
+  silver: { color: PAL.silver, lighter: 'oklch(0.90 0.04 240)' },
+  bronze: { color: PAL.bronze, lighter: 'oklch(0.83 0.11 55)'  },
+};
+
 const CURRENT_USER_ID = 12;
 const GAMEWEEK = 7;
 const PAGE_SIZE = 20;
@@ -72,18 +80,18 @@ function BallMark({ size = 18 }: { size?: number }) {
   );
 }
 
-function Medal({ color, label }: { color: string; label: string }) {
+function Medal({ color, lighter, label }: { color: string; lighter: string; label: string }) {
   return (
-    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, ${color}dd, ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px -3px ${color}`, flexShrink: 0 }}>
+    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, ${lighter}, ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 3px 10px -3px ${color}`, flexShrink: 0 }}>
       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 12, color: 'rgba(0,0,0,0.65)' }}>{label}</span>
     </div>
   );
 }
 
 function RankBadge({ rank, isMe }: { rank: number; isMe: boolean }) {
-  if (rank === 1) return <Medal color={PAL.gold} label="1" />;
-  if (rank === 2) return <Medal color={PAL.silver} label="2" />;
-  if (rank === 3) return <Medal color={PAL.bronze} label="3" />;
+  if (rank === 1) return <Medal color={MEDAL_COLORS.gold.color} lighter={MEDAL_COLORS.gold.lighter} label="1" />;
+  if (rank === 2) return <Medal color={MEDAL_COLORS.silver.color} lighter={MEDAL_COLORS.silver.lighter} label="2" />;
+  if (rank === 3) return <Medal color={MEDAL_COLORS.bronze.color} lighter={MEDAL_COLORS.bronze.lighter} label="3" />;
   return (
     <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, fontSize: rank > 99 ? 11 : 13, color: isMe ? PAL.accent : PAL.textFaint, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center', display: 'block' }}>
       {rank}
@@ -94,7 +102,7 @@ function RankBadge({ rank, isMe }: { rank: number; isMe: boolean }) {
 function Avatar({ user, size = 36, isMe }: { user: LBUser; size?: number; isMe: boolean }) {
   const color = isMe ? PAL.accent : user.avColor;
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `oklch(from ${color} l c h / ${isMe ? 0.22 : 0.18})`, color: isMe ? PAL.accent : color, border: `1.5px solid oklch(from ${color} l c h / ${isMe ? 0.55 : 0.40})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: Math.floor(size * 0.42), boxShadow: isMe ? `0 0 0 3px oklch(from ${PAL.accent} l c h / 0.18)` : 'none' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: withAlpha(color, isMe ? 0.22 : 0.18), color: isMe ? PAL.accent : color, border: `1.5px solid ${withAlpha(color, isMe ? 0.55 : 0.40)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: Math.floor(size * 0.42), boxShadow: isMe ? `0 0 0 3px ${withAlpha(PAL.accent, 0.18)}` : 'none' }}>
       {user.initial}
     </div>
   );
@@ -155,11 +163,11 @@ function PodiumCard({ users }: { users: LBUser[] }) {
   const [first, second, third] = users;
   const podium = [second, first, third];
   const heights = [72, 92, 56];
-  const medals = [PAL.silver, PAL.gold, PAL.bronze];
+  const medals = [MEDAL_COLORS.silver, MEDAL_COLORS.gold, MEDAL_COLORS.bronze];
   const labels = ['2nd', '1st', '3rd'];
   return (
     <div style={{ margin: '4px 16px 12px', background: PAL.card, border: `1px solid ${PAL.lineDim}`, borderRadius: 18, padding: '16px 12px 12px', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 200, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${PAL.gold}20, transparent 70%)`, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 200, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${withAlpha(PAL.gold, 0.13)}, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.22em', color: PAL.accent, textTransform: 'uppercase', fontWeight: 700, textAlign: 'center', marginBottom: 16 }}>
         GW{GAMEWEEK} Podium
       </div>
@@ -170,8 +178,8 @@ function PodiumCard({ users }: { users: LBUser[] }) {
             <Avatar user={user} size={38} isMe={user.isMe} />
             <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 600, fontSize: 11.5, color: user.isMe ? PAL.accent : PAL.textDim, letterSpacing: '-0.01em', marginTop: 6, maxWidth: 80, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.06em', color: PAL.textFaint, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{user.seasonPts} pts</div>
-            <div style={{ marginTop: 8, width: '100%', height: heights[i], background: `radial-gradient(circle at 50% 0%, ${medals[i]}38, ${medals[i]}10)`, border: `1px solid ${medals[i]}38`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 8 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 16, color: medals[i] }}>{labels[i]}</span>
+            <div style={{ marginTop: 8, width: '100%', height: heights[i], background: `radial-gradient(circle at 50% 0%, ${withAlpha(medals[i].color, 0.22)}, ${withAlpha(medals[i].color, 0.06)})`, border: `1px solid ${withAlpha(medals[i].color, 0.22)}`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 8 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 16, color: medals[i].color }}>{labels[i]}</span>
             </div>
           </div>
         ))}
@@ -184,7 +192,7 @@ function StickyMeBanner({ user, sort, visible }: { user: LBUser; sort: string; v
   if (!visible) return null;
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, zIndex: 8, padding: '0 16px', animation: 'lb-rise 220ms ease both' }}>
-      <div style={{ background: 'oklch(0.18 0.12 142)', border: `1px solid ${PAL.accentBorder}`, borderRadius: 14, padding: '0 14px', display: 'grid', gridTemplateColumns: '40px 40px 1fr 58px 58px', alignItems: 'center', height: 54, gap: 0, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: `0 8px 24px -8px oklch(from ${PAL.accent} l c h / 0.35)` }}>
+      <div style={{ background: 'oklch(0.18 0.12 142)', border: `1px solid ${PAL.accentBorder}`, borderRadius: 14, padding: '0 14px', display: 'grid', gridTemplateColumns: '40px 40px 1fr 58px 58px', alignItems: 'center', height: 54, gap: 0, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: `0 8px 24px -8px ${withAlpha(PAL.accent, 0.35)}` }}>
         <div style={{ display: 'flex', justifyContent: 'center' }}><RankBadge rank={user.rank} isMe /></div>
         <div style={{ display: 'flex', justifyContent: 'center' }}><Avatar user={user} size={32} isMe /></div>
         <div style={{ paddingLeft: 10 }}>
@@ -251,9 +259,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   const hasMore = visibleCount < ALL_USERS.length;
 
   return (
-    <div style={{ position: 'relative', width: 390, height: 844, background: PAL.bg2, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 50, flexShrink: 0, background: PAL.bg2 }} />
-
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg2, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ padding: '6px 18px 8px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: PAL.bg2, zIndex: 4 }}>
         <button type="button" aria-label="Back" onClick={onBack} style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>

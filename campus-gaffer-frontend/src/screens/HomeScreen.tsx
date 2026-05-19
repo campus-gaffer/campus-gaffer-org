@@ -15,6 +15,8 @@ const HM = {
   gold: 'oklch(0.85 0.18 85)', tabBg: 'oklch(0.12 0.022 248)',
 };
 
+const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
+
 const DEADLINE = new Date('2026-05-23T14:00:00');
 const USER = { name: 'You', seasonPts: 142, gwPts: 37, rank: 12, total: 40 };
 const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 – 1', topScorer: 'Doyle', topPts: 11 };
@@ -54,9 +56,9 @@ function MiniPitch() {
   const a = HM.accent;
   return (
     <svg width="52" height="44" viewBox="0 0 52 44" aria-hidden="true">
-      <rect x="1" y="1" width="50" height="42" rx="4" fill="none" stroke={`${a}22`} strokeWidth="1" />
-      <line x1="1" y1="22" x2="51" y2="22" stroke={`${a}22`} strokeWidth="0.8" />
-      <circle cx="26" cy="22" r="7" fill="none" stroke={`${a}22`} strokeWidth="0.8" />
+      <rect x="1" y="1" width="50" height="42" rx="4" fill="none" stroke={withAlpha(a, 0.13)} strokeWidth="1" />
+      <line x1="1" y1="22" x2="51" y2="22" stroke={withAlpha(a, 0.13)} strokeWidth="0.8" />
+      <circle cx="26" cy="22" r="7" fill="none" stroke={withAlpha(a, 0.13)} strokeWidth="0.8" />
       {[0, 1, 2].map(ri =>
         [14, 38].map(cx => (
           <circle key={`${ri}-${cx}`} cx={cx} cy={7 + ri * 15} r="4"
@@ -75,7 +77,7 @@ function RankBar({ rank, total }: { rank: number; total: number }) {
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: HM.accent, borderRadius: 2, transition: 'width 600ms cubic-bezier(.4,0,.2,1)' }} />
         <div style={{ position: 'absolute', top: -2, bottom: -2, left: `${pct * 100}%`, transform: 'translateX(-50%)', width: 6, background: HM.accent, borderRadius: 3, boxShadow: `0 0 6px ${HM.accent}` }} />
       </div>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.10em', color: `${HM.accent}99`, flexShrink: 0 }}>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.10em', color: withAlpha(HM.accent, 0.6), flexShrink: 0 }}>
         TOP {Math.round((1 - (rank - 1) / (total - 1)) * 100)}%
       </span>
     </div>
@@ -132,7 +134,7 @@ function Card({ children, hero, onClick }: { children: React.ReactNode; hero?: b
     >
       {hero && (
         <>
-          <div style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${HM.accent}28, transparent 68%)`, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${withAlpha(HM.accent, 0.16)}, transparent 68%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', inset: 0, opacity: 0.07, pointerEvents: 'none', background: `repeating-linear-gradient(0deg, ${HM.accent} 0px, ${HM.accent} 1px, transparent 1px, transparent 32px)` }} />
         </>
       )}
@@ -279,7 +281,7 @@ const TABS = [
 
 function TabBar({ active, onChange }: { active: string; onChange: (id: string) => void }) {
   return (
-    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 82, background: HM.tabBg, borderTop: `1px solid ${HM.lineDim}`, display: 'flex', alignItems: 'flex-start', paddingTop: 8, zIndex: 10 }}>
+    <div style={{ height: 72, flexShrink: 0, background: HM.tabBg, borderTop: `1px solid ${HM.lineDim}`, display: 'flex', alignItems: 'flex-start', paddingTop: 8, zIndex: 10 }}>
       {TABS.map(tab => {
         const isActive = active === tab.id;
         const color = isActive ? HM.accent : HM.textFaint;
@@ -318,9 +320,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   };
 
   return (
-    <div style={{ position: 'relative', width: 390, height: 844, background: HM.bg2, color: HM.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 50, flexShrink: 0, background: HM.bg2 }} />
-
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: HM.bg2, color: HM.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Nav bar */}
       <div style={{ padding: '6px 18px 10px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: HM.bg2, zIndex: 4 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -341,7 +341,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 92 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 16 }}>
         {activeTab === 'home' ? (
           <>
             <div style={{ padding: '6px 18px 20px' }}>
@@ -379,7 +379,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
                 <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>View points breakdown</div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>GW{GAMEWEEK} · 37 pts scored</div>
               </div>
-              <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: `oklch(from ${HM.accent} l c h / 0.12)`, color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 See breakdown
               </button>
             </div>
