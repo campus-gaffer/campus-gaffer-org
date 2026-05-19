@@ -1,35 +1,34 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import LoginScreen from './screens/LoginScreen';
+import HomeScreen from './screens/HomeScreen';
+import LeaderboardScreen from './screens/LeaderboardScreen';
+import SquadScreen from './screens/SquadScreen';
+import GWBreakdownScreen from './screens/GWBreakdownScreen';
+
+type Screen = 'login' | 'home' | 'squad' | 'leaderboard' | 'breakdown';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [screen, setScreen] = useState<Screen>('login');
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div style={{
+      width: 390,
+      height: 844,
+      overflow: 'hidden',
+      borderRadius: 40,
+      boxShadow: '0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05)',
+      position: 'relative',
+      flexShrink: 0,
+    }}>
+      {screen === 'login' && <LoginScreen onLogin={() => setScreen('home')} />}
+      {screen === 'home' && (
+        <HomeScreen onNavigate={(s) => setScreen(s)} />
+      )}
+      {screen === 'squad' && <SquadScreen onBack={() => setScreen('home')} />}
+      {screen === 'leaderboard' && <LeaderboardScreen onBack={() => setScreen('home')} />}
+      {screen === 'breakdown' && <GWBreakdownScreen onBack={() => setScreen('home')} />}
+    </div>
+  );
 }
 
-export default App
+export default App;
