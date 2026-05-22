@@ -102,9 +102,13 @@ func toPgx5URL(raw string) string {
 	if len(raw) >= 11 && raw[:11] == "postgresql+" {
 		return "pgx5" + raw[10:]
 	}
-	const prefix = "postgres://"
-	if len(raw) >= len(prefix) && raw[:len(prefix)] == prefix {
-		return "pgx5://" + raw[len(prefix):]
+	const postgresPrefix = "postgresql://"
+	if len(raw) >= len(postgresPrefix) && raw[:len(postgresPrefix)] == postgresPrefix {
+		return "pgx5://" + raw[len(postgresPrefix):]
+	}
+	const legacyPrefix = "postgres://"
+	if len(raw) >= len(legacyPrefix) && raw[:len(legacyPrefix)] == legacyPrefix {
+		return "pgx5://" + raw[len(legacyPrefix):]
 	}
 	return raw
 }
