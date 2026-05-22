@@ -23,10 +23,16 @@ function formatDeadlineLabel(d: Date): string {
 
 // ─── Countdown hook ────────────────────────────────────────────────────────
 function useCountdown(target: number) {
-  const [diff, setDiff] = useState(() => Math.max(0, target - Date.now()));
+  const [diff, setDiff] = useState<number>(0);
   useEffect(() => {
+    // initialize diff inside effect to avoid calling impure Date.now() during render
+    // defer the initial setState to avoid a synchronous setState inside the effect
+    const init = setTimeout(() => setDiff(Math.max(0, target - Date.now())), 0);
     const id = setInterval(() => setDiff(Math.max(0, target - Date.now())), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(init);
+      clearInterval(id);
+    };
   }, [target]);
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
@@ -328,12 +334,16 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
   const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
 
+  // useCountdown returns a stable, pure-logic snapshot of time remaining
+  // so we don't call `Date.now()` directly during render.
+  const { d: daysAway } = useCountdown(deadline.getTime());
+
   useEffect(() => {
     const ctrl = new AbortController();
     fetch(`${API_BASE_URL}/gameweeks/current`, { signal: ctrl.signal })
       .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then((data: { number: number; deadline: string }) => {
-        setGameweek(data.number);
+      .then((data: { gameweek: number; deadline: string }) => {
+        setGameweek(data.gameweek);
         setDeadline(new Date(data.deadline));
       })
       .catch(() => {/* keep fallbacks */});
@@ -395,7 +405,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
               </div>
               <div style={{ flex: 1 }} />
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, color: HM.warn, fontVariantNumeric: 'tabular-nums' }}>
-                {Math.max(0, Math.floor((deadline.getTime() - Date.now()) / 86400000))}d away
+                {daysAway}d away
               </span>
             </div>
 
