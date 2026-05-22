@@ -1,13 +1,15 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './screen-shared.css';
 import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY } from '../lib/mockSquad';
-import { PLAYERS, BUDGET, MAX_S, MAX_B } from '../lib/players';
+import { Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
 import { ScreenShell } from '../layouts/ScreenShell';
 import PlayerRow from '../components/draft/PlayerRow';
 import BudgetBar from '../components/draft/BudgetBar';
 import DeadlineChip from '../components/draft/DeadlineChip';
 import ConfirmModal from '../components/draft/ConfirmModal';
 import DraftFooterActions from '../components/draft/DraftFooterActions';
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
 
 const PAL = {
   bg2: 'oklch(0.10 0.02 248)',
@@ -17,11 +19,37 @@ const PAL = {
   accent: 'oklch(0.82 0.19 142)',
 };
 
+interface ApiPlayer {
+  id: string;
+  name: string;
+  price: number | null;
+  external_player_id?: string;
+}
+
 export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void; onConfirm: () => void }) {
-  const pool = useMemo(() => PLAYERS, []);
-  const [starters, setStarters] = useState<number[]>([]);
-  const [bench, setBench] = useState<number[]>([]);
+  const [pool, setPool] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [starters, setStarters] = useState<string[]>([]);
+  const [bench, setBench] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(`${API_BASE_URL}/players`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: ApiPlayer[]) => {
+        setPool(data.map(p => ({ id: p.id, name: p.name, team: '', price: p.price })));
+        setLoading(false);
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setError('Could not load players. Check connection.');
+          setLoading(false);
+        }
+      });
+    return () => ctrl.abort();
+  }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -33,13 +61,12 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
     return () => { document.body.classList.remove('modal-open'); };
   }, [showModal]);
 
-  function toggleStarter(id: number) {
+  function toggleStarter(id: string) {
     setStarters((s) => (s.includes(id) ? s.filter((x) => x !== id) : (s.length < MAX_S ? [...s, id] : s)));
-    // ensure a player isn't both starter and bench
     setBench((b) => b.filter((x) => x !== id));
   }
 
-  function toggleBench(id: number) {
+  function toggleBench(id: string) {
     setBench((b) => (b.includes(id) ? b.filter((x) => x !== id) : (b.length < MAX_B ? [...b, id] : b)));
     setStarters((s) => s.filter((x) => x !== id));
   }
@@ -102,7 +129,17 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
             </div>
             <BudgetBar spent={spent} starters={starters.length} bench={bench.length} />
           </div>
-          {pool.map((p) => (
+          {loading && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: PAL.textFaint, padding: '24px 6px', textAlign: 'center' }}>
+              Loading players…
+            </div>
+          )}
+          {error && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#f87171', padding: '24px 6px', textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
+          {!loading && !error && pool.map((p) => (
             <PlayerRow
               key={p.id}
               player={p}
@@ -110,8 +147,8 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
               starters={starters.length}
               bench={bench.length}
               remaining={remaining}
-              onSelect={(id: number, role: string) => (role === 'starter' ? toggleStarter(id) : toggleBench(id))}
-              onDeselect={(id: number) => {
+              onSelect={(id: string, role: string) => (role === 'starter' ? toggleStarter(id) : toggleBench(id))}
+              onDeselect={(id: string) => {
                 setStarters((s) => s.filter((x) => x !== id));
                 setBench((b) => b.filter((x) => x !== id));
               }}
