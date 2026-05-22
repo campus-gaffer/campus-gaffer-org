@@ -8,11 +8,18 @@ import { THEME, withAlpha } from '../lib/theme';
 type NavTarget = 'squad' | 'leaderboard' | 'breakdown';
 
 const HM = THEME;
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
 
-const DEADLINE = new Date('2026-05-23T14:00:00');
+const FALLBACK_DEADLINE = new Date('2026-05-23T14:00:00');
+const FALLBACK_GAMEWEEK = 7;
 const USER = { name: 'You', seasonPts: 142, gwPts: 37, rank: 12, total: 40 };
 const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 - 1', topScorer: 'Doyle', topPts: 11 };
-const GAMEWEEK = 7;
+
+function formatDeadlineLabel(d: Date): string {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 // ─── Countdown hook ────────────────────────────────────────────────────────
 function useCountdown(target: number) {
@@ -143,7 +150,7 @@ function CardLabel({ text, hero }: { text: string; hero?: boolean }) {
 }
 
 // ─── Dashboard cards ───────────────────────────────────────────────────────
-function MySquadCard({ onNav }: { onNav: () => void }) {
+function MySquadCard({ onNav, gameweek }: { onNav: () => void; gameweek: number }) {
   const { formation } = useFormation();
   const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
   return (
@@ -157,7 +164,7 @@ function MySquadCard({ onNav }: { onNav: () => void }) {
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: HM.accentDim, textTransform: 'uppercase', marginBottom: 2 }}>pts</span>
             </div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textDim, marginTop: 4 }}>
-              GW{GAMEWEEK} · #{USER.rank} rank
+              GW{gameweek} · #{USER.rank} rank
             </div>
           </>
         ) : (
@@ -204,15 +211,15 @@ function LeaderboardCard({ onNav }: { onNav: () => void }) {
   );
 }
 
-function DeadlineCard() {
-  const { d, h, m, s, expired } = useCountdown(DEADLINE.getTime());
+function DeadlineCard({ gameweek, deadline }: { gameweek: number; deadline: Date }) {
+  const { d, h, m, s, expired } = useCountdown(deadline.getTime());
   const isUrgent = d === 0 && h < 6;
   return (
     <Card>
       <CardLabel text="Next Deadline" />
       <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: '0.18em', color: isUrgent ? HM.warn : HM.accent, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         {isUrgent && <span style={{ width: 6, height: 6, borderRadius: '50%', background: HM.warn, display: 'inline-block', animation: 'hm-pulse 1.6s ease-in-out infinite', flexShrink: 0 }} />}
-        GW{GAMEWEEK + 1}
+        GW{gameweek + 1}
       </div>
       {expired ? (
         <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, color: HM.warn }}>Deadline passed</div>
@@ -228,16 +235,16 @@ function DeadlineCard() {
         </div>
       )}
       <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 8 }}>
-        Sat 23 May · 14:00
+        {formatDeadlineLabel(deadline)}
       </div>
     </Card>
   );
 }
 
-function ResultsCard({ onNav }: { onNav: () => void }) {
+function ResultsCard({ onNav, gameweek }: { onNav: () => void; gameweek: number }) {
   return (
     <Card onClick={onNav}>
-      <CardLabel text={`GW${GAMEWEEK} Results`} />
+      <CardLabel text={`GW${gameweek} Results`} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LAST_GW.home}</span>
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: HM.text, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{LAST_GW.score}</span>
@@ -318,6 +325,20 @@ function ProfileView() {
 // ─── Main ──────────────────────────────────────────────────────────────────
 export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) => void }) {
   const [activeTab, setActiveTab] = useState('home');
+  const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
+  const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(`${API_BASE_URL}/gameweeks/current`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: { number: number; deadline: string }) => {
+        setGameweek(data.number);
+        setDeadline(new Date(data.deadline));
+      })
+      .catch(() => {/* keep fallbacks */});
+    return () => ctrl.abort();
+  }, []);
 
   const handleTabChange = (id: string) => {
     if (id === 'squad') { onNavigate('squad'); return; }
@@ -361,7 +382,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
                 <span style={{ color: HM.accent }}>Gaffer.</span>
               </div>
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: '0.12em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 6 }}>
-                Gameweek {GAMEWEEK} complete · GW{GAMEWEEK + 1} open
+                Gameweek {gameweek} complete · GW{gameweek + 1} open
               </div>
             </div>
 
@@ -369,26 +390,28 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
             <div style={{ margin: '0 16px 16px', background: HM.warnDim, border: `1px solid oklch(0.78 0.16 60 / 0.3)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: HM.warn, flexShrink: 0, animation: 'hm-pulse 1.8s ease-in-out infinite' }} />
               <div>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.14em', color: HM.warn, textTransform: 'uppercase', fontWeight: 700 }}>GW{GAMEWEEK + 1} Deadline</span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: 'rgba(255,255,255,0.7)', marginLeft: 10 }}>Sat 23 May · 14:00</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.14em', color: HM.warn, textTransform: 'uppercase', fontWeight: 700 }}>GW{gameweek + 1} Deadline</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: 'rgba(255,255,255,0.7)', marginLeft: 10 }}>{formatDeadlineLabel(deadline)}</span>
               </div>
               <div style={{ flex: 1 }} />
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, color: HM.warn, fontVariantNumeric: 'tabular-nums' }}>5d away</span>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, color: HM.warn, fontVariantNumeric: 'tabular-nums' }}>
+                {Math.max(0, Math.floor((deadline.getTime() - Date.now()) / 86400000))}d away
+              </span>
             </div>
 
             {/* 2×2 grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 16px' }}>
-              <MySquadCard onNav={() => onNavigate('squad')} />
+              <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} />
               <LeaderboardCard onNav={() => onNavigate('leaderboard')} />
-              <DeadlineCard />
-              <ResultsCard onNav={() => onNavigate('breakdown')} />
+              <DeadlineCard gameweek={gameweek} deadline={deadline} />
+              <ResultsCard onNav={() => onNavigate('breakdown')} gameweek={gameweek} />
             </div>
 
             {/* Quick action */}
             <div style={{ margin: '16px 16px 0', padding: '12px 16px', background: HM.card, border: `1px solid ${HM.lineDim}`, borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>View points breakdown</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? `GW${GAMEWEEK} · ${USER.gwPts} pts scored` : 'No squad yet'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? `GW${gameweek} · ${USER.gwPts} pts scored` : 'No squad yet'}</div>
               </div>
               <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 See breakdown
