@@ -8,7 +8,7 @@ import (
 
 type Squad struct {
 	Id          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid();not null"`
-	UserID      uint       `gorm:"not null;index"` // uint matches existing gorm.Model User; see #33
+	UserID      string     `gorm:"type:text;not null;index"` // Clerk user ID (e.g. "user_2abc...")
 	Gameweek    int        `gorm:"not null"`
 	BudgetSpent float64    `gorm:"type:float;not null"`
 	LockedAt    *time.Time `gorm:"type:timestamptz;"`

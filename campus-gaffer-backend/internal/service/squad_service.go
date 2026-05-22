@@ -34,7 +34,7 @@ var (
 )
 
 type CreateSquadRequest struct {
-	UserID   uint        `json:"user_id"`
+	UserID   string      `json:"user_id"`
 	Gameweek int         `json:"gameweek"`
 	Starters []uuid.UUID `json:"starters"`
 	Bench    []uuid.UUID `json:"bench"`

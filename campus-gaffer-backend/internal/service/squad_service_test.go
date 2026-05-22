@@ -4,6 +4,7 @@ import (
 	"campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func (f *fakeSquadRepo) FindByID(_ context.Context, id uuid.UUID) (*models.Squad
 	return squad, f.players[id], nil
 }
 
-func (f *fakeSquadRepo) FindByUserID(_ context.Context, userID uint) (*models.Squad, error) {
+func (f *fakeSquadRepo) FindByUserID(_ context.Context, userID string) (*models.Squad, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -181,7 +182,7 @@ func newSquadSvc(sr *fakeSquadRepo, pr *fakeSquadPriceRepo, gr repository.GameRe
 }
 
 func validReq(starters, bench []uuid.UUID) CreateSquadRequest {
-	return CreateSquadRequest{UserID: 1, Gameweek: 1, Starters: starters, Bench: bench}
+	return CreateSquadRequest{UserID: "user_test1", Gameweek: 1, Starters: starters, Bench: bench}
 }
 
 // --- tests ---
@@ -258,7 +259,7 @@ func TestCreateSquad_AfterDeadline_Rejected(t *testing.T) {
 
 func TestCreateSquad_GameweekNotInSchedule_Rejected(t *testing.T) {
 	// Gameweek 99 doesn't exist in a single-game schedule (only GW1 exists).
-	req := CreateSquadRequest{UserID: 1, Gameweek: 99, Starters: makeIDs(OnFieldCount), Bench: makeIDs(BenchCount)}
+	req := CreateSquadRequest{UserID: "user_test1", Gameweek: 99, Starters: makeIDs(OnFieldCount), Bench: makeIDs(BenchCount)}
 	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
 	_, _, err := svc.CreateSquad(context.Background(), req)
 	if err != ErrGameweekNotFound {
@@ -281,7 +282,7 @@ func TestCreateSquad_BudgetExceeded_Rejected(t *testing.T) {
 }
 
 func TestCreateSquad_UserAlreadyHasSquad_Rejected(t *testing.T) {
-	userID := uint(42)
+	userID := "user_42"
 	sr := newFakeSquadRepo()
 	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
 
@@ -419,7 +420,7 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 func TestLeaderboard_PreSeason_ZeroPointsAppear(t *testing.T) {
     sr := newFakeSquadRepo()
     sr.leaderboardRows = []repository.LeaderboardRow{
-        {UserID: uuid.New(), Username: "alice", TotalPoints: 0, Rank: 1},
+        {UserID: "user_alice", Username: "alice", TotalPoints: 0, Rank: 1},
     }
     sr.leaderboardTotal = 1
 
@@ -441,9 +442,9 @@ func TestLeaderboard_PreSeason_ZeroPointsAppear(t *testing.T) {
 func TestLeaderboard_WithPoints_RankedDescending(t *testing.T) {
     sr := newFakeSquadRepo()
     sr.leaderboardRows = []repository.LeaderboardRow{
-        {UserID: uuid.New(), Username: "alice", TotalPoints: 80, Rank: 1},
-        {UserID: uuid.New(), Username: "bob",   TotalPoints: 60, Rank: 2},
-        {UserID: uuid.New(), Username: "carol", TotalPoints: 0,  Rank: 3},
+        {UserID: "user_alice", Username: "alice", TotalPoints: 80, Rank: 1},
+        {UserID: "user_bob",   Username: "bob",   TotalPoints: 60, Rank: 2},
+        {UserID: "user_carol", Username: "carol", TotalPoints: 0,  Rank: 3},
     }
     sr.leaderboardTotal = 3
 
@@ -464,7 +465,7 @@ func TestLeaderboard_Pagination_HonorsLimitOffset(t *testing.T) {
 	num_squads := 5
     for i := range num_squads {
         sr.leaderboardRows = append(sr.leaderboardRows, repository.LeaderboardRow{
-            UserID: uuid.New(), Username: "user", TotalPoints: (num_squads - i) * 10, Rank: i + 1,
+            UserID: fmt.Sprintf("user_%d", i), Username: "user", TotalPoints: (num_squads - i) * 10, Rank: i + 1,
         })
     }
     sr.leaderboardTotal = num_squads
