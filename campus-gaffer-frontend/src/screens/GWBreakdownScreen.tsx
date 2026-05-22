@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { BrandMark } from '../components/BrandMark';
+import './screen-shared.css';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
 const PAL = {
@@ -76,21 +79,6 @@ function useCountUp(target: number, duration = 900, delay = 200) {
 }
 
 // ─── Components ────────────────────────────────────────────────────────────
-function BallMark({ size = 18 }: { size?: number }) {
-  const a = PAL.accent;
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
-      <circle cx="14" cy="14" r="13" fill="none" stroke={a} strokeWidth="2" />
-      <polygon points="14,7 19.5,11 17.4,17.5 10.6,17.5 8.5,11" fill={a} stroke={a} strokeWidth="1" />
-      <line x1="14" y1="7" x2="14" y2="2" stroke={a} strokeWidth="1.4" />
-      <line x1="19.5" y1="11" x2="24" y2="8.5" stroke={a} strokeWidth="1.4" />
-      <line x1="17.4" y1="17.5" x2="20.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="10.6" y1="17.5" x2="7.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="8.5" y1="11" x2="4" y2="8.5" stroke={a} strokeWidth="1.4" />
-    </svg>
-  );
-}
-
 function ResultBadge({ result, bench }: { result: string; bench: boolean }) {
   if (!result) return <span style={{ color: PAL.textFaint }}>—</span>;
   const color = bench ? PAL.benchText : result === 'W' ? PAL.accent : result === 'D' ? PAL.warn : PAL.textFaint;
@@ -155,7 +143,7 @@ function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; 
   const isMvp = player.mvp && !bench;
   return (
     <div style={{ background: expanded ? (bench ? PAL.benchCard : PAL.cardAlt) : 'transparent', borderRadius: 14, marginBottom: 2, transition: 'background 180ms', cursor: 'pointer', overflow: 'hidden', border: `1px solid ${expanded ? PAL.line : 'transparent'}` }} onClick={() => onToggle(player.id)}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 44px 44px 44px', alignItems: 'center', padding: '0 6px', height: 52, gap: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(36px,44px) minmax(36px,44px) minmax(36px,44px) minmax(36px,44px)', alignItems: 'center', padding: '0 6px', height: 52, gap: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, paddingLeft: 6 }}>
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: withAlpha(teamColor, dim ? 0.10 : 0.18), color: dim ? PAL.benchText : teamColor, border: `1.5px solid ${withAlpha(teamColor, dim ? 0.25 : 0.45)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
             {player.name.charAt(0)}
@@ -192,7 +180,7 @@ function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; 
 
 function ColHeaders() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 44px 44px 44px', alignItems: 'center', padding: '0 6px', height: 32, gap: 0, borderBottom: `1px solid ${PAL.lineDim}`, position: 'sticky', top: 0, background: PAL.bg, zIndex: 3 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(36px,44px) minmax(36px,44px) minmax(36px,44px) minmax(36px,44px)', alignItems: 'center', padding: '0 6px', height: 32, gap: 0, borderBottom: `1px solid ${PAL.lineDim}`, position: 'sticky', top: 0, background: PAL.bg, zIndex: 3 }}>
       <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.20em', color: PAL.textFaint, textTransform: 'uppercase', paddingLeft: 12 }}>Player</span>
       {[{ label: 'GLS', title: 'Goals' }, { label: 'WIN', title: 'Win bonus' }, { label: 'MVP', title: 'MVP award' }, { label: 'PTS', title: 'Points' }].map(({ label, title }) => (
         <div key={label} style={{ display: 'flex', justifyContent: label === 'PTS' ? 'flex-end' : 'center', paddingRight: label === 'PTS' ? 8 : 0 }} title={title}>
@@ -214,11 +202,11 @@ function MiniStat({ label, value, suffix, faint }: { label: string; value: strin
   );
 }
 
-function SummaryCard({ gwTotal, seasonTotal, gameweek, mode, setMode }: { gwTotal: number; seasonTotal: number; gameweek: number; mode: string; setMode: (m: string) => void }) {
-  const displayTarget = mode === 'season' ? seasonTotal : gwTotal;
+function SummaryCard({ gwTotal, benchTotal, seasonTotal, gameweek, mode, setMode }: { gwTotal: number; benchTotal: number; seasonTotal: number; gameweek: number; mode: string; setMode: (m: string) => void }) {
+  const displayTarget = mode === 'season' ? seasonTotal : gwTotal + benchTotal;
   const animated = useCountUp(displayTarget, 900, 300);
-  const starterPts = GW_DATA.starters.reduce((s, p) => s + calcPts(p), 0);
-  const benchPts = GW_DATA.bench.reduce((s, p) => s + calcPts(p), 0);
+  const starterPts = gwTotal;
+  const benchPts = benchTotal;
   const avgGW = (seasonTotal / gameweek).toFixed(1);
   return (
     <div style={{ margin: '4px 16px 14px', background: PAL.card, border: `1px solid ${PAL.lineDim}`, borderRadius: 18, padding: '16px 18px', position: 'relative', overflow: 'hidden' }}>
@@ -272,8 +260,9 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
     setExpanded(prev => prev === id ? null : id);
   }, []);
 
-  const starterPts = GW_DATA.starters.reduce((s, p) => s + calcPts(p), 0);
-  const benchPts = GW_DATA.bench.reduce((s, p) => s + calcPts(p), 0);
+  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
+  const starterPts = (hasSquad ? GW_DATA.starters : []).reduce((s, p) => s + calcPts(p), 0);
+  const benchPts = (hasSquad ? GW_DATA.bench : []).reduce((s, p) => s + calcPts(p), 0);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -285,7 +274,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
           </svg>
         </button>
         <div style={{ flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <BallMark size={16} />
+          <BrandMark size={16} />
           <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em' }}>Points</span>
         </div>
         <button type="button" aria-label="Share" style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -298,7 +287,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
 
       {/* Scrollable body */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 40 }}>
-        <SummaryCard gwTotal={starterPts} seasonTotal={GW_DATA.seasonTotal} gameweek={GW_DATA.gameweek} mode={mode} setMode={setMode} />
+        <SummaryCard gwTotal={starterPts} benchTotal={benchPts} seasonTotal={GW_DATA.seasonTotal} gameweek={GW_DATA.gameweek} mode={mode} setMode={setMode} />
 
         <div style={{ padding: '0 16px' }}>
           <SectionHeader label="Starting" count="6" pts={starterPts} isBench={false} />

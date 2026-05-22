@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BrandMark } from '../components/BrandMark';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
 const PALETTE = {
@@ -9,22 +10,6 @@ const PALETTE = {
   accentDeep: 'oklch(0.72 0.20 142)',
   accentInk: 'oklch(0.18 0.04 142)',
 };
-
-// ─── BallMark ──────────────────────────────────────────────────────────────
-function BallMark({ size = 28 }: { size?: number }) {
-  const a = PALETTE.accent;
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
-      <circle cx="14" cy="14" r="13" fill="none" stroke={a} strokeWidth="2" />
-      <polygon points="14,7 19.5,11 17.4,17.5 10.6,17.5 8.5,11" fill={a} stroke={a} strokeLinejoin="round" strokeWidth="1" />
-      <line x1="14" y1="7" x2="14" y2="2" stroke={a} strokeWidth="1.4" />
-      <line x1="19.5" y1="11" x2="24" y2="8.5" stroke={a} strokeWidth="1.4" />
-      <line x1="17.4" y1="17.5" x2="20.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="10.6" y1="17.5" x2="7.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="8.5" y1="11" x2="4" y2="8.5" stroke={a} strokeWidth="1.4" />
-    </svg>
-  );
-}
 
 // ─── Pitch backdrop ────────────────────────────────────────────────────────
 function PitchBackdrop() {
@@ -275,7 +260,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       }}>
         {/* Wordmark */}
         <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <BallMark size={26} />
+          <BrandMark size={26} />
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
             <span style={{
               fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,

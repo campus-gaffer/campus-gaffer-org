@@ -1,15 +1,27 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+html, body, #root {
+  min-height: 100%;
+}
+
 html, body {
-  height: 100%;
-  overflow: hidden;
+  margin: 0;
 }
 
 body {
-  margin: 0;
   background: #060810;
   font-family: 'DM Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes cg-shake {
@@ -36,4 +48,56 @@ body {
 @keyframes lb-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes cg-screen-enter {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes cg-screen-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.985);
+  }
+}
+
+.app-stage {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.app-screen--active {
+  z-index: 1;
+}
+
+.app-screen--entering {
+  z-index: 2;
+  animation: cg-screen-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
+.app-screen--leaving {
+  z-index: 1;
+  animation: cg-screen-exit 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
 }
