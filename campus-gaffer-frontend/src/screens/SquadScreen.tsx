@@ -1,15 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import './screen-shared.css';
+import { useFormation } from '../context/FormationContext';
+import { SQUAD, SQUAD_DATA_KEY } from '../lib/mockSquad';
 
-// ─── Palette ───────────────────────────────────────────────────────────────
 const PAL = {
-  bg: 'oklch(0.13 0.025 248)', bg2: 'oklch(0.10 0.02 248)',
-  card: 'oklch(0.17 0.03 248)', cardDark: 'oklch(0.13 0.025 248)',
+  bg2: 'oklch(0.10 0.02 248)',
+  card: 'oklch(0.17 0.03 248)',
+  cardDark: 'oklch(0.13 0.025 248)',
   cardGlass: 'rgba(12, 17, 30, 0.86)',
-  line: 'oklch(0.28 0.04 248)', lineDim: 'oklch(0.22 0.03 248)',
-  accent: 'oklch(0.82 0.19 142)', accentInk: 'oklch(0.18 0.04 142)',
-  pitch1: 'oklch(0.55 0.13 145)', pitch2: 'oklch(0.48 0.13 145)',
+  line: 'oklch(0.28 0.04 248)',
+  lineDim: 'oklch(0.22 0.03 248)',
+  accent: 'oklch(0.82 0.19 142)',
+  pitch1: 'oklch(0.55 0.13 145)',
+  pitch2: 'oklch(0.48 0.13 145)',
   pitchLine: 'rgba(255,255,255,0.34)',
-  text: '#fff', textDim: 'rgba(235,235,245,0.65)', textFaint: 'rgba(235,235,245,0.45)',
+  text: '#fff',
+  textDim: 'rgba(235,235,245,0.65)',
+  textFaint: 'rgba(235,235,245,0.45)',
   starGlow: 'oklch(0.85 0.18 95)',
 };
 
@@ -25,26 +32,8 @@ interface Player {
   price: number; pts: number; mvp?: boolean;
 }
 
-const SQUAD = {
-  starters: [
-    { id: 1, surname: 'Doyle',   squadNum: 9,  team: 'KCS', price: 9.5, pts: 11, mvp: true  },
-    { id: 2, surname: 'Mbeki',   squadNum: 10, team: 'WAD', price: 8.0, pts: 7,  mvp: false },
-    { id: 3, surname: 'Diaz',    squadNum: 8,  team: 'TRN', price: 7.0, pts: 6,  mvp: false },
-    { id: 4, surname: 'Cohen',   squadNum: 7,  team: 'KCS', price: 6.5, pts: 4,  mvp: false },
-    { id: 5, surname: 'Bennett', squadNum: 4,  team: 'KCS', price: 5.5, pts: 5,  mvp: false },
-    { id: 6, surname: 'Hartley', squadNum: 1,  team: 'KCS', price: 5.0, pts: 4,  mvp: false },
-  ] as Player[],
-  bench: [
-    { id: 7,  surname: 'Khan',     squadNum: 11, team: 'STJ', price: 6.0, pts: 3  },
-    { id: 8,  surname: 'Schmidt',  squadNum: 12, team: 'STJ', price: 6.5, pts: 0  },
-    { id: 9,  surname: 'Hall',     squadNum: 13, team: 'HIL', price: 4.5, pts: 2  },
-    { id: 10, surname: 'Andersen', squadNum: 14, team: 'PMB', price: 4.5, pts: 0  },
-  ] as Player[],
-};
+// SQUAD data moved to shared module `src/lib/mockSquad.ts`
 
-const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
-
-const FORMATION = [2, 2, 2]; // 2-2-2
 const GAMEWEEK = 7;
 const SEASON_TOTAL = 142;
 const GW_POINTS_STARTERS = 37;
@@ -58,7 +47,6 @@ function partitionByFormation(flat: Player[], pattern: number[]) {
   return rows;
 }
 
-// ─── Jersey SVG ────────────────────────────────────────────────────────────
 function Jersey({ color, num, size = 54, dim = false }: { color: string; num: number; size?: number; dim?: boolean }) {
   const gid = `jersey-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
@@ -76,7 +64,6 @@ function Jersey({ color, num, size = 54, dim = false }: { color: string; num: nu
   );
 }
 
-// ─── Pitch background ──────────────────────────────────────────────────────
 function PitchBackground() {
   const { pitch1, pitch2, pitchLine } = PAL;
   return (
@@ -86,184 +73,240 @@ function PitchBackground() {
           <stop offset="0%" stopColor={pitch1} />
           <stop offset="100%" stopColor={pitch2} />
         </linearGradient>
-        <pattern id="pitchStripes" x="0" y="0" width="358" height="56" patternUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="358" height="28" fill="rgba(255,255,255,0.04)" />
-        </pattern>
-        <radialGradient id="pitchVignette" cx="50%" cy="50%" r="70%">
-          <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.42)" />
-        </radialGradient>
       </defs>
       <rect width="358" height="420" fill="url(#pitchGrad)" />
-      <rect width="358" height="420" fill="url(#pitchStripes)" />
-      <rect width="358" height="420" fill="url(#pitchVignette)" />
       <rect x="8" y="8" width="342" height="404" fill="none" stroke={pitchLine} strokeWidth="1.2" />
       <line x1="8" y1="210" x2="350" y2="210" stroke={pitchLine} strokeWidth="1.2" />
       <circle cx="179" cy="210" r="44" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <circle cx="179" cy="210" r="2.5" fill={pitchLine} />
       <rect x="79" y="8" width="200" height="58" fill="none" stroke={pitchLine} strokeWidth="1.2" />
       <rect x="129" y="8" width="100" height="22" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <path d="M 144 66 A 36 36 0 0 0 214 66" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <circle cx="179" cy="44" r="2" fill={pitchLine} />
       <rect x="79" y="354" width="200" height="58" fill="none" stroke={pitchLine} strokeWidth="1.2" />
       <rect x="129" y="390" width="100" height="22" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <path d="M 144 354 A 36 36 0 0 1 214 354" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <circle cx="179" cy="376" r="2" fill={pitchLine} />
-      <path d="M 8 18 A 10 10 0 0 0 18 8" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <path d="M 340 8 A 10 10 0 0 0 350 18" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <path d="M 350 402 A 10 10 0 0 0 340 412" fill="none" stroke={pitchLine} strokeWidth="1.2" />
-      <path d="M 18 412 A 10 10 0 0 0 8 402" fill="none" stroke={pitchLine} strokeWidth="1.2" />
     </svg>
   );
 }
 
-// ─── Starter tile ──────────────────────────────────────────────────────────
+function AttackingOverlay() {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 358 420"
+      preserveAspectRatio="none"
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+      aria-hidden="true"
+    >
+      <defs>
+        <marker id="attackArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L6,3 z" fill="oklch(0.82 0.19 142 / 0.85)" />
+        </marker>
+      </defs>
+      <line x1="120" y1="54" x2="120" y2="350" stroke="oklch(0.82 0.19 142 / 0.35)" strokeWidth="1.8" strokeDasharray="5 6" markerEnd="url(#attackArrow)" />
+      <line x1="179" y1="38" x2="179" y2="362" stroke="oklch(0.82 0.19 142 / 0.45)" strokeWidth="2.2" strokeDasharray="6 6" markerEnd="url(#attackArrow)" />
+      <line x1="238" y1="54" x2="238" y2="350" stroke="oklch(0.82 0.19 142 / 0.35)" strokeWidth="1.8" strokeDasharray="5 6" markerEnd="url(#attackArrow)" />
+      <rect x="12" y="18" width="334" height="116" fill="oklch(0.82 0.19 142 / 0.10)" />
+      <rect x="12" y="134" width="334" height="118" fill="oklch(0.82 0.19 142 / 0.07)" />
+      <rect x="12" y="252" width="334" height="150" fill="oklch(0.82 0.19 142 / 0.04)" />
+      <text x="18" y="34" fontFamily="'JetBrains Mono', monospace" fontSize="8.5" letterSpacing="0.18em" fill="rgba(235,235,245,0.72)">DEF</text>
+      <text x="18" y="208" fontFamily="'JetBrains Mono', monospace" fontSize="8.5" letterSpacing="0.18em" fill="rgba(235,235,245,0.72)">MID</text>
+      <text x="18" y="382" fontFamily="'JetBrains Mono', monospace" fontSize="8.5" letterSpacing="0.18em" fill="rgba(235,235,245,0.72)">FWD</text>
+    </svg>
+  );
+}
+
 function StarterTile({ p }: { p: Player }) {
   const teamColor = TEAM_COLORS[p.team] || PAL.accent;
   return (
-    <div style={{ width: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+    <div style={{ width: 'min(19vw, 82px)', minWidth: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
       {p.mvp && (
-        <div style={{ position: 'absolute', top: -3, right: 6, zIndex: 4, width: 17, height: 17, borderRadius: '50%', background: PAL.starGlow, color: '#1a1503', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 9, boxShadow: `0 4px 14px -4px ${PAL.starGlow}`, border: '2px solid rgba(10,15,28,0.95)' }} aria-label="Match MVP">★</div>
+        <div style={{ position: 'absolute', top: -4, right: '8%', zIndex: 4, width: 17, height: 17, borderRadius: '50%', background: PAL.starGlow, color: '#1a1503', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 9, border: '2px solid rgba(10,15,28,0.95)' }}>★</div>
       )}
-      <div style={{ marginBottom: -10, zIndex: 2, position: 'relative' }}>
-        <Jersey color={teamColor} num={p.squadNum} size={32} />
+      <div style={{ marginBottom: -10, zIndex: 2 }}>
+        <Jersey color={teamColor} num={p.squadNum} size={30} />
       </div>
-      <div style={{ width: 72, background: PAL.cardGlass, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: `1px solid rgba(255,255,255,${p.mvp ? 0.18 : 0.09})`, borderRadius: 10, paddingTop: 14, paddingBottom: 0, textAlign: 'center', position: 'relative', boxShadow: '0 8px 18px -10px rgba(0,0,0,0.75)', overflow: 'hidden' }}>
-        <div style={{ padding: '0 4px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 10, color: PAL.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', lineHeight: 1.1 }}>{p.surname}</div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: '0.06em', color: PAL.textFaint, fontVariantNumeric: 'tabular-nums' }}>£{p.price.toFixed(1)}</div>
+      <div style={{ width: '100%', background: PAL.cardGlass, border: `1px solid rgba(255,255,255,${p.mvp ? 0.18 : 0.09})`, borderRadius: 10, paddingTop: 14, textAlign: 'center', overflow: 'hidden' }}>
+        <div style={{ padding: '0 4px 5px' }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(10px,2.4vw,12px)', color: PAL.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.surname}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(7px,2vw,9px)', color: PAL.textFaint }}>£{p.price.toFixed(1)}</div>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '4px 6px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 14, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', color: p.pts >= 10 ? PAL.accent : PAL.text }}>{p.pts}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7.5, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(12px,3.4vw,14px)', color: p.pts >= 10 ? PAL.accent : PAL.text }}>{p.pts}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(7px,1.9vw,8px)', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Bench tile ────────────────────────────────────────────────────────────
 function BenchTile({ p }: { p: Player }) {
   const teamColor = TEAM_COLORS[p.team] || PAL.accent;
   const didntPlay = p.pts === 0;
   return (
-    <div style={{ flex: 1, minWidth: 0, background: PAL.cardDark, border: `1px solid ${PAL.lineDim}`, borderRadius: 10, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 22, paddingBottom: 0 }}>
+    <div style={{ background: PAL.cardDark, border: `1px solid ${PAL.lineDim}`, borderRadius: 10, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 22 }}>
       <div style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)' }}>
-        <Jersey color={teamColor} num={p.squadNum} size={40} dim={didntPlay} />
+        <Jersey color={teamColor} num={p.squadNum} size={38} dim={didntPlay} />
       </div>
-      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 12, color: didntPlay ? PAL.textFaint : PAL.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90%', textAlign: 'center' }}>{p.surname}</div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.06em', color: PAL.textFaint, fontVariantNumeric: 'tabular-nums', marginTop: 1, marginBottom: 6 }}>£{p.price.toFixed(1)}</div>
-      <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', padding: '5px 0', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 15, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', color: didntPlay ? PAL.textFaint : PAL.text }}>{p.pts}</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(11px,3vw,12px)', color: didntPlay ? PAL.textFaint : PAL.text, marginTop: 2 }}>{p.surname}</div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(8px,2.1vw,9px)', color: PAL.textFaint, marginBottom: 6 }}>£{p.price.toFixed(1)}</div>
+      <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', padding: '5px 0', display: 'flex', justifyContent: 'center', gap: 4 }}>
+        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(13px,3.4vw,15px)', color: didntPlay ? PAL.textFaint : PAL.text }}>{p.pts}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(7px,1.9vw,8px)', color: PAL.textFaint, textTransform: 'uppercase' }}>pts</span>
       </div>
     </div>
   );
 }
 
-// ─── Score card ────────────────────────────────────────────────────────────
 function ScoreCard() {
   return (
-    <div style={{ margin: '4px 16px 14px', background: PAL.card, border: `1px solid ${PAL.lineDim}`, borderRadius: 18, padding: '14px 18px 16px', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 28px -16px rgba(0,0,0,0.6)' }}>
-      <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: `radial-gradient(circle, oklch(0.82 0.19 142 / 0.18), transparent 70%)`, pointerEvents: 'none' }} />
+    <div className="info-card" style={{ background: PAL.card, borderColor: PAL.lineDim, boxShadow: '0 8px 28px -16px rgba(0,0,0,0.6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ padding: '4px 10px', borderRadius: 6, background: withAlpha(PAL.accent, 0.18), color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {GAMEWEEK}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.18em', color: PAL.textDim, textTransform: 'uppercase', fontWeight: 600 }}>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <rect x="2" y="4.5" width="6" height="4.5" rx="0.6" stroke="currentColor" strokeWidth="1" />
-            <path d="M3.2 4.5V3a1.8 1.8 0 0 1 3.6 0v1.5" stroke="currentColor" strokeWidth="1" fill="none" />
-          </svg>
-          Squad Locked
-        </span>
+        <span style={{ padding: '4px 10px', borderRadius: 6, background: 'oklch(0.82 0.19 142 / 0.18)', color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {GAMEWEEK}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.18em', color: PAL.textDim, textTransform: 'uppercase' }}>Squad Locked</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 60, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: PAL.text }}>{SEASON_TOTAL}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, fontSize: 12, letterSpacing: '0.16em', color: PAL.textDim, textTransform: 'uppercase', marginBottom: 4 }}>pts</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(44px,12vw,60px)', lineHeight: 0.9, color: PAL.text }}>{SEASON_TOTAL}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: '0.16em', color: PAL.textDim, textTransform: 'uppercase' }}>pts</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingBottom: 6 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em', color: PAL.accent, fontVariantNumeric: 'tabular-nums' }}>+{GW_POINTS_STARTERS}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: PAL.accent, textTransform: 'uppercase', fontWeight: 600 }}>GW{GAMEWEEK}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(18px,6vw,22px)', color: PAL.accent }}>+{GW_POINTS_STARTERS}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: PAL.accent, textTransform: 'uppercase' }}>GW{GAMEWEEK}</span>
         </div>
       </div>
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${PAL.lineDim}`, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
-        {[
-          { label: 'Squad Value', value: '£63.0' },
-          { label: 'Avg / GW', value: SEASON_AVG },
-          { label: 'Rank', value: `#${RANK.toLocaleString()}` },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.18em', color: PAL.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em', color: PAL.text, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-          </div>
-        ))}
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${PAL.lineDim}`, display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
+        <MiniStat label="Squad Value" value="£63.0" />
+        <MiniStat label="Avg / GW" value={SEASON_AVG} />
+        <MiniStat label="Rank" value={`#${RANK.toLocaleString()}`} />
       </div>
     </div>
   );
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.18em', color: PAL.textFaint, textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(15px,4.2vw,17px)', color: PAL.text }}>{value}</div>
+    </div>
+  );
+}
+
+function toPlayer(p: any): Player {
+  return {
+    id: p.id,
+    surname: p.name.split(' ').slice(-1)[0],
+    squadNum: p.squadNum || Math.floor(Math.random() * 99) + 1,
+    team: p.team,
+    price: p.price,
+    pts: p.pts,
+    mvp: p.mvp,
+  };
+}
+
 export default function SquadScreen({ onBack }: { onBack: () => void }) {
-  const rows = useMemo(() => partitionByFormation(SQUAD.starters, FORMATION), []);
-  const benchPoints = SQUAD.bench.reduce((s, p) => s + p.pts, 0);
-  const pitchHeight = 280;
+  const { formation, formationLabel } = useFormation();
+  const persisted = typeof window !== 'undefined' ? window.localStorage.getItem(SQUAD_DATA_KEY) : null;
+  const initialStarters = useMemo(() => {
+    if (!persisted) return SQUAD.starters;
+    try {
+      console.log('Using persisted players:', persisted)
+      const parsed = JSON.parse(persisted, (key, value) => {
+        if (key === 'starters' || key === 'bench') {
+          return Array.isArray(value) ? value.map(toPlayer) : value;
+        }
+        return value;
+      });
+      console.log('Using parsed players:', parsed)
+      return parsed.starters ?? SQUAD.starters;
+    } catch {
+      return SQUAD.starters;
+    }
+  }, [persisted]);
+
+  const initialBench = useMemo(() => {
+    if (!persisted) return SQUAD.bench;
+    try {
+      const parsed = JSON.parse(persisted, (key, value) => {
+        if (key === 'starters' || key === 'bench') {
+          return Array.isArray(value) ? value.map(toPlayer) : value;
+        }
+        return value;
+      });
+      console.log('Using parsed bench players:', parsed.bench)
+      return parsed.bench ?? SQUAD.bench;
+    } catch {
+      return SQUAD.bench;
+    }
+  }, [persisted]);
+
+  const rows = useMemo(() => partitionByFormation(initialStarters, formation as number[]), [formation, initialStarters]);
+  const benchPoints = initialBench.reduce((s: number, p: Player) => s + p.pts, 0);
+  const [showAttackGuides, setShowAttackGuides] = useState<boolean>(() => {
+    const flag = (import.meta.env.VITE_SHOW_ATTACK_GUIDES as string | undefined) || 'true';
+    return flag !== 'false';
+  });
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg2, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div style={{ padding: '6px 18px 4px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: PAL.bg2, zIndex: 4 }}>
-        <button type="button" aria-label="Back" onClick={onBack} style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+    <div className="screen-shell" style={{ background: PAL.bg2, color: PAL.text }}>
+      <div className="screen-topbar" style={{ background: PAL.bg2 }}>
+        <button type="button" aria-label="Back" onClick={onBack} className="icon-btn" style={{ borderColor: PAL.line, color: PAL.text }}>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-        <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em' }}>My Squad</div>
-        <button type="button" aria-label="More" style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${PAL.line}`, background: 'rgba(255,255,255,0.03)', color: PAL.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="3" cy="7" r="1.2" fill="currentColor" />
-            <circle cx="7" cy="7" r="1.2" fill="currentColor" />
-            <circle cx="11" cy="7" r="1.2" fill="currentColor" />
-          </svg>
+        <div className="screen-title">My Squad</div>
+        <button type="button" aria-label="More" className="icon-btn" style={{ borderColor: PAL.line, color: PAL.textDim }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1.2" fill="currentColor" /><circle cx="7" cy="7" r="1.2" fill="currentColor" /><circle cx="11" cy="7" r="1.2" fill="currentColor" /></svg>
         </button>
       </div>
 
-      {/* Scrollable body */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 40 }}>
+      <div className="screen-scroll">
         <ScoreCard />
 
-        {/* Pitch */}
-        <div style={{ margin: '0 16px', position: 'relative', borderRadius: 18, overflow: 'hidden', border: `1px solid rgba(255,255,255,0.06)`, height: pitchHeight, flexShrink: 0, boxShadow: '0 12px 28px -16px rgba(0,0,0,0.5)' }}>
+        <div style={{ margin: '0 16px', position: 'relative', borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)', aspectRatio: '358 / 420', minHeight: 320, maxHeight: '62dvh', boxShadow: '0 12px 28px -16px rgba(0,0,0,0.5)' }}>
           <PitchBackground />
-          <div style={{ position: 'absolute', top: 10, left: 12, zIndex: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.20em', color: 'rgba(255,255,255,0.78)', textTransform: 'uppercase', fontWeight: 700, background: 'rgba(0,0,0,0.32)', padding: '3px 8px', borderRadius: 4, backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}>
-            2-2-2
-          </div>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', padding: '24px 8px 14px', zIndex: 3 }}>
+          {showAttackGuides && <AttackingOverlay />}
+          <div style={{ position: 'absolute', top: 10, left: 12, zIndex: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.20em', color: 'rgba(255,255,255,0.78)', textTransform: 'uppercase', background: 'rgba(0,0,0,0.32)', padding: '3px 8px', borderRadius: 4 }}>
+            {formationLabel}</div>
+          <button
+            type="button"
+            onClick={() => setShowAttackGuides((v) => !v)}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 12,
+              zIndex: 5,
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: 'rgba(0,0,0,0.32)',
+              color: 'rgba(235,235,245,0.82)',
+              borderRadius: 6,
+              padding: '3px 8px',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 9,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            {showAttackGuides ? 'Guides On' : 'Guides Off'}
+          </button>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', padding: '20px 8px 12px', zIndex: 3 }}>
             {rows.map((row, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-around' }}>
-                {row.map(p => <StarterTile key={p.id} p={p} />)}
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-around', gap: 4 }}>
+                {row.map((p) => {
+                  console.log(p)
+                  return <StarterTile key={p.id} p={p} />;
+                })}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bench */}
-        <div style={{ margin: '14px 16px 0', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, paddingLeft: 2, paddingRight: 2 }}>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.22em', color: PAL.text, textTransform: 'uppercase', fontWeight: 700 }}>Bench</span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>
-              4 Players · 0 Subs (Locked) · {benchPoints} pts
-            </span>
+        <div style={{ margin: '10px 16px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.22em', color: PAL.text, textTransform: 'uppercase' }}>Bench</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(9px,2.4vw,10px)', letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>4 Players · 0 Subs (Locked) · {benchPoints} pts</span>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${PAL.lineDim}`, borderRadius: 14, padding: '24px 10px 10px', display: 'flex', gap: 8 }}>
-            {SQUAD.bench.map(p => <BenchTile key={p.id} p={p} />)}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ marginTop: 20, padding: '0 22px 4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.12em', color: PAL.textFaint, textTransform: 'uppercase', lineHeight: 1.4 }}>
-            <div>Next deadline<br /><span style={{ color: PAL.textDim }}>GW8 · Sat 12:00</span></div>
-            <div style={{ textAlign: 'right' }}>Season locked<br /><span style={{ color: PAL.textDim }}>no transfers</span></div>
+          <div style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${PAL.lineDim}`, borderRadius: 14, padding: '24px 10px 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+            {initialBench.map((p) => <BenchTile key={p.id} p={p} />)}
           </div>
         </div>
       </div>

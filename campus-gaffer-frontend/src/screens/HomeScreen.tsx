@@ -1,25 +1,17 @@
 import { useState, useEffect } from 'react';
+import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { useFormation } from '../context/FormationContext';
+import { BrandMark } from '../components/BrandMark';
+import { ScreenShell } from '../layouts/ScreenShell';
+import { THEME, withAlpha } from '../lib/theme';
 
 type NavTarget = 'squad' | 'leaderboard' | 'breakdown';
 
-// ─── Palette ───────────────────────────────────────────────────────────────
-const HM = {
-  bg: 'oklch(0.13 0.025 248)', bg2: 'oklch(0.10 0.02 248)',
-  card: 'oklch(0.17 0.03 248)', cardHi: 'oklch(0.20 0.04 248)',
-  hero: 'oklch(0.19 0.05 152)', heroBorder: 'oklch(0.34 0.12 148)',
-  line: 'oklch(0.28 0.04 248)', lineDim: 'oklch(0.22 0.03 248)',
-  accent: 'oklch(0.82 0.19 142)', accentInk: 'oklch(0.18 0.04 142)',
-  accentDim: 'oklch(0.55 0.12 142)',
-  warn: 'oklch(0.78 0.16 60)', warnDim: 'oklch(0.28 0.06 60)',
-  text: '#fff', textDim: 'rgba(235,235,245,0.65)', textFaint: 'rgba(235,235,245,0.42)',
-  gold: 'oklch(0.85 0.18 85)', tabBg: 'oklch(0.12 0.022 248)',
-};
-
-const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
+const HM = THEME;
 
 const DEADLINE = new Date('2026-05-23T14:00:00');
 const USER = { name: 'You', seasonPts: 142, gwPts: 37, rank: 12, total: 40 };
-const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 – 1', topScorer: 'Doyle', topPts: 11 };
+const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 - 1', topScorer: 'Doyle', topPts: 11 };
 const GAMEWEEK = 7;
 
 // ─── Countdown hook ────────────────────────────────────────────────────────
@@ -36,33 +28,30 @@ function useCountdown(target: number) {
   return { d, h, m, s, expired: diff === 0 };
 }
 
-// ─── Shared components ─────────────────────────────────────────────────────
-function BallMark({ size = 22 }: { size?: number }) {
+function MiniPitch({ formation }: { formation: readonly number[] }) {
   const a = HM.accent;
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
-      <circle cx="14" cy="14" r="13" fill="none" stroke={a} strokeWidth="2" />
-      <polygon points="14,7 19.5,11 17.4,17.5 10.6,17.5 8.5,11" fill={a} stroke={a} strokeWidth="1" />
-      <line x1="14" y1="7" x2="14" y2="2" stroke={a} strokeWidth="1.4" />
-      <line x1="19.5" y1="11" x2="24" y2="8.5" stroke={a} strokeWidth="1.4" />
-      <line x1="17.4" y1="17.5" x2="20.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="10.6" y1="17.5" x2="7.5" y2="22.5" stroke={a} strokeWidth="1.4" />
-      <line x1="8.5" y1="11" x2="4" y2="8.5" stroke={a} strokeWidth="1.4" />
-    </svg>
-  );
-}
+  const rowYs = [7, 22, 37];
+  const rowLayouts: Record<number, number[]> = {
+    1: [26],
+    2: [14, 38],
+    3: [10, 26, 42],
+  };
 
-function MiniPitch() {
-  const a = HM.accent;
   return (
     <svg width="52" height="44" viewBox="0 0 52 44" aria-hidden="true">
       <rect x="1" y="1" width="50" height="42" rx="4" fill="none" stroke={withAlpha(a, 0.13)} strokeWidth="1" />
       <line x1="1" y1="22" x2="51" y2="22" stroke={withAlpha(a, 0.13)} strokeWidth="0.8" />
       <circle cx="26" cy="22" r="7" fill="none" stroke={withAlpha(a, 0.13)} strokeWidth="0.8" />
-      {[0, 1, 2].map(ri =>
-        [14, 38].map(cx => (
-          <circle key={`${ri}-${cx}`} cx={cx} cy={7 + ri * 15} r="4"
-            fill={a} opacity={ri === 0 ? 1 : 0.6 + ri * 0.1} />
+      {formation.map((count, ri) =>
+        (rowLayouts[count] || []).map((cx) => (
+          <circle
+            key={`${ri}-${cx}`}
+            cx={cx}
+            cy={rowYs[ri] ?? 37}
+            r="4"
+            fill={a}
+            opacity={ri === 0 ? 1 : 0.7}
+          />
         ))
       )}
     </svg>
@@ -155,20 +144,37 @@ function CardLabel({ text, hero }: { text: string; hero?: boolean }) {
 
 // ─── Dashboard cards ───────────────────────────────────────────────────────
 function MySquadCard({ onNav }: { onNav: () => void }) {
+  const { formation } = useFormation();
+  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
   return (
     <Card hero onClick={onNav}>
       <CardLabel text="My Squad" hero />
       <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{USER.seasonPts}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: HM.accentDim, textTransform: 'uppercase', marginBottom: 2 }}>pts</span>
-        </div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textDim, marginTop: 4 }}>
-          GW{GAMEWEEK} · #{USER.rank} rank
-        </div>
+        {hasSquad ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{USER.seasonPts}</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: HM.accentDim, textTransform: 'uppercase', marginBottom: 2 }}>pts</span>
+            </div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textDim, marginTop: 4 }}>
+              GW{GAMEWEEK} · #{USER.rank} rank
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 20, color: HM.text }}>No squad yet</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: HM.textFaint }}>Create your squad to start earning points and appear on the leaderboard.</div>
+            <div style={{ marginTop: 6 }}>
+              <button type="button" onClick={onNav} style={{ padding: '8px 12px', borderRadius: 10, background: HM.accent, color: '#08120a', border: 'none', fontWeight: 700 }}>Create squad</button>
+            </div>
+          </div>
+        )}
+        {/* <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.16em', color: HM.accentDim, textTransform: 'uppercase', marginTop: 6 }}>
+          {formationLabel}
+        </div> */}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 10 }}>
-        <MiniPitch />
+        <MiniPitch formation={formation} />
         <span style={{ color: HM.accent }}><Arrow /></span>
       </div>
     </Card>
@@ -319,29 +325,34 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
     setActiveTab(id);
   };
 
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: HM.bg2, color: HM.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {/* Nav bar */}
-      <div style={{ padding: '6px 18px 10px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: HM.bg2, zIndex: 4 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <BallMark size={22} />
-          <div>
-            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: '-0.01em', lineHeight: 1 }}>Campus Gaffer</div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.22em', color: HM.accent, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Intramural · Fantasy</div>
-          </div>
-        </div>
-        <button type="button" aria-label="Notifications" style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid ${HM.line}`, background: 'rgba(255,255,255,0.03)', color: HM.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, position: 'relative' }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2a5 5 0 0 0-5 5v3l-1 2h12l-1-2V7a5 5 0 0 0-5-5Z" stroke="currentColor" strokeWidth="1.4" fill="none" />
-            <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: HM.accent, border: `2px solid ${HM.bg2}` }} />
-        </button>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(130,200,130,0.18)', border: `1.5px solid rgba(130,200,130,0.45)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, color: HM.accent, cursor: 'pointer' }}>Y</div>
-      </div>
+  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
 
-      {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 16 }}>
+  return (
+    <ScreenShell
+      background={HM.bg2}
+      color={HM.text}
+      header={(
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BrandMark size={22} />
+            <div>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: '-0.01em', lineHeight: 1 }}>Campus Gaffer</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.22em', color: HM.accent, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Intramural · Fantasy</div>
+            </div>
+          </div>
+          <button type="button" aria-label="Notifications" style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid ${HM.line}`, background: 'rgba(255,255,255,0.03)', color: HM.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, position: 'relative' }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2a5 5 0 0 0-5 5v3l-1 2h12l-1-2V7a5 5 0 0 0-5-5Z" stroke="currentColor" strokeWidth="1.4" fill="none" />
+              <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: HM.accent, border: `2px solid ${HM.bg2}` }} />
+          </button>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(130,200,130,0.18)', border: `1.5px solid rgba(130,200,130,0.45)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, color: HM.accent, cursor: 'pointer' }}>Y</div>
+        </div>
+      )}
+      footer={<TabBar active={activeTab} onChange={handleTabChange} />}
+    >
+      <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'home' ? (
           <>
             <div style={{ padding: '6px 18px 20px' }}>
@@ -377,7 +388,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
             <div style={{ margin: '16px 16px 0', padding: '12px 16px', background: HM.card, border: `1px solid ${HM.lineDim}`, borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>View points breakdown</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>GW{GAMEWEEK} · 37 pts scored</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? `GW${GAMEWEEK} · ${USER.gwPts} pts scored` : 'No squad yet'}</div>
               </div>
               <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 See breakdown
@@ -388,8 +399,6 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
           <ProfileView />
         )}
       </div>
-
-      <TabBar active={activeTab} onChange={handleTabChange} />
-    </div>
+    </ScreenShell>
   );
 }
