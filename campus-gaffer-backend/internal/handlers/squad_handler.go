@@ -18,7 +18,7 @@ func NewSquadHandler(svc service.SquadService) *SquadHandler {
 }
 
 type createSquadBody struct {
-	UserID   uint     `json:"user_id" binding:"required"`
+	UserID   string   `json:"user_id" binding:"required"`
 	Gameweek int      `json:"gameweek" binding:"required,min=1"`
 	Starters []string `json:"starters" binding:"required"`
 	Bench    []string `json:"bench" binding:"required"`
