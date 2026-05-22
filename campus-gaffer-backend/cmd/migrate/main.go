@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"campus-gaffer-backend/internal/config"
 
@@ -96,19 +97,13 @@ func loadConfig() (config.Config, error) {
 	return config.Load()
 }
 
-// toPgx5URL converts a postgres:// URL to pgx5:// so golang-migrate uses the
-// pgx/v5 driver instead of the default lib/pq driver.
+// toPgx5URL converts a postgres:// or postgresql:// URL to pgx5:// so
+// golang-migrate uses the pgx/v5 driver instead of the default lib/pq driver.
 func toPgx5URL(raw string) string {
-	if len(raw) >= 11 && raw[:11] == "postgresql+" {
-		return "pgx5" + raw[10:]
-	}
-	const postgresPrefix = "postgresql://"
-	if len(raw) >= len(postgresPrefix) && raw[:len(postgresPrefix)] == postgresPrefix {
-		return "pgx5://" + raw[len(postgresPrefix):]
-	}
-	const legacyPrefix = "postgres://"
-	if len(raw) >= len(legacyPrefix) && raw[:len(legacyPrefix)] == legacyPrefix {
-		return "pgx5://" + raw[len(legacyPrefix):]
+	for _, prefix := range []string{"postgresql://", "postgres://"} {
+		if rest, ok := strings.CutPrefix(raw, prefix); ok {
+			return "pgx5://" + rest
+		}
 	}
 	return raw
 }
