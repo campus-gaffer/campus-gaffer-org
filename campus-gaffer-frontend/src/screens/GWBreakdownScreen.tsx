@@ -37,7 +37,7 @@ interface PlayerData {
 
 interface StoredPlayer { id: string; name: string; team: string; price: number; }
 interface StoredSquad { starters: StoredPlayer[]; bench: StoredPlayer[]; }
-interface ApiPointsEntry { player_id: string; is_bench: boolean; points: number; }
+interface ApiPointsEntry { player_id: string; name: string; team: string; is_bench: boolean; points: number; }
 interface ApiSquadPoints { squad_id: string; total_points: number; players: ApiPointsEntry[]; }
 
 function calcPts(p: PlayerData) {
@@ -269,16 +269,21 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
-    const rawSquad = window.localStorage.getItem(SQUAD_DATA_KEY);
-    if (!squadId || !rawSquad) return;
+    if (!squadId) return;
 
-    let storedSquad: StoredSquad;
-    try { storedSquad = JSON.parse(rawSquad); } catch { return; }
-
+    // Optional fallback: the draft flow may have cached names in localStorage.
+    // The API now returns name/team directly, so this is only used if a field
+    // comes back empty.
     const nameMap = new Map<string, { name: string; team: string }>();
-    [...(storedSquad.starters || []), ...(storedSquad.bench || [])].forEach(p => {
-      nameMap.set(p.id, { name: p.name, team: p.team || '' });
-    });
+    const rawSquad = window.localStorage.getItem(SQUAD_DATA_KEY);
+    if (rawSquad) {
+      try {
+        const storedSquad: StoredSquad = JSON.parse(rawSquad);
+        [...(storedSquad.starters || []), ...(storedSquad.bench || [])].forEach(p => {
+          nameMap.set(p.id, { name: p.name, team: p.team || '' });
+        });
+      } catch { /* ignore malformed cache */ }
+    }
 
     const ctrl = new AbortController();
     fetch(`${API_BASE_URL}/squads/${squadId}/points`, { signal: ctrl.signal })
@@ -286,8 +291,8 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
       .then((data: ApiSquadPoints) => {
         const toRow = (entry: ApiPointsEntry): PlayerData => ({
           id: entry.player_id,
-          name: nameMap.get(entry.player_id)?.name || entry.player_id.slice(0, 8),
-          team: nameMap.get(entry.player_id)?.team || '',
+          name: entry.name || nameMap.get(entry.player_id)?.name || entry.player_id.slice(0, 8),
+          team: entry.team || nameMap.get(entry.player_id)?.team || '',
           played: true, goals: 0, result: '', mvp: false,
           livePoints: entry.points,
         });
@@ -302,7 +307,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
     setExpanded(prev => prev === id ? null : id);
   }, []);
 
-  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
+  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_ID_KEY) !== null;
   const starterPts = (hasSquad ? starters : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
   const benchPts = (hasSquad ? bench : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
 
