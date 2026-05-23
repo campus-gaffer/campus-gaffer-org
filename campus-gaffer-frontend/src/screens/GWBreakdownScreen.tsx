@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { BrandMark } from '../components/BrandMark';
 import './screen-shared.css';
 
@@ -25,12 +25,20 @@ const TEAM_COLORS: Record<string, string> = {
 
 const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
+
 const APPEARANCE = 2, GOAL_PTS = 4, WIN_PTS = 2, DRAW_PTS = 1, MVP_PTS = 3;
 
 interface PlayerData {
-  id: number; name: string; team: string; played: boolean;
+  id: string; name: string; team: string; played: boolean;
   goals: number; result: string; mvp: boolean;
+  livePoints?: number;
 }
+
+interface StoredPlayer { id: string; name: string; team: string; price: number; }
+interface StoredSquad { starters: StoredPlayer[]; bench: StoredPlayer[]; }
+interface ApiPointsEntry { player_id: string; name: string; team: string; is_bench: boolean; points: number; }
+interface ApiSquadPoints { squad_id: string; total_points: number; players: ApiPointsEntry[]; }
 
 function calcPts(p: PlayerData) {
   if (!p.played) return 0;
@@ -42,18 +50,18 @@ function calcPts(p: PlayerData) {
 const GW_DATA = {
   gameweek: 7, seasonTotal: 142,
   starters: [
-    { id: 1, name: 'Doyle',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: true  },
-    { id: 2, name: 'Mbeki',   team: 'WAD', played: true,  goals: 1, result: 'D', mvp: false },
-    { id: 3, name: 'Cohen',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: false },
-    { id: 4, name: 'Diaz',    team: 'TRN', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: 5, name: 'Bennett', team: 'KCS', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: 6, name: 'Hartley', team: 'KCS', played: true,  goals: 0, result: 'D', mvp: false },
+    { id: '1', name: 'Doyle',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: true  },
+    { id: '2', name: 'Mbeki',   team: 'WAD', played: true,  goals: 1, result: 'D', mvp: false },
+    { id: '3', name: 'Cohen',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: false },
+    { id: '4', name: 'Diaz',    team: 'TRN', played: true,  goals: 0, result: 'W', mvp: false },
+    { id: '5', name: 'Bennett', team: 'KCS', played: true,  goals: 0, result: 'W', mvp: false },
+    { id: '6', name: 'Hartley', team: 'KCS', played: true,  goals: 0, result: 'D', mvp: false },
   ] as PlayerData[],
   bench: [
-    { id: 7,  name: 'Khan',     team: 'STJ', played: true,  goals: 1, result: 'W', mvp: false },
-    { id: 8,  name: 'Schmidt',  team: 'STJ', played: true,  goals: 0, result: 'L', mvp: false },
-    { id: 9,  name: 'Hall',     team: 'HIL', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: 10, name: 'Andersen', team: 'PMB', played: false, goals: 0, result: 'L', mvp: false },
+    { id: '7',  name: 'Khan',     team: 'STJ', played: true,  goals: 1, result: 'W', mvp: false },
+    { id: '8',  name: 'Schmidt',  team: 'STJ', played: true,  goals: 0, result: 'L', mvp: false },
+    { id: '9',  name: 'Hall',     team: 'HIL', played: true,  goals: 0, result: 'W', mvp: false },
+    { id: '10', name: 'Andersen', team: 'PMB', played: false, goals: 0, result: 'L', mvp: false },
   ] as PlayerData[],
 };
 
@@ -136,8 +144,8 @@ function ScoreDrawer({ player, bench, visible }: { player: PlayerData; bench: bo
   );
 }
 
-function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; bench: boolean; expanded: boolean; onToggle: (id: number) => void }) {
-  const pts = calcPts(player);
+function PlayerRow({ player, bench, expanded, onToggle }: { player: PlayerData; bench: boolean; expanded: boolean; onToggle: (id: string) => void }) {
+  const pts = player.livePoints ?? calcPts(player);
   const teamColor = TEAM_COLORS[player.team] || PAL.accent;
   const dim = bench;
   const isMvp = player.mvp && !bench;
@@ -253,16 +261,55 @@ function SectionHeader({ label, count, pts, isBench }: { label: string; count: s
 
 // ─── Main ──────────────────────────────────────────────────────────────────
 export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [mode, setMode] = useState('gw');
+  const [starters, setStarters] = useState<PlayerData[]>(GW_DATA.starters);
+  const [bench, setBench] = useState<PlayerData[]>(GW_DATA.bench);
 
-  const toggle = useCallback((id: number) => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
+    if (!squadId) return;
+
+    // Optional fallback: the draft flow may have cached names in localStorage.
+    // The API now returns name/team directly, so this is only used if a field
+    // comes back empty.
+    const nameMap = new Map<string, { name: string; team: string }>();
+    const rawSquad = window.localStorage.getItem(SQUAD_DATA_KEY);
+    if (rawSquad) {
+      try {
+        const storedSquad: StoredSquad = JSON.parse(rawSquad);
+        [...(storedSquad.starters || []), ...(storedSquad.bench || [])].forEach(p => {
+          nameMap.set(p.id, { name: p.name, team: p.team || '' });
+        });
+      } catch { /* ignore malformed cache */ }
+    }
+
+    const ctrl = new AbortController();
+    fetch(`${API_BASE_URL}/squads/${squadId}/points`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: ApiSquadPoints) => {
+        const toRow = (entry: ApiPointsEntry): PlayerData => ({
+          id: entry.player_id,
+          name: entry.name || nameMap.get(entry.player_id)?.name || entry.player_id.slice(0, 8),
+          team: entry.team || nameMap.get(entry.player_id)?.team || '',
+          played: true, goals: 0, result: '', mvp: false,
+          livePoints: entry.points,
+        });
+        setStarters(data.players.filter(p => !p.is_bench).map(toRow));
+        setBench(data.players.filter(p => p.is_bench).map(toRow));
+      })
+      .catch(() => {/* keep GW_DATA fallback */});
+    return () => ctrl.abort();
+  }, []);
+
+  const toggle = useCallback((id: string) => {
     setExpanded(prev => prev === id ? null : id);
   }, []);
 
-  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
-  const starterPts = (hasSquad ? GW_DATA.starters : []).reduce((s, p) => s + calcPts(p), 0);
-  const benchPts = (hasSquad ? GW_DATA.bench : []).reduce((s, p) => s + calcPts(p), 0);
+  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_ID_KEY) !== null;
+  const starterPts = (hasSquad ? starters : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
+  const benchPts = (hasSquad ? bench : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: PAL.bg, color: PAL.text, fontFamily: "'DM Sans', sans-serif", overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -290,10 +337,10 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         <SummaryCard gwTotal={starterPts} benchTotal={benchPts} seasonTotal={GW_DATA.seasonTotal} gameweek={GW_DATA.gameweek} mode={mode} setMode={setMode} />
 
         <div style={{ padding: '0 16px' }}>
-          <SectionHeader label="Starting" count="6" pts={starterPts} isBench={false} />
+          <SectionHeader label="Starting" count={`${starters.length}`} pts={starterPts} isBench={false} />
           <ColHeaders />
           <div style={{ paddingTop: 4 }}>
-            {GW_DATA.starters.map(p => (
+            {starters.map(p => (
               <PlayerRow key={p.id} player={p} bench={false} expanded={expanded === p.id} onToggle={toggle} />
             ))}
           </div>
@@ -304,10 +351,10 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
             <div style={{ flex: 1, height: 1, background: PAL.lineDim }} />
           </div>
 
-          <SectionHeader label="Bench" count="4" pts={benchPts} isBench={true} />
+          <SectionHeader label="Bench" count={`${bench.length}`} pts={benchPts} isBench={true} />
           <ColHeaders />
           <div style={{ paddingTop: 4, opacity: 0.7 }}>
-            {GW_DATA.bench.map(p => (
+            {bench.map(p => (
               <PlayerRow key={p.id} player={p} bench={true} expanded={expanded === p.id} onToggle={toggle} />
             ))}
           </div>
