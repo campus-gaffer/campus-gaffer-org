@@ -33,6 +33,7 @@ type playerResponse struct {
 	ID               uuid.UUID `json:"id"`
 	Name             string    `json:"name"`
 	Position         string    `json:"position"` // Will be empty/unknown for now; can be enriched later
+	Team             string    `json:"team"`     // Primary team (most appearances); empty if no performances
 	Price            float64   `json:"price"`
 	ExternalPlayerID string    `json:"external_player_id"`
 }
@@ -58,6 +59,13 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 		currentGW = 1
 	}
 
+	// Primary team per player. Non-fatal: on error, players just have no team.
+	teams, err := playerRepo.PrimaryTeams(ctx)
+	if err != nil {
+		log.Printf("GetPlayers: primary teams: %v", err)
+		teams = map[uuid.UUID]string{}
+	}
+
 	result := make([]playerResponse, len(players))
 	for i, p := range players {
 		price, err := priceRepo.GetEffectivePrice(ctx, p.Id, currentGW)
@@ -69,6 +77,7 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 			ID:               p.Id,
 			Name:             p.Name,
 			Position:         "",
+			Team:             teams[p.Id],
 			Price:            price,
 			ExternalPlayerID: p.ExternalPlayerId,
 		}
@@ -231,6 +240,13 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 		return err
 	}
 
+	// Primary team per player. Non-fatal: on error, players just have no team.
+	teams, err := cache.playerRepo.PrimaryTeams(ctx)
+	if err != nil {
+		log.Printf("PlayerCache: primary teams: %v", err)
+		teams = map[uuid.UUID]string{}
+	}
+
 	result := make([]playerResponse, len(players))
 	for i, p := range players {
 		price, err := cache.priceRepo.GetEffectivePrice(ctx, p.Id, currentGW)
@@ -241,6 +257,7 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 			ID:               p.Id,
 			Name:             p.Name,
 			Position:         "",
+			Team:             teams[p.Id],
 			Price:            price,
 			ExternalPlayerID: p.ExternalPlayerId,
 		}
