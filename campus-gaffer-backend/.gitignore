@@ -3,3 +3,15 @@
 campus_gaffer_design.docx
 
 dist/
+
+# Terraform local/state artifacts
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
