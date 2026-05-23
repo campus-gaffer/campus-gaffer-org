@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './screen-shared.css';
 import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY } from '../lib/mockSquad';
-import { Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
+import { type Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
 import { ScreenShell } from '../layouts/ScreenShell';
 import PlayerRow from '../components/draft/PlayerRow';
 import BudgetBar from '../components/draft/BudgetBar';
@@ -22,6 +22,7 @@ const PAL = {
 interface ApiPlayer {
   id: string;
   name: string;
+  team?: string;
   price: number | null;
   external_player_id?: string;
 }
@@ -33,13 +34,14 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
   const [starters, setStarters] = useState<string[]>([]);
   const [bench, setBench] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const ctrl = new AbortController();
     fetch(`${API_BASE_URL}/players`, { signal: ctrl.signal })
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then((data: ApiPlayer[]) => {
-        setPool(data.map(p => ({ id: p.id, name: p.name, team: '', price: p.price })));
+        setPool(data.map(p => ({ id: p.id, name: p.name, team: p.team || '', price: p.price })));
         setLoading(false);
       })
       .catch(err => {
@@ -95,6 +97,18 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
   const remaining = BUDGET - spent;
   const canConfirm = starters.length === MAX_S && bench.length === MAX_B && remaining >= 0;
 
+  // Unique team names present in the pool, alphabetical. Drives the filter chips.
+  const teams = useMemo(
+    () => Array.from(new Set(pool.map((p) => p.team).filter(Boolean))).sort() as string[],
+    [pool]
+  );
+  // Keep a selected player visible even if they're off the active team, so
+  // toggling doesn't make a pick vanish from the list.
+  const visiblePool = useMemo(
+    () => pool.filter((p) => !teamFilter || p.team === teamFilter || starters.includes(p.id) || bench.includes(p.id)),
+    [pool, teamFilter, starters, bench]
+  );
+
   return (
     <ScreenShell
       background={PAL.bg2}
@@ -129,6 +143,36 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
             </div>
             <BudgetBar spent={spent} starters={starters.length} bench={bench.length} />
           </div>
+          {!loading && !error && teams.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '4px 6px 8px', WebkitOverflowScrolling: 'touch' }}>
+              {[null, ...teams].map((t) => {
+                const active = teamFilter === t;
+                return (
+                  <button
+                    key={t ?? '__all__'}
+                    type="button"
+                    onClick={() => setTeamFilter(t)}
+                    style={{
+                      flexShrink: 0,
+                      height: 28,
+                      padding: '0 12px',
+                      borderRadius: 999,
+                      border: `1px solid ${active ? PAL.accent : 'rgba(255,255,255,0.10)'}`,
+                      background: active ? 'oklch(0.82 0.19 142 / 0.15)' : 'rgba(255,255,255,0.03)',
+                      color: active ? PAL.accent : PAL.textFaint,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t ?? 'All'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {loading && (
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: PAL.textFaint, padding: '24px 6px', textAlign: 'center' }}>
               Loading players…
@@ -139,7 +183,7 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
               {error}
             </div>
           )}
-          {!loading && !error && pool.map((p) => (
+          {!loading && !error && visiblePool.map((p) => (
             <PlayerRow
               key={p.id}
               player={p}
