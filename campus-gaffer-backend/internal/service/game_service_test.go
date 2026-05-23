@@ -126,6 +126,10 @@ func (m *MockPlayerRepository) FindAll(ctx context.Context) ([]models.Player, er
 	return nil, nil
 }
 
+func (m *MockPlayerRepository) PrimaryTeams(ctx context.Context) (map[uuid.UUID]string, error) {
+	return map[uuid.UUID]string{}, nil
+}
+
 // MockTeamRepository mocks the TeamRepository for testing.
 type MockTeamRepository struct{}
 

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -17,6 +18,9 @@ type PlayerRepository interface {
 	Upsert(ctx context.Context, p *models.Player) (*models.Player, error)
 	FindByExternalID(ctx context.Context, externalID string) *models.Player
 	FindAll(ctx context.Context) ([]models.Player, error)
+	// PrimaryTeams maps each player to the team they appear most for, ties
+	// broken alphabetically. Players with no performances are absent.
+	PrimaryTeams(ctx context.Context) (map[uuid.UUID]string, error)
 }
 
 type playerRepo struct {
@@ -103,6 +107,37 @@ func (r *playerRepo) FindAll(ctx context.Context) ([]models.Player, error) {
 	r.cacheMu.Unlock()
 
 	return players, nil
+}
+
+func (r *playerRepo) PrimaryTeams(ctx context.Context) (map[uuid.UUID]string, error) {
+	type teamRow struct {
+		PlayerID uuid.UUID `gorm:"column:player_id"`
+		Team     string    `gorm:"column:team"`
+	}
+	var rows []teamRow
+	// Rank each player's teams by appearance count (desc), tie-break by name
+	// (asc), and keep the top one.
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT player_id, team FROM (
+			SELECT pp.player_id,
+			       t.name AS team,
+			       ROW_NUMBER() OVER (
+			           PARTITION BY pp.player_id
+			           ORDER BY COUNT(*) DESC, t.name ASC
+			       ) AS rn
+			FROM player_performances pp
+			JOIN teams t ON t.id = pp.team_id
+			GROUP BY pp.player_id, t.name
+		) ranked
+		WHERE rn = 1`).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	teams := make(map[uuid.UUID]string, len(rows))
+	for _, row := range rows {
+		teams[row.PlayerID] = row.Team
+	}
+	return teams, nil
 }
 
 func (r *playerRepo) invalidatePlayersCache() {
