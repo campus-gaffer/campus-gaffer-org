@@ -209,14 +209,14 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
   const initialStarters = useMemo(() => {
     if (!persisted) return SQUAD.starters;
     try {
-      console.log('Using persisted players:', persisted)
+      // console.log('Using persisted players:', persisted)
       const parsed = JSON.parse(persisted, (key, value) => {
         if (key === 'starters' || key === 'bench') {
           return Array.isArray(value) ? value.map(toPlayer) : value;
         }
         return value;
       });
-      console.log('Using parsed players:', parsed)
+      // console.log('Using parsed players:', parsed)
       return parsed.starters ?? SQUAD.starters;
     } catch {
       return SQUAD.starters;
@@ -232,7 +232,7 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
         }
         return value;
       });
-      console.log('Using parsed bench players:', parsed.bench)
+      // console.log('Using parsed bench players:', parsed.bench)
       return parsed.bench ?? SQUAD.bench;
     } catch {
       return SQUAD.bench;
@@ -292,7 +292,6 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
             {rows.map((row, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-around', gap: 4 }}>
                 {row.map((p) => {
-                  console.log(p)
                   return <StarterTile key={p.id} p={p} />;
                 })}
               </div>

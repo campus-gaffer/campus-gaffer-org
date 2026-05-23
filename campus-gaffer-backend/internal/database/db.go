@@ -32,6 +32,19 @@ func Connect(db_uri string) *gorm.DB {
 			log.Fatal("Failed to connect to Neon")
 		}
 		log.Println("Connected to Neon")
+		// err = db.AutoMigrate(
+		// 	&models.Game{},
+		// 	&models.Player{},
+		// 	&models.PlayerPerformance{},
+		// 	&models.Team{},
+		// 	&models.PlayerGamePoint{},
+		// 	&models.PlayerPrice{},
+		// 	&models.SquadPlayer{},
+		// )
+		// if err != nil {
+		// 	log.Fatal("Failed to automigrate")
+		// }
+		// log.Println("Successfully ran automigrate!")
 		DB = db
 		if DB == nil {
 			log.Fatal("Failed to set DB to db!")
@@ -48,18 +61,6 @@ func Connect(db_uri string) *gorm.DB {
 		sqlDB.SetConnMaxIdleTime(2 * time.Minute)
 	})
 	// db, err := gorm.Open(postgres.Open(db_uri), &gorm.Config{})
-	// err = db.AutoMigrate(
-	// 	&models.Game{},
-	// 	&models.Player{},
-	// 	&models.PlayerPerformance{},
-	// 	&models.Team{},
-	// 	&models.PlayerGamePoint{},
-	// 	&models.PlayerPrice{},
-	// )
-	// if err != nil {
-	// 	log.Fatal("Failed to automigrate")
-	// }
-	// log.Println("Successfully ran automigrate!")
 	// DB = db
 	return DB
 }

@@ -1,11 +1,12 @@
 package main
 
 import (
+	"campus-gaffer-backend/internal/api/handlers"
+	"campus-gaffer-backend/internal/api/middleware"
 	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
-	"campus-gaffer-backend/internal/handlers"
+	"context"
 
-	// "campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
 	"campus-gaffer-backend/internal/service"
 	"log"
@@ -15,9 +16,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func main() {
-	cfg, err := config.Load()
+	cfg, err := loadAPIConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -28,7 +28,6 @@ func main() {
 	priceRepo := repository.NewPlayerPriceRepo(db)
 	gameRepo := repository.NewGameRepo(db)
 	playerRepo := repository.NewPlayerRepo(db)
-
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
@@ -45,20 +44,27 @@ func main() {
 	if err != nil {
 		log.Printf("warning: failed to pre-fetch players cache: %v", err)
 	}
-
+	cacheMiddleware, err := middleware.NewPlayerCacheMiddleware(playerRepo)
+	if err != nil {
+		log.Printf("cache middleware: failed to create middleware")
+	}
 	result := gin.Default()
 
 	result.Use(func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
-        c.Next()
-    })
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
+	if cacheMiddleware != nil {
+		result.Use(cacheMiddleware.Middleware())
+	}
 
 	// User endpoints
 	result.POST("/users", handlers.CreateUser)
@@ -89,4 +95,12 @@ func main() {
 		port = ":" + p
 	}
 	result.Run(port)
+}
+
+func loadAPIConfig() (config.Config, error) {
+	// ECS uses IAM + SSM; local development keeps using .env via config.Load.
+	if os.Getenv("USE_SSM_CONFIG") == "true" {
+		return config.LoadFromSSM(context.Background())
+	}
+	return config.Load()
 }
