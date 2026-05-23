@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,6 +43,8 @@ type CreateSquadRequest struct {
 
 type PlayerPointEntry struct {
 	PlayerID uuid.UUID `json:"player_id"`
+	Name     string    `json:"name"`
+	Team     string    `json:"team"`
 	IsBench  bool      `json:"is_bench"`
 	Points   int       `json:"points"`
 }
@@ -59,22 +62,24 @@ type SquadService interface {
 }
 
 type squadService struct {
-	squadRepo repository.SquadRepository
-	priceRepo repository.PlayerPriceRepository
-	gameRepo  repository.GameRepository
-	loc       *time.Location
+	squadRepo  repository.SquadRepository
+	priceRepo  repository.PlayerPriceRepository
+	gameRepo   repository.GameRepository
+	playerRepo repository.PlayerRepository
+	loc        *time.Location
 }
 
 func NewSquadService(
 	squadRepo repository.SquadRepository,
 	priceRepo repository.PlayerPriceRepository,
 	gameRepo repository.GameRepository,
+	playerRepo repository.PlayerRepository,
 	loc *time.Location,
 ) SquadService {
 	if loc == nil {
 		loc = time.UTC
 	}
-	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, loc: loc}
+	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, playerRepo: playerRepo, loc: loc}
 }
 
 func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error) {
@@ -189,12 +194,36 @@ func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*
 		return nil, fmt.Errorf("GetSquadPoints: fetch points: %w", err)
 	}
 
+	// Resolve display name and primary team per player. Both are non-fatal:
+	// on error the entry just carries an empty name/team rather than failing
+	// the whole points request.
+	nameByID := map[uuid.UUID]string{}
+	if s.playerRepo != nil {
+		if all, perr := s.playerRepo.FindAll(ctx); perr == nil {
+			for _, pl := range all {
+				nameByID[pl.Id] = pl.Name
+			}
+		} else {
+			log.Printf("GetSquadPoints: resolve names: %v", perr)
+		}
+	}
+	teamByID := map[uuid.UUID]string{}
+	if s.playerRepo != nil {
+		if t, terr := s.playerRepo.PrimaryTeams(ctx); terr == nil {
+			teamByID = t
+		} else {
+			log.Printf("GetSquadPoints: resolve teams: %v", terr)
+		}
+	}
+
 	entries := make([]PlayerPointEntry, len(players))
 	starterTotal := 0
 	for i, p := range players {
 		pts := totals[p.PlayerId]
 		entries[i] = PlayerPointEntry{
 			PlayerID: p.PlayerId,
+			Name:     nameByID[p.PlayerId],
+			Team:     teamByID[p.PlayerId],
 			IsBench:  p.IsBench,
 			Points:   pts,
 		}

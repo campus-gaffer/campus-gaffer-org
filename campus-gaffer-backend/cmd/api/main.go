@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Initialize services
-	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, loc)
+	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, playerRepo, loc)
 	squadHandler := handlers.NewSquadHandler(squadSvc)
 
 	// Pre-fetch priced player payload on startup; refreshed only when needed.
