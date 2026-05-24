@@ -14,6 +14,7 @@ type PerformanceRepository interface {
 	Upsert(ctx context.Context, perf *models.PlayerPerformance) (*models.PlayerPerformance, error)
 	FindByGameIdAndPlayerId(ctx context.Context, gameId, playerId uuid.UUID) (*models.PlayerPerformance, error)
 	FindByGameId(ctx context.Context, gameId uuid.UUID) ([]models.PlayerPerformance, error)
+	FindByPlayerIDs(ctx context.Context, playerIDs []uuid.UUID) ([]models.PlayerPerformance, error)
 }
 
 type perfRepo struct {
@@ -51,6 +52,18 @@ func (r *perfRepo) FindByGameId(ctx context.Context, gameId uuid.UUID) ([]models
 	err := r.db.
 		WithContext(ctx).
 		Where("game_id = ?", gameId).
+		Find(&perfs).Error
+	return perfs, err
+}
+
+func (r *perfRepo) FindByPlayerIDs(ctx context.Context, playerIDs []uuid.UUID) ([]models.PlayerPerformance, error) {
+	if len(playerIDs) == 0 {
+		return nil, nil
+	}
+	var perfs []models.PlayerPerformance
+	err := r.db.
+		WithContext(ctx).
+		Where("player_id IN ?", playerIDs).
 		Find(&perfs).Error
 	return perfs, err
 }

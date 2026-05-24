@@ -60,6 +60,20 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"squad": squad, "players": players})
 }
 
+func (h *SquadHandler) GetSquadByUser(c *gin.Context) {
+	userID := c.Param("user_id")
+	squad, err := h.svc.GetSquadByUserID(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrSquadNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no squad for user"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch squad"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"squad_id": squad.Id})
+}
+
 func (h *SquadHandler) GetSquad(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -102,7 +116,7 @@ func isSquadValidationErr(err error) bool {
 		errors.Is(err, service.ErrDuplicatePlayer) ||
 		errors.Is(err, service.ErrBudgetExceeded) ||
 		errors.Is(err, service.ErrSquadExists) ||
-		errors.Is(err, service.ErrDeadlinePassed) ||
+		// errors.Is(err, service.ErrDeadlinePassed) ||
 		errors.Is(err, service.ErrGameweekNotFound)
 }
 

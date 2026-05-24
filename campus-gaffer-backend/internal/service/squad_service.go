@@ -41,12 +41,22 @@ type CreateSquadRequest struct {
 	Bench    []uuid.UUID `json:"bench"`
 }
 
+type PointBreakdown struct {
+	AppearancePts int `json:"appearance_pts"`
+	Goals         int `json:"goals"`
+	GoalPts       int `json:"goal_pts"`
+	WinPts        int `json:"win_pts"`
+	DrawPts       int `json:"draw_pts"`
+	MvpPts        int `json:"mvp_pts"`
+}
+
 type PlayerPointEntry struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	Name     string    `json:"name"`
-	Team     string    `json:"team"`
-	IsBench  bool      `json:"is_bench"`
-	Points   int       `json:"points"`
+	PlayerID  uuid.UUID       `json:"player_id"`
+	Name      string          `json:"name"`
+	Team      string          `json:"team"`
+	IsBench   bool            `json:"is_bench"`
+	Points    int             `json:"points"`
+	Breakdown *PointBreakdown `json:"breakdown,omitempty"`
 }
 
 type SquadPointsResponse struct {
@@ -58,6 +68,7 @@ type SquadPointsResponse struct {
 type SquadService interface {
 	CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error)
 	GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error)
+	GetSquadByUserID(ctx context.Context, userID string) (*models.Squad, error)
 	GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error)
 }
 
@@ -66,6 +77,7 @@ type squadService struct {
 	priceRepo  repository.PlayerPriceRepository
 	gameRepo   repository.GameRepository
 	playerRepo repository.PlayerRepository
+	perfRepo   repository.PerformanceRepository
 	loc        *time.Location
 }
 
@@ -74,12 +86,13 @@ func NewSquadService(
 	priceRepo repository.PlayerPriceRepository,
 	gameRepo repository.GameRepository,
 	playerRepo repository.PlayerRepository,
+	perfRepo repository.PerformanceRepository,
 	loc *time.Location,
 ) SquadService {
 	if loc == nil {
 		loc = time.UTC
 	}
-	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, playerRepo: playerRepo, loc: loc}
+	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, playerRepo: playerRepo, perfRepo: perfRepo, loc: loc}
 }
 
 func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error) {
@@ -99,9 +112,9 @@ func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) 
 		seen[id] = struct{}{}
 	}
 
-	if err := s.checkDeadline(ctx, req.Gameweek); err != nil {
-		return nil, nil, err
-	}
+	// if err := s.checkDeadline(ctx, req.Gameweek); err != nil {
+	// 	return nil, nil, err
+	// }
 
 	existing, err := s.squadRepo.FindByUserID(ctx, req.UserID)
 	if err != nil {
@@ -175,6 +188,17 @@ func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID) (*models.Squa
 	return squad, players, nil
 }
 
+func (s *squadService) GetSquadByUserID(ctx context.Context, userID string) (*models.Squad, error) {
+	squad, err := s.squadRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("GetSquadByUserID: %w", err)
+	}
+	if squad == nil {
+		return nil, ErrSquadNotFound
+	}
+	return squad, nil
+}
+
 func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error) {
 	squad, players, err := s.squadRepo.FindByID(ctx, squadID)
 	if err != nil {
@@ -216,16 +240,67 @@ func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*
 		}
 	}
 
+	breakdownByPlayer := map[uuid.UUID]*PointBreakdown{}
+	if s.perfRepo != nil {
+		perfs, perr := s.perfRepo.FindByPlayerIDs(ctx, playerIDs)
+		if perr != nil {
+			log.Printf("GetSquadPoints: fetch performances: %v", perr)
+		} else {
+			// Collect unique game IDs so we can resolve outcomes per game.
+			gameIDSet := map[uuid.UUID]struct{}{}
+			for _, pf := range perfs {
+				gameIDSet[pf.GameId] = struct{}{}
+			}
+			// outcomes[gameId][teamId] = Outcome
+			outcomes := map[uuid.UUID]map[uuid.UUID]Outcome{}
+			for gid := range gameIDSet {
+				full, ferr := s.perfRepo.FindByGameId(ctx, gid)
+				if ferr != nil {
+					log.Printf("GetSquadPoints: fetch game perfs %s: %v", gid, ferr)
+					continue
+				}
+				outcomes[gid] = outcomesByTeam(full)
+			}
+			for _, pf := range perfs {
+				bd := breakdownByPlayer[pf.PlayerId]
+				if bd == nil {
+					bd = &PointBreakdown{}
+					breakdownByPlayer[pf.PlayerId] = bd
+				}
+				if !pf.GamePlayed {
+					continue
+				}
+				bd.AppearancePts += WeightsV1.Appearance
+				bd.Goals += pf.Goals
+				bd.GoalPts += pf.Goals * WeightsV1.Goal
+				if pf.IsMVP {
+					bd.MvpPts += WeightsV1.MVP
+				}
+				if pf.TeamId != nil {
+					if gameOutcomes, ok := outcomes[pf.GameId]; ok {
+						switch gameOutcomes[*pf.TeamId] {
+						case OutcomeWin:
+							bd.WinPts += WeightsV1.Win
+						case OutcomeDraw:
+							bd.DrawPts += WeightsV1.Draw
+						}
+					}
+				}
+			}
+		}
+	}
+
 	entries := make([]PlayerPointEntry, len(players))
 	starterTotal := 0
 	for i, p := range players {
 		pts := totals[p.PlayerId]
 		entries[i] = PlayerPointEntry{
-			PlayerID: p.PlayerId,
-			Name:     nameByID[p.PlayerId],
-			Team:     teamByID[p.PlayerId],
-			IsBench:  p.IsBench,
-			Points:   pts,
+			PlayerID:  p.PlayerId,
+			Name:      nameByID[p.PlayerId],
+			Team:      teamByID[p.PlayerId],
+			IsBench:   p.IsBench,
+			Points:    pts,
+			Breakdown: breakdownByPlayer[p.PlayerId],
 		}
 		if !p.IsBench {
 			starterTotal += pts

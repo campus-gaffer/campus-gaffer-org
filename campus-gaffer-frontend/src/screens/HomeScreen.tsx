@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, GW_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
@@ -345,6 +345,9 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
       .then((data: { gameweek: number; deadline: string }) => {
         setGameweek(data.gameweek);
         setDeadline(new Date(data.deadline));
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(GW_KEY, String(data.gameweek));
+        }
       })
       .catch(() => {/* keep fallbacks */});
     return () => ctrl.abort();
@@ -387,7 +390,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
         {activeTab === 'home' ? (
           <>
             <div style={{ padding: '6px 18px 20px' }}>
-              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.1, color: HM.text }}>
+              <div id='greeting' style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.1, color: HM.text }}>
                 Good morning,<br />
                 <span style={{ color: HM.accent }}>Gaffer.</span>
               </div>

@@ -53,9 +53,9 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 	}
 
 	// Get current gameweek
-	currentGW, _, err := currentGameweek(ctx, gameRepo, loc)
-	if err != nil {
-		// If we can't determine gameweek, use gameweek 1 and proceed
+	gwInfo, err := currentGameweek(ctx, gameRepo, loc)
+	currentGW := gwInfo.Number
+	if err != nil || currentGW == 0 {
 		currentGW = 1
 	}
 
@@ -91,9 +91,9 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, loc *time.Location) {
 	ctx := c.Request.Context()
 
-	gw, cutoff, err := currentGameweek(ctx, gameRepo, loc)
-	if err != nil {
-		// No games yet; return gameweek 1 with a safe future deadline
+	gw, err := currentGameweek(ctx, gameRepo, loc)
+	if err != nil || gw.Number == 0 {
+		// No games yet; return gameweek 1 with a safe future deadline.
 		c.JSON(http.StatusOK, gin.H{
 			"gameweek": 1,
 			"deadline": time.Now().In(loc).AddDate(0, 0, 7),
@@ -102,15 +102,15 @@ func GetCurrentGameweek(c *gin.Context, gameRepo repository.GameRepository, loc 
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"gameweek": gw,
-		"deadline": cutoff,
+		"gameweek": gw.Number,
+		"deadline": gw.Cutoff,
 	})
 }
 
-// GetLeaderboard returns global standings: all users ranked by total points.
+// GetLeaderboard returns global standings: all users ranked by total (season) points.
 // Paginated: ?limit=50&offset=0
-// Response: {total: int, leaderboard: [{rank, user_id, username, total_points}]}
-func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository) {
+// Response: {total: int, leaderboard: [{rank, user_id, username, total_points, gw_points}]}
+func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository, gameRepo repository.GameRepository, loc *time.Location) {
 	ctx := c.Request.Context()
 
 	limit := 50
@@ -126,7 +126,11 @@ func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository) {
 		}
 	}
 
-	rows, total, err := squadRepo.Leaderboard(ctx, limit, offset)
+	// Resolve current GW window for per-GW points. Non-fatal: falls back to zero
+	// values which causes the repository to return gw_points=0 for all rows.
+	gw, _ := currentGameweek(ctx, gameRepo, loc)
+
+	rows, total, err := squadRepo.Leaderboard(ctx, limit, offset, gw.Start, gw.Cutoff)
 	if err != nil {
 		log.Printf("GetLeaderboard: query failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch leaderboard"})
@@ -139,30 +143,29 @@ func GetLeaderboard(c *gin.Context, squadRepo repository.SquadRepository) {
 	})
 }
 
-// Helper: currentGameweek returns (gameweekNumber, cutoffTime, error)
-// Computes the current gameweek from the games schedule in the DB.
-func currentGameweek(ctx context.Context, gameRepo repository.GameRepository, loc *time.Location) (int, time.Time, error) {
+// currentGameweek resolves the active gameweek from the DB schedule.
+// Returns a zero-value Gameweek on error or when no games exist.
+func currentGameweek(ctx context.Context, gameRepo repository.GameRepository, loc *time.Location) (season.Gameweek, error) {
 	games, err := gameRepo.FindRegularSeason(ctx)
 	if err != nil || len(games) == 0 {
-		return 0, time.Time{}, err
-	}
-	
-	gws := season.RegularGameweeks(games, loc)
-	if len(gws) == 0 {
-		return 0, time.Time{}, err
+		return season.Gameweek{}, err
 	}
 
-	// Find the current gameweek: the first one whose cutoff is in the future
+	gws := season.RegularGameweeks(games, loc)
+	if len(gws) == 0 {
+		return season.Gameweek{}, nil
+	}
+
+	// First gameweek whose cutoff is still in the future.
 	now := time.Now().In(loc)
 	for _, gw := range gws {
 		if now.Before(gw.Cutoff) {
-			return gw.Number, gw.Cutoff, nil
+			return gw, nil
 		}
 	}
 
-	// All gameweeks have passed; return the last one
-	last := gws[len(gws)-1]
-	return last.Number, last.Cutoff, nil
+	// All gameweeks have passed; return the last one.
+	return gws[len(gws)-1], nil
 }
 
 // NewPlayerCache pre-fetches all players and their prices on startup.
@@ -221,7 +224,8 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	currentGW, _, err := currentGameweek(ctx, cache.gameRepo, cache.loc)
+	gwInfo, err := currentGameweek(ctx, cache.gameRepo, cache.loc)
+	currentGW := gwInfo.Number
 	if err != nil {
 		if cache.cachedGameweek != 0 {
 			cache.nextCheckAt = now.Add(cache.checkInterval)
