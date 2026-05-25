@@ -28,7 +28,7 @@ const TEAM_COLORS: Record<string, string> = {
 };
 
 interface Player {
-  id: number; surname: string; squadNum: number; team: string;
+  id: string; surname: string; squadNum: number; team: string;
   price: number; pts: number; mvp?: boolean;
 }
 
@@ -191,50 +191,59 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function toPlayer(p: any): Player {
+function toPlayer(p: unknown): Player {
+  const item = p as Record<string, unknown>;
   return {
-    id: p.id,
-    surname: p.name.split(' ').slice(-1)[0],
-    squadNum: p.squadNum || Math.floor(Math.random() * 99) + 1,
-    team: p.team,
-    price: p.price,
-    pts: p.pts,
-    mvp: p.mvp,
+    id: String(item.id ?? ''),
+    surname: String(item.name ?? '').split(' ').slice(-1)[0] || 'Player',
+    squadNum: Number(item.squadNum) || Math.floor(Math.random() * 99) + 1,
+    team: String(item.team ?? ''),
+    price: Number(item.price ?? 0),
+    pts: Number(item.pts ?? 0),
+    mvp: Boolean(item.mvp),
   };
 }
 
 export default function SquadScreen({ onBack }: { onBack: () => void }) {
   const { formation, formationLabel } = useFormation();
   const persisted = typeof window !== 'undefined' ? window.localStorage.getItem(SQUAD_DATA_KEY) : null;
-  const initialStarters = useMemo(() => {
-    if (!persisted) return SQUAD.starters;
+  const fallbackStarters = useMemo(
+    () => SQUAD.starters.map((p) => ({ ...p, id: String(p.id) })),
+    []
+  );
+  const fallbackBench = useMemo(
+    () => SQUAD.bench.map((p) => ({ ...p, id: String(p.id) })),
+    []
+  );
+  const initialStarters: Player[] = useMemo(() => {
+    if (!persisted) return fallbackStarters;
     try {
       const parsed = JSON.parse(persisted, (key, value) => {
         if (key === 'starters' || key === 'bench') {
-          return Array.isArray(value) ? value.map(toPlayer) : value;
+          return Array.isArray(value) ? value.map((p: unknown) => toPlayer(p)) : value;
         }
         return value;
-      });
-      return parsed.starters ?? SQUAD.starters;
+      }) as { starters?: Player[]; bench?: Player[] };
+      return parsed.starters ?? fallbackStarters;
     } catch {
-      return SQUAD.starters;
+      return fallbackStarters;
     }
-  }, [persisted]);
+  }, [persisted, fallbackStarters]);
 
-  const initialBench = useMemo(() => {
-    if (!persisted) return SQUAD.bench;
+  const initialBench: Player[] = useMemo(() => {
+    if (!persisted) return fallbackBench;
     try {
       const parsed = JSON.parse(persisted, (key, value) => {
         if (key === 'starters' || key === 'bench') {
-          return Array.isArray(value) ? value.map(toPlayer) : value;
+          return Array.isArray(value) ? value.map((p: unknown) => toPlayer(p)) : value;
         }
         return value;
-      });
-      return parsed.bench ?? SQUAD.bench;
+      }) as { starters?: Player[]; bench?: Player[] };
+      return parsed.bench ?? fallbackBench;
     } catch {
-      return SQUAD.bench;
+      return fallbackBench;
     }
-  }, [persisted]);
+  }, [persisted, fallbackBench]);
 
   const rows = useMemo(() => partitionByFormation(initialStarters, formation as number[]), [formation, initialStarters]);
   const benchPoints = initialBench.reduce((s: number, p: Player) => s + p.pts, 0);
@@ -288,7 +297,9 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', padding: '20px 8px 12px', zIndex: 3 }}>
             {rows.map((row, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-around', gap: 4 }}>
-                {row.map((p) => {
+                {row.map((p, i) => {
+                  console.log(`Rendering player ${p.surname} with ${p.pts} points${p.mvp ? ' (MVP)' : ''}`);
+                  console.log(`IDX ${i}`);
                   return <StarterTile key={p.id} p={p} />;
                 })}
               </div>

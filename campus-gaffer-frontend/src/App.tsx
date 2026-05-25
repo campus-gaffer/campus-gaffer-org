@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
@@ -8,68 +9,22 @@ import { SQUAD_LOCK_KEY } from './lib/mockSquad';
 import GWBreakdownScreen from './screens/GWBreakdownScreen';
 import { FormationProvider } from './context/FormationContext';
 
-type Screen = 'login' | 'home' | 'squad' | 'leaderboard' | 'breakdown';
 const AUTH_STORAGE_KEY = 'campus-gaffer-auth';
 const SCREEN_TRANSITION_MS = 240;
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(AUTH_STORAGE_KEY) === '1';
-  });
-  const [screen, setScreen] = useState<Screen>(() => (isAuthenticated ? 'home' : 'login'));
-  const [transition, setTransition] = useState<{ from: Screen; to: Screen } | null>(null);
+function SquadRoute({ onBack }: { onBack: () => void }) {
   const [squadMode, setSquadMode] = useState<'draft' | 'locked'>(() => {
     if (typeof window === 'undefined') return 'draft';
     return window.localStorage.getItem(SQUAD_LOCK_KEY) === '1' ? 'locked' : 'draft';
   });
   const [squadTransitioning, setSquadTransitioning] = useState(false);
-  const transitionTimerRef = useRef<number | null>(null);
   const squadTransitionTimerRef = useRef<number | null>(null);
 
-  const onLogin = useCallback(() => {
-    setIsAuthenticated(true);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && squadTransitionTimerRef.current !== null) {
+      window.clearTimeout(squadTransitionTimerRef.current);
     }
-    setScreen('home');
   }, []);
-
-  const onDebugLogout = useCallback(() => {
-    setIsAuthenticated(false);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    }
-    setScreen('login');
-  }, []);
-
-  const navigateTo = useCallback((next: Screen) => {
-    if (next === screen || transition) return;
-    if (typeof window !== 'undefined' && transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current);
-      transitionTimerRef.current = null;
-    }
-    setTransition({ from: screen, to: next });
-    if (typeof window !== 'undefined') {
-      transitionTimerRef.current = window.setTimeout(() => {
-        setScreen(next);
-        setTransition(null);
-        transitionTimerRef.current = null;
-      }, SCREEN_TRANSITION_MS);
-    } else {
-      setScreen(next);
-      setTransition(null);
-    }
-  }, [screen, transition]);
-
-  const openSquad = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      setSquadMode(window.localStorage.getItem(SQUAD_LOCK_KEY) === '1' ? 'locked' : 'draft');
-    } else {
-      setSquadMode('draft');
-    }
-    navigateTo('squad');
-  }, [navigateTo]);
 
   const confirmSquadLock = useCallback(() => {
     if (typeof window !== 'undefined' && squadTransitionTimerRef.current !== null) {
@@ -88,38 +43,47 @@ function App() {
     }
   }, []);
 
-  useEffect(() => () => {
-    if (typeof window !== 'undefined' && transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current);
-    }
-    if (typeof window !== 'undefined' && squadTransitionTimerRef.current !== null) {
-      window.clearTimeout(squadTransitionTimerRef.current);
-    }
-  }, []);
+  if (squadTransitioning) {
+    return (
+      <>
+        <div className="app-screen app-screen--leaving" style={{ zIndex: 1 }}>
+          <DraftScreen onBack={onBack} onConfirm={confirmSquadLock} />
+        </div>
+        <div className="app-screen app-screen--entering" style={{ zIndex: 2 }}>
+          <SquadScreen onBack={onBack} />
+        </div>
+      </>
+    );
+  }
 
-  const renderScreen = useCallback((route: Screen) => {
-    if (route === 'login') return <LoginScreen onLogin={onLogin} />;
-    if (route === 'home') return <HomeScreen onNavigate={(target) => (target === 'squad' ? openSquad() : navigateTo(target))} />;
-    if (route === 'squad') {
-      if (squadTransitioning) {
-        return (
-          <>
-            <div className="app-screen app-screen--leaving" style={{ zIndex: 1 }}>
-              <DraftScreen onBack={() => navigateTo('home')} onConfirm={confirmSquadLock} />
-            </div>
-            <div className="app-screen app-screen--entering" style={{ zIndex: 2 }}>
-              <SquadScreen onBack={() => navigateTo('home')} />
-            </div>
-          </>
-        );
-      }
-      return squadMode === 'locked'
-        ? <SquadScreen onBack={() => navigateTo('home')} />
-        : <DraftScreen onBack={() => navigateTo('home')} onConfirm={confirmSquadLock} />;
+  return squadMode === 'locked'
+    ? <SquadScreen onBack={onBack} />
+    : <DraftScreen onBack={onBack} onConfirm={confirmSquadLock} />;
+}
+
+function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(AUTH_STORAGE_KEY) === '1';
+  });
+
+  const onLogin = useCallback(() => {
+    setIsAuthenticated(true);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
     }
-    if (route === 'leaderboard') return <LeaderboardScreen onBack={() => navigateTo('home')} />;
-    return <GWBreakdownScreen onBack={() => navigateTo('home')} />;
-  }, [confirmSquadLock, navigateTo, onLogin, openSquad, squadMode, squadTransitioning]);
+    navigate('/home', { replace: true });
+  }, [navigate]);
+
+  const onDebugLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+    navigate('/login', { replace: true });
+  }, [navigate]);
 
   const showDebugLogout = useMemo(() => {
     const flag = (import.meta.env.VITE_SHOW_DEBUG_LOGOUT as string | undefined) || 'true';
@@ -129,21 +93,41 @@ function App() {
   return (
     <FormationProvider>
       <div className="app-stage">
-        {transition ? (
-          <>
-            <div className="app-screen app-screen--leaving">
-              {renderScreen(transition.from)}
-            </div>
-            <div className="app-screen app-screen--entering">
-              {renderScreen(transition.to)}
-            </div>
-          </>
-        ) : (
-          <div className="app-screen app-screen--active">
-            {renderScreen(screen)}
-          </div>
-        )}
-        {isAuthenticated && showDebugLogout && (
+        <div className="app-screen app-screen--active">
+          <Routes>
+            <Route path="/" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to="/home" replace /> : <LoginScreen onLogin={onLogin} />}
+            />
+            <Route
+              path="/home"
+              element={isAuthenticated ? (
+                <HomeScreen
+                  onNavigate={(target) => {
+                    if (target === 'squad') navigate('/squad');
+                    if (target === 'leaderboard') navigate('/leaderboard');
+                    if (target === 'breakdown') navigate('/breakdown');
+                  }}
+                />
+              ) : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/squad"
+              element={isAuthenticated ? <SquadRoute onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/leaderboard"
+              element={isAuthenticated ? <LeaderboardScreen onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/breakdown"
+              element={isAuthenticated ? <GWBreakdownScreen onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+            />
+            <Route path="*" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
+          </Routes>
+        </div>
+        {isAuthenticated && location.pathname !== '/login' && showDebugLogout && (
           <button
             type="button"
             onClick={onDebugLogout}
