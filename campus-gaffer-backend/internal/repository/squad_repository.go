@@ -9,14 +9,15 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type LeaderboardRow struct {
-	UserID      string `gorm:"column:user_id"`
-	Username    string `gorm:"column:username"`
-	TotalPoints int    `gorm:"column:total_points"`
-	GwPoints    int    `gorm:"column:gw_points"`
-	Rank        int    `gorm:"column:rank"`
+	UserID      string `gorm:"column:user_id"      json:"user_id"`
+	Username    string `gorm:"column:username"     json:"username"`
+	TotalPoints int    `gorm:"column:total_points" json:"total_points"`
+	GwPoints    int    `gorm:"column:gw_points"    json:"gw_points"`
+	Rank        int    `gorm:"column:rank"         json:"rank"`
 }
 
 type SquadRepository interface {
@@ -45,6 +46,12 @@ func NewSquadRepo(db *gorm.DB) SquadRepository {
 
 func (r *squadRepo) Create(ctx context.Context, squad *models.Squad, players []models.SquadPlayer) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Pre-Clerk shim: ensure a users row exists so the squad appears in the
+		// leaderboard (which INNER JOINs users). Once Clerk auth lands, the auth
+		// middleware upserts the real user on first login and this can be removed.
+		if err := ensureUser(tx, squad.UserID); err != nil {
+			return err
+		}
 		if err := tx.Create(squad).Error; err != nil {
 			return err
 		}
@@ -53,6 +60,22 @@ func (r *squadRepo) Create(ctx context.Context, squad *models.Squad, players []m
 		}
 		return tx.Create(&players).Error
 	})
+}
+
+// ensureUser upserts a placeholder users row for the given ID. Username and
+// email both carry uniqueIndex constraints, so we derive unique non-empty
+// values from the ID. ON CONFLICT DO NOTHING leaves an existing row untouched.
+func ensureUser(tx *gorm.DB, userID string) error {
+	suffix := userID
+	if len(suffix) > 8 {
+		suffix = suffix[:8]
+	}
+	user := models.User{
+		ID:       userID,
+		Username: "Manager-" + suffix,
+		Email:    userID + "@local",
+	}
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&user).Error
 }
 
 func (r *squadRepo) FindByID(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error) {

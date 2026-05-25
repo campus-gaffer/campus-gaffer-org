@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { SQUAD_DATA_KEY, GW_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
 import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
 import './screen-shared.css';
@@ -10,7 +10,6 @@ import { THEME, withAlpha } from '../lib/theme';
 import type { LBUser } from '../lib/leaderboardTheme';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
-const CURRENT_USER_ID = Number(import.meta.env.VITE_CURRENT_USER_ID || 12);
 
 
 function ColStrip({ sort, setSort, gameweek, gwReady }: { sort: string; setSort: (s: string) => void; gameweek: number; gwReady: boolean }) {
@@ -79,6 +78,15 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
     const stored = window.localStorage.getItem(GW_KEY);
     return stored ? parseInt(stored, 10) : 7;
   });
+  // The current user's ID — set when they create a squad (POST /squads). Used to
+  // flag their own row on the leaderboard. Falls back to the env placeholder.
+  const [currentUserId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const local = window.localStorage.getItem(USER_ID_KEY);
+      if (local) return local;
+    }
+    return String(import.meta.env.VITE_CURRENT_USER_ID || '');
+  });
   const [sort, setSort] = useState('season');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
@@ -105,17 +113,19 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
         setApiError(null);
         const res = await fetch(`${API_BASE_URL}/leaderboard?limit=100&offset=0`, { signal: controller.signal });
         if (!res.ok) throw new Error(`leaderboard ${res.status}`);
-        const data = await res.json() as { leaderboard?: Array<{ rank?: number; user_id?: number; username?: string; total_points?: number; gw_points?: number }> };
+        const data = await res.json() as { leaderboard?: Array<{ rank?: number; user_id?: string; username?: string; total_points?: number; gw_points?: number }> };
         const rows = data.leaderboard ?? [];
         if (rows.length === 0) return;
         const mapped: LBUser[] = rows.map((row, i) => {
-          const uid = Number(row.user_id ?? i + 1);
-          const display = row.username && row.username.trim() ? row.username : `User ${uid}`;
+          const uid = row.user_id ?? String(i + 1);
+          const rawName = row.username?.trim() ?? '';
+          // Treat purely-numeric usernames (old int-ID test users) as unnamed.
+          const display = rawName && !/^\d+$/.test(rawName) ? rawName : `User ${parseInt(uid, 10) || i + 1}`;
           return {
             id: uid,
             rank: Number(row.rank ?? i + 1),
             name: display,
-            isMe: uid === CURRENT_USER_ID,
+            isMe: currentUserId !== '' && uid === currentUserId,
             seasonPts: Number(row.total_points ?? 0),
             gwPts: Number(row.gw_points ?? 0),
             avColor: AV_COLORS[i % AV_COLORS.length],
@@ -126,12 +136,12 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
         setUsers(mapped);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        if (!cached) setApiError('Live leaderboard unavailable, showing local sample data');
+        if (!cached) setApiError('Live leaderboard unavailable — check your connection to the server');
       }
     };
     loadLeaderboard();
     return () => controller.abort();
-  }, [hasSquad]);
+  }, [hasSquad, currentUserId]);
 
   const sorted = useMemo(() => {
     const key = sort === 'gw' ? 'gwPts' : 'seasonPts';
@@ -245,7 +255,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
         <div style={{ margin: '0 16px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: THEME.card, border: `1px solid ${THEME.lineDim}`, borderRadius: 14, padding: '12px 14px' }}>
           {[
             { label: 'Players', value: users.length },
-            { label: 'Your rank', value: `#${me?.rank}` },
+            { label: 'Your rank', value: me ? `#${me.rank}` : '—' },
             { label: 'Avg pts', value: sorted.length ? Math.round(sorted.reduce((s, u) => s + u.seasonPts, 0) / sorted.length) : 0 },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

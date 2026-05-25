@@ -16,7 +16,7 @@ export const GAMEWEEK = 7;
 export const PAGE_SIZE = 20;
 
 export type LBUser = {
-  id: number;
+  id: string;
   rank: number;
   name: string;
   isMe: boolean;
