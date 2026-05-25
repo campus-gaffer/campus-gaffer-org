@@ -2,7 +2,7 @@ import { THEME, withAlpha } from '../../lib/theme';
 import { MEDAL_COLORS } from '../../lib/leaderboardTheme';
 
 export type LBUser = {
-  id: number; rank: number; name: string; isMe: boolean;
+  id: string; rank: number; name: string; isMe: boolean;
   seasonPts: number; gwPts: number; avColor: string; initial: string;
 };
 

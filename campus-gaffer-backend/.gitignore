@@ -3,3 +3,8 @@
 campus_gaffer_design.docx
 
 dist/
+
+# Compiled binaries from `go build ./cmd/...`
+/seed
+/api
+/scraper

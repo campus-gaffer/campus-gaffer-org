@@ -80,6 +80,10 @@ func (m *MockPerformanceRepository) FindByGameId(ctx context.Context, gameId uui
 	return m.byGameId[gameId], nil
 }
 
+func (m *MockPerformanceRepository) FindByPlayerIDs(_ context.Context, _ []uuid.UUID) ([]models.PlayerPerformance, error) {
+	return nil, nil
+}
+
 // MockPlayerGamePointRepo mocks the PlayerGamePointRepo for testing.
 type MockPlayerGamePointRepo struct {
 	upsertCalls []models.PlayerGamePoint

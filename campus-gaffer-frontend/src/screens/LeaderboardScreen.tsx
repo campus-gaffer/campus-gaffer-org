@@ -1,56 +1,33 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
+import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
 import './screen-shared.css';
 import LBRow, { Avatar } from '../components/leaderboard/LBRow';
 import StickyMeBanner from '../components/leaderboard/StickyMeBanner';
-import { AV_COLORS, GAMEWEEK, PAGE_SIZE, MEDAL_COLORS } from '../lib/leaderboardTheme';
+import { AV_COLORS, PAGE_SIZE, MEDAL_COLORS } from '../lib/leaderboardTheme';
 import { THEME, withAlpha } from '../lib/theme';
 import type { LBUser } from '../lib/leaderboardTheme';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
-const CURRENT_USER_ID = Number(import.meta.env.VITE_CURRENT_USER_ID || 12);
 
 
-function makeUsers(): LBUser[] {
-  const names = [
-    'AlphaGaffer','PitchKing','GoalMachine','SquadWiz','TacticBoss',
-    'NetBuster','TopStriker','FantasyAce','DeepRun','SetPiece',
-    'WingPlay','You','DeadBall','FullPress','HighLine',
-    'OffsideTrap','FreeKick','PenaltyBox','DriveShot','Nutmeg',
-    'CrossField','Volley','ChestControl','CruyffTurn','ElasticoFC',
-    'ScissorKick','RabonaShot','DipperShot','BicycleKick','ToeBlast',
-    'PowerHeader','GloveSave','CornerKing','ThrowIn','GoalLine',
-    'MidfieldMaestro','HoldingMid','SweepKeeper','WingBack','TargetMan',
-  ];
-  const gwPts = [42,38,36,34,31,30,28,27,26,24,22,37,20,19,17,16,15,14,13,12,
-                 11,10,9,8,7,6,6,5,5,4,4,3,3,2,2,2,2,1,1,1];
-  const seasonPts: number[] = [];
-  let cur = 228;
-  for (let i = 0; i < 40; i++) {
-    seasonPts.push(cur);
-    cur -= (2 + (i % 3) + Math.floor(i / 8));
-  }
-  seasonPts[CURRENT_USER_ID - 1] = 142;
-  gwPts[CURRENT_USER_ID - 1] = 37;
-  return names.map((name, i) => ({
-    id: i + 1, rank: i + 1, name, isMe: (i + 1) === CURRENT_USER_ID,
-    seasonPts: seasonPts[i], gwPts: gwPts[i],
-    avColor: AV_COLORS[i % AV_COLORS.length], initial: name.charAt(0).toUpperCase(),
-  }));
-}
-
-const MOCK_USERS = makeUsers();
-
-function ColStrip({ sort, setSort }: { sort: string; setSort: (s: string) => void }) {
+function ColStrip({ sort, setSort, gameweek, gwReady }: { sort: string; setSort: (s: string) => void; gameweek: number; gwReady: boolean }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'clamp(30px,9vw,40px) clamp(30px,9vw,40px) 1fr minmax(48px,58px) minmax(48px,58px)', alignItems: 'center', height: 32, padding: '0 14px', gap: 0, borderBottom: `1px solid ${THEME.lineDim}`, background: THEME.bg, position: 'sticky', top: 0, zIndex: 3 }}>
       <div /><div />
       <span style={{ paddingLeft: 10, fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.18em', color: THEME.textFaint, textTransform: 'uppercase' }}>Player</span>
-      {[{ id: 'gw', label: `GW${GAMEWEEK}` }, { id: 'season', label: 'Total' }].map(({ id, label }) => {
+      {[{ id: 'gw', label: `GW${gameweek}` }, { id: 'season', label: 'Total' }].map(({ id, label }) => {
         const active = sort === id;
+        const disabled = id === 'gw' && !gwReady;
         return (
-          <button key={id} type="button" onClick={() => setSort(id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: id === 'gw' ? 6 : 4, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <button
+            key={id}
+            type="button"
+            onClick={() => !disabled && setSort(id)}
+            title={disabled ? 'Per-GW points coming soon' : undefined}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: id === 'gw' ? 6 : 4, background: 'transparent', border: 'none', cursor: disabled ? 'default' : 'pointer', padding: 0, opacity: disabled ? 0.35 : 1 }}
+          >
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: active ? THEME.accent : THEME.textFaint, fontWeight: active ? 700 : 500, display: 'flex', alignItems: 'center', gap: 3, paddingRight: id === 'gw' ? 6 : 4 }}>
               {active && <svg width="7" height="7" viewBox="0 0 7 7" fill={THEME.accent}><polygon points="3.5,1 6,5.5 1,5.5" /></svg>}
               {label}
@@ -62,7 +39,7 @@ function ColStrip({ sort, setSort }: { sort: string; setSort: (s: string) => voi
   );
 }
 
-function PodiumCard({ users }: { users: LBUser[] }) {
+function PodiumCard({ users, gameweek }: { users: LBUser[]; gameweek: number }) {
   const [first, second, third] = users;
   const podium = [second, first, third];
   const heights = [72, 92, 56];
@@ -72,7 +49,7 @@ function PodiumCard({ users }: { users: LBUser[] }) {
     <div style={{ margin: '4px 16px 12px', background: THEME.card, border: `1px solid ${THEME.lineDim}`, borderRadius: 18, padding: '16px 12px 12px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 200, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${withAlpha(THEME.gold, 0.13)}, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.22em', color: THEME.accent, textTransform: 'uppercase', fontWeight: 700, textAlign: 'center', marginBottom: 16 }}>
-        GW{GAMEWEEK} Podium
+        GW{gameweek} Podium
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8 }}>
         {podium.map((user, i) => (
@@ -96,10 +73,24 @@ function PodiumCard({ users }: { users: LBUser[] }) {
 // ─── Main ──────────────────────────────────────────────────────────────────
 export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
+  const [currentGW] = useState(() => {
+    if (typeof window === 'undefined') return 7;
+    const stored = window.localStorage.getItem(GW_KEY);
+    return stored ? parseInt(stored, 10) : 7;
+  });
+  // The current user's ID — set when they create a squad (POST /squads). Used to
+  // flag their own row on the leaderboard. Falls back to the env placeholder.
+  const [currentUserId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const local = window.localStorage.getItem(USER_ID_KEY);
+      if (local) return local;
+    }
+    return String(import.meta.env.VITE_CURRENT_USER_ID || '');
+  });
   const [sort, setSort] = useState('season');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<LBUser[]>(MOCK_USERS);
+  const [users, setUsers] = useState<LBUser[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isMeRowOutsideViewport, setIsMeRowOutsideViewport] = useState(true);
   const meRowRef = useRef<HTMLDivElement>(null);
@@ -112,38 +103,45 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
       // show current user as unranked (0 points) when no squad exists
       setUsers((prev) => prev.map(u => u.isMe ? { ...u, seasonPts: 0, gwPts: 0 } : u));
     }
+    // Stale-while-revalidate: paint cached rows instantly, fetch to update silently.
+    const cached = readCache<LBUser[]>('leaderboard');
+    if (cached) setUsers(cached);
+
     const controller = new AbortController();
     const loadLeaderboard = async () => {
       try {
         setApiError(null);
         const res = await fetch(`${API_BASE_URL}/leaderboard?limit=100&offset=0`, { signal: controller.signal });
         if (!res.ok) throw new Error(`leaderboard ${res.status}`);
-        const data = await res.json() as { leaderboard?: Array<{ rank?: number; user_id?: number; username?: string; total_points?: number }> };
+        const data = await res.json() as { leaderboard?: Array<{ rank?: number; user_id?: string; username?: string; total_points?: number; gw_points?: number }> };
         const rows = data.leaderboard ?? [];
         if (rows.length === 0) return;
         const mapped: LBUser[] = rows.map((row, i) => {
-          const uid = Number(row.user_id ?? i + 1);
-          const display = row.username && row.username.trim() ? row.username : `User ${uid}`;
+          const uid = row.user_id ?? String(i + 1);
+          const rawName = row.username?.trim() ?? '';
+          // Treat purely-numeric usernames (old int-ID test users) as unnamed.
+          const display = rawName && !/^\d+$/.test(rawName) ? rawName : `User ${parseInt(uid, 10) || i + 1}`;
           return {
             id: uid,
             rank: Number(row.rank ?? i + 1),
             name: display,
-            isMe: uid === CURRENT_USER_ID,
+            isMe: currentUserId !== '' && uid === currentUserId,
             seasonPts: Number(row.total_points ?? 0),
-            gwPts: 0,
+            gwPts: Number(row.gw_points ?? 0),
             avColor: AV_COLORS[i % AV_COLORS.length],
             initial: display.charAt(0).toUpperCase(),
           };
         });
+        writeCache('leaderboard', mapped);
         setUsers(mapped);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        setApiError('Live leaderboard unavailable, showing local sample data');
+        if (!cached) setApiError('Live leaderboard unavailable — check your connection to the server');
       }
     };
     loadLeaderboard();
     return () => controller.abort();
-  }, [hasSquad]);
+  }, [hasSquad, currentUserId]);
 
   const sorted = useMemo(() => {
     const key = sort === 'gw' ? 'gwPts' : 'seasonPts';
@@ -153,8 +151,8 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   }, [sort, users]);
 
   const visible = sorted.slice(0, visibleCount);
-  const me = sorted.find(u => u.isMe) ?? sorted[0];
-  const meInVisiblePage = me.rank <= visibleCount;
+  const me = sorted.find(u => u.isMe) ?? sorted[0]; // undefined when list is empty
+  const meInVisiblePage = me ? me.rank <= visibleCount : false;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -229,7 +227,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
             <BrandMark size={15} />
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em' }}>Leaderboard</span>
           </div>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.20em', color: THEME.accent, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Gameweek {GAMEWEEK}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.20em', color: THEME.accent, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Gameweek {currentGW}</span>
         </div>
         <button type="button" aria-label="Filter" style={{ width: 34, height: 34, borderRadius: '50%', border: `1px solid ${THEME.line}`, background: 'rgba(255,255,255,0.03)', color: THEME.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -241,7 +239,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
 
       {/* Scrollable body */}
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 44 }}>
-        <PodiumCard users={sorted.length >= 3 ? sorted.slice(0, 3) : MOCK_USERS.slice(0, 3)} />
+        {sorted.length >= 3 && <PodiumCard users={sorted.slice(0, 3)} gameweek={currentGW} />}
         {!hasSquad && (
           <div style={{ margin: '10px 16px', padding: '10px', borderRadius: 10, border: `1px solid ${THEME.lineDim}`, background: THEME.card, color: THEME.textFaint, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
             You are currently <strong>Unranked</strong>. Create a squad to appear on the leaderboard.
@@ -257,8 +255,8 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
         <div style={{ margin: '0 16px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: THEME.card, border: `1px solid ${THEME.lineDim}`, borderRadius: 14, padding: '12px 14px' }}>
           {[
             { label: 'Players', value: users.length },
-            { label: 'Your rank', value: `#${me?.rank}` },
-            { label: 'Avg pts', value: Math.round(sorted.reduce((s, u) => s + u.seasonPts, 0) / sorted.length) },
+            { label: 'Your rank', value: me ? `#${me.rank}` : '—' },
+            { label: 'Avg pts', value: sorted.length ? Math.round(sorted.reduce((s, u) => s + u.seasonPts, 0) / sorted.length) : 0 },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.16em', color: THEME.textFaint, textTransform: 'uppercase' }}>{label}</span>
@@ -269,7 +267,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
 
         {/* Table */}
         <div style={{ margin: '0 16px' }}>
-          <ColStrip sort={sort} setSort={setSort} />
+          <ColStrip sort={sort} setSort={setSort} gameweek={currentGW} gwReady={true} />
             <div>
               {visible.map((user, i) => (
                 <div key={`${user.id}-${sort}`} ref={user.isMe ? meRowRef : null}>
@@ -305,7 +303,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <StickyMeBanner user={me} sort={sort} visible={!meInVisiblePage && isMeRowOutsideViewport && !isLoadMoreVisible} />
+      {me && <StickyMeBanner user={me} sort={sort} visible={!meInVisiblePage && isMeRowOutsideViewport && !isLoadMoreVisible} />}
     </div>
   );
 }

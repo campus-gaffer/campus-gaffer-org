@@ -28,7 +28,7 @@ func main() {
 	priceRepo := repository.NewPlayerPriceRepo(db)
 	gameRepo := repository.NewGameRepo(db)
 	playerRepo := repository.NewPlayerRepo(db)
-
+	perfRepo := repository.NewPlayerPerfRepo(db)
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Initialize services
-	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, playerRepo, loc)
+	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, playerRepo, perfRepo, loc)
 	squadHandler := handlers.NewSquadHandler(squadSvc)
 
 	// Pre-fetch priced player payload on startup; refreshed only when needed.
@@ -68,6 +68,7 @@ func main() {
 	result.POST("/squads", squadHandler.CreateSquad)
 	result.GET("/squads/:id", squadHandler.GetSquad)
 	result.GET("/squads/:id/points", squadHandler.GetSquadPoints)
+	result.GET("/users/:user_id/squad", squadHandler.GetSquadByUser)
 
 	// Game/Player/Gameweek endpoints
 	result.GET("/players", func(c *gin.Context) {
@@ -81,7 +82,7 @@ func main() {
 		handlers.GetCurrentGameweek(c, gameRepo, loc)
 	})
 	result.GET("/leaderboard", func(c *gin.Context) {
-		handlers.GetLeaderboard(c, squadRepo)
+		handlers.GetLeaderboard(c, squadRepo, gameRepo, loc)
 	})
 
 	port := ":8081"

@@ -84,7 +84,7 @@ func (f *fakeSquadRepo) TotalPointsByPlayerIDs(_ context.Context, _ []uuid.UUID,
 	return map[uuid.UUID]int{}, nil
 }
 
-func (f *fakeSquadRepo) Leaderboard(_ context.Context, limit, offset int) ([]repository.LeaderboardRow, int, error) {
+func (f *fakeSquadRepo) Leaderboard(_ context.Context, limit, offset int, _, _ time.Time) ([]repository.LeaderboardRow, int, error) {
 	if f.leaderboardErr != nil {
 		return nil, 0, f.leaderboardErr
 	}
@@ -180,6 +180,7 @@ func makeIDs(n int) []uuid.UUID {
 func newSquadSvc(sr *fakeSquadRepo, pr *fakeSquadPriceRepo, gr repository.GameRepository) SquadService {
 	return &squadService{squadRepo: sr, priceRepo: pr, gameRepo: gr, loc: time.UTC}
 }
+
 
 func validReq(starters, bench []uuid.UUID) CreateSquadRequest {
 	return CreateSquadRequest{UserID: "user_test1", Gameweek: 1, Starters: starters, Bench: bench}
@@ -424,7 +425,7 @@ func TestLeaderboard_PreSeason_ZeroPointsAppear(t *testing.T) {
     }
     sr.leaderboardTotal = 1
 
-    rows, total, err := sr.Leaderboard(context.Background(), 50, 0)
+    rows, total, err := sr.Leaderboard(context.Background(), 50, 0, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -448,7 +449,7 @@ func TestLeaderboard_WithPoints_RankedDescending(t *testing.T) {
     }
     sr.leaderboardTotal = 3
 
-    rows, _, err := sr.Leaderboard(context.Background(), 50, 0)
+    rows, _, err := sr.Leaderboard(context.Background(), 50, 0, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -470,7 +471,7 @@ func TestLeaderboard_Pagination_HonorsLimitOffset(t *testing.T) {
     }
     sr.leaderboardTotal = num_squads
 
-    rows, total, err := sr.Leaderboard(context.Background(), 2, 1)
+    rows, total, err := sr.Leaderboard(context.Background(), 2, 1, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }

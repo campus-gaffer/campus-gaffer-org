@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import './screen-shared.css';
-import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY, SQUAD_ID_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
+import { apiFetch } from '../lib/api';
 import { type Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
 import { ScreenShell } from '../layouts/ScreenShell';
 import PlayerRow from '../components/draft/PlayerRow';
@@ -9,7 +10,28 @@ import DeadlineChip from '../components/draft/DeadlineChip';
 import ConfirmModal from '../components/draft/ConfirmModal';
 import DraftFooterActions from '../components/draft/DraftFooterActions';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
+const FALLBACK_GAMEWEEK = 7;
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts (local IP access, HTTP dev)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function getOrCreateUserId(): string {
+  if (typeof window === 'undefined') return 'anonymous';
+  let id = window.localStorage.getItem(USER_ID_KEY);
+  if (!id) {
+    id = generateUUID();
+    window.localStorage.setItem(USER_ID_KEY, id);
+  }
+  return id;
+}
 
 const PAL = {
   bg2: 'oklch(0.10 0.02 248)',
@@ -35,12 +57,26 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
   const [bench, setBench] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [currentGameweek, setCurrentGameweek] = useState(FALLBACK_GAMEWEEK);
+
+  // Fetch current gameweek independently — don't rely on HomeScreen having stored GW_KEY
+  useEffect(() => {
+    const ctrl = new AbortController();
+    apiFetch<{ gameweek: number; deadline: string }>('/gameweeks/current', { signal: ctrl.signal })
+      .then(data => setCurrentGameweek(data.gameweek))
+      .catch(() => {
+        // Fall back to localStorage value if the API call fails
+        const stored = typeof window !== 'undefined' ? window.localStorage.getItem(GW_KEY) : null;
+        if (stored) setCurrentGameweek(parseInt(stored, 10));
+      });
+    return () => ctrl.abort();
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch(`${API_BASE_URL}/players`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then((data: ApiPlayer[]) => {
+    apiFetch<ApiPlayer[]>('/players', { signal: ctrl.signal })
+      .then(data => {
         setPool(data.map(p => ({ id: p.id, name: p.name, team: p.team || '', price: p.price })));
         setLoading(false);
       })
@@ -73,19 +109,41 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
     setStarters((s) => s.filter((x) => x !== id));
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (confirming) return;
     const spent = [...starters, ...bench].reduce((s, id) => {
       const p = pool.find((x) => x.id === id);
       return s + (p?.price || 0);
     }, 0);
     const remaining = BUDGET - spent;
     if (starters.length !== MAX_S || bench.length !== MAX_B || remaining < 0) return;
+    
     const selectedStarters = starters.map((id) => pool.find((p) => p.id === id));
     const selectedBench = bench.map((id) => pool.find((p) => p.id === id));
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(SQUAD_DATA_KEY, JSON.stringify({ starters: selectedStarters, bench: selectedBench }));
       window.localStorage.setItem(SQUAD_LOCK_KEY, '1');
     }
+    
+    if (typeof window !== 'undefined' && !window.localStorage.getItem(SQUAD_ID_KEY)) {
+      console.log('Confirming squad', { starters, bench });
+      setConfirming(true);
+      try {
+        const gameweek = currentGameweek;
+        const userId = getOrCreateUserId();
+        const data = await apiFetch<{ squad: { Id: string } }>('/squads', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: userId, gameweek, starters, bench }),
+        });
+        window.localStorage.setItem(SQUAD_ID_KEY, data.squad.Id);
+      } catch (err) {
+        console.warn('Squad registration failed:', err);
+      } finally {
+        setConfirming(false);
+        console.log('SQUAD ID KEY:', localStorage.getItem(SQUAD_ID_KEY));
+      }
+    }
+
     setShowModal(false);
     onConfirm();
   }
@@ -200,7 +258,7 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
           ))}
         </div>
       </div>
-      {showModal && <ConfirmModal spent={spent} onBack={() => setShowModal(false)} onConfirm={handleConfirm} />}
+      {showModal && <ConfirmModal spent={spent} confirming={confirming} onBack={() => setShowModal(false)} onConfirm={handleConfirm} />}
     </ScreenShell>
   );
 }

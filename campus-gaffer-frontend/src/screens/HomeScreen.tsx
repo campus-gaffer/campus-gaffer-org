@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
@@ -12,7 +12,13 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'ht
 
 const FALLBACK_DEADLINE = new Date('2026-05-23T14:00:00');
 const FALLBACK_GAMEWEEK = 7;
-const USER = { name: 'You', seasonPts: 142, gwPts: 37, rank: 12, total: 40 };
+
+// Current user's standings, resolved from GET /leaderboard. Null until loaded
+// (or when the user has no squad / the API is unreachable).
+type UserStats = { seasonPts: number; gwPts: number; rank: number; total: number };
+
+// GW match results have no backing API yet — left static until a results
+// endpoint exists. See ResultsCard.
 const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 - 1', topScorer: 'Doyle', topPts: 11 };
 
 function formatDeadlineLabel(d: Date): string {
@@ -156,7 +162,7 @@ function CardLabel({ text, hero }: { text: string; hero?: boolean }) {
 }
 
 // ─── Dashboard cards ───────────────────────────────────────────────────────
-function MySquadCard({ onNav, gameweek }: { onNav: () => void; gameweek: number }) {
+function MySquadCard({ onNav, gameweek, stats }: { onNav: () => void; gameweek: number; stats: UserStats | null }) {
   const { formation } = useFormation();
   const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
   return (
@@ -166,11 +172,11 @@ function MySquadCard({ onNav, gameweek }: { onNav: () => void; gameweek: number 
         {hasSquad ? (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{USER.seasonPts}</span>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{stats ? stats.seasonPts : '—'}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: HM.accentDim, textTransform: 'uppercase', marginBottom: 2 }}>pts</span>
             </div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textDim, marginTop: 4 }}>
-              GW{gameweek} · #{USER.rank} rank
+              GW{gameweek} · {stats ? `#${stats.rank} rank` : 'unranked'}
             </div>
           </>
         ) : (
@@ -194,21 +200,21 @@ function MySquadCard({ onNav, gameweek }: { onNav: () => void; gameweek: number 
   );
 }
 
-function LeaderboardCard({ onNav }: { onNav: () => void }) {
+function LeaderboardCard({ onNav, stats }: { onNav: () => void; stats: UserStats | null }) {
   return (
     <Card onClick={onNav}>
       <CardLabel text="Leaderboard" />
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: '-0.01em', color: HM.textFaint, marginBottom: 2 }}>#</span>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{USER.rank}</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{stats ? stats.rank : '—'}</span>
         </div>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textFaint, marginTop: 4 }}>
-          of {USER.total} players
+          of {stats ? stats.total : '—'} players
         </div>
       </div>
       <div style={{ marginTop: 10 }}>
-        <RankBar rank={USER.rank} total={USER.total} />
+        {stats && stats.total > 1 && <RankBar rank={stats.rank} total={stats.total} />}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
         <span style={{ color: HM.textFaint }}><Arrow /></span>
@@ -333,6 +339,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [activeTab, setActiveTab] = useState('home');
   const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
   const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
+  const [stats, setStats] = useState<UserStats | null>(null);
 
   // useCountdown returns a stable, pure-logic snapshot of time remaining
   // so we don't call `Date.now()` directly during render.
@@ -345,8 +352,35 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
       .then((data: { gameweek: number; deadline: string }) => {
         setGameweek(data.gameweek);
         setDeadline(new Date(data.deadline));
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(GW_KEY, String(data.gameweek));
+        }
       })
       .catch(() => {/* keep fallbacks */});
+    return () => ctrl.abort();
+  }, []);
+
+  // Resolve the user's own standings (season pts, GW pts, rank) from the
+  // leaderboard. Same source as the Leaderboard screen, so numbers agree.
+  useEffect(() => {
+    const userId = typeof window !== 'undefined' ? window.localStorage.getItem(USER_ID_KEY) : null;
+    if (!userId) return;
+    const ctrl = new AbortController();
+    fetch(`${API_BASE_URL}/leaderboard?limit=100`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: { total?: number; leaderboard?: Array<{ rank?: number; user_id?: string; total_points?: number; gw_points?: number }> }) => {
+        const rows = data.leaderboard ?? [];
+        const mine = rows.find(row => row.user_id === userId);
+        if (mine) {
+          setStats({
+            seasonPts: Number(mine.total_points ?? 0),
+            gwPts: Number(mine.gw_points ?? 0),
+            rank: Number(mine.rank ?? 0),
+            total: Number(data.total ?? rows.length),
+          });
+        }
+      })
+      .catch(() => {/* keep null → cards show placeholders */});
     return () => ctrl.abort();
   }, []);
 
@@ -387,7 +421,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
         {activeTab === 'home' ? (
           <>
             <div style={{ padding: '6px 18px 20px' }}>
-              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.1, color: HM.text }}>
+              <div id='greeting' style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.1, color: HM.text }}>
                 Good morning,<br />
                 <span style={{ color: HM.accent }}>Gaffer.</span>
               </div>
@@ -411,8 +445,8 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
 
             {/* 2×2 grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 16px' }}>
-              <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} />
-              <LeaderboardCard onNav={() => onNavigate('leaderboard')} />
+              <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} stats={stats} />
+              <LeaderboardCard onNav={() => onNavigate('leaderboard')} stats={stats} />
               <DeadlineCard gameweek={gameweek} deadline={deadline} />
               <ResultsCard onNav={() => onNavigate('breakdown')} gameweek={gameweek} />
             </div>
@@ -421,7 +455,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
             <div style={{ margin: '16px 16px 0', padding: '12px 16px', background: HM.card, border: `1px solid ${HM.lineDim}`, borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>View points breakdown</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? `GW${gameweek} · ${USER.gwPts} pts scored` : 'No squad yet'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? (stats ? `GW${gameweek} · ${stats.gwPts} pts scored` : `GW${gameweek}`) : 'No squad yet'}</div>
               </div>
               <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 See breakdown
