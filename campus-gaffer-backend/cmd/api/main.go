@@ -1,9 +1,11 @@
 package main
 
 import (
+	"campus-gaffer-backend/internal/auth"
 	"campus-gaffer-backend/internal/config"
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
+	"campus-gaffer-backend/internal/middleware"
 
 	// "campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
@@ -15,7 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -24,11 +25,22 @@ func main() {
 	db := database.Connect(cfg.DBUri)
 
 	// Initialize repositories
+	userRepo := repository.NewUserRepo(db)
 	squadRepo := repository.NewSquadRepo(db)
 	priceRepo := repository.NewPlayerPriceRepo(db)
 	gameRepo := repository.NewGameRepo(db)
 	playerRepo := repository.NewPlayerRepo(db)
 	perfRepo := repository.NewPlayerPerfRepo(db)
+
+	// Auth verifier
+	verifier, err := auth.NewVerifier(auth.Config{
+		Issuer:    cfg.ClerkIssuer,
+		SecretKey: cfg.ClerkSecretKey,
+	})
+	if err != nil {
+		log.Fatalf("auth config: %v", err)
+	}
+	authMiddleware := middleware.NewAuthMiddleware(verifier, userRepo)
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
@@ -46,42 +58,45 @@ func main() {
 		log.Printf("warning: failed to pre-fetch players cache: %v", err)
 	}
 
-	result := gin.Default()
+	router := gin.Default()
 
-	result.Use(func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
-        c.Next()
-    })
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
+	api := router.Group("/")
+	api.Use(authMiddleware.RequireUser())
 
 	// User endpoints
-	result.POST("/users", handlers.CreateUser)
-	result.GET("/users", handlers.GetUser)
+	api.POST("/users", handlers.CreateUser)
+	api.GET("/users", handlers.GetUser)
 
 	// Squad endpoints
-	result.POST("/squads", squadHandler.CreateSquad)
-	result.GET("/squads/:id", squadHandler.GetSquad)
-	result.GET("/squads/:id/points", squadHandler.GetSquadPoints)
-	result.GET("/users/:user_id/squad", squadHandler.GetSquadByUser)
+	api.POST("/squads", squadHandler.CreateSquad)
+	api.GET("/squads/:id", squadHandler.GetSquad)
+	api.GET("/squads/:id/points", squadHandler.GetSquadPoints)
+	api.GET("/users/:user_id/squad", squadHandler.GetSquadByUser)
 
 	// Game/Player/Gameweek endpoints
-	result.GET("/players", func(c *gin.Context) {
+	api.GET("/players", func(c *gin.Context) {
 		if playerCache != nil {
 			handlers.GetPlayersFromCache(c, playerCache)
 			return
 		}
 		handlers.GetPlayers(c, gameRepo, playerRepo, priceRepo, loc)
 	})
-	result.GET("/gameweeks/current", func(c *gin.Context) {
+	api.GET("/gameweeks/current", func(c *gin.Context) {
 		handlers.GetCurrentGameweek(c, gameRepo, loc)
 	})
-	result.GET("/leaderboard", func(c *gin.Context) {
+	api.GET("/leaderboard", func(c *gin.Context) {
 		handlers.GetLeaderboard(c, squadRepo, gameRepo, loc)
 	})
 
@@ -89,5 +104,5 @@ func main() {
 	if p := os.Getenv("PORT"); p != "" {
 		port = ":" + p
 	}
-	result.Run(port)
+	router.Run(port)
 }

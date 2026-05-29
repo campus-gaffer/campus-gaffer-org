@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
 import { THEME, withAlpha } from '../lib/theme';
+import { apiFetch } from '../lib/api';
 
 type NavTarget = 'squad' | 'leaderboard' | 'breakdown';
 
 const HM = THEME;
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
-
 const FALLBACK_DEADLINE = new Date('2026-05-23T14:00:00');
 const FALLBACK_GAMEWEEK = 7;
 
@@ -176,7 +175,7 @@ function MySquadCard({ onNav, gameweek, stats }: { onNav: () => void; gameweek: 
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: HM.accentDim, textTransform: 'uppercase', marginBottom: 2 }}>pts</span>
             </div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textDim, marginTop: 4 }}>
-              GW{gameweek} · {stats ? `#${stats.rank} rank` : 'unranked'}
+              GW{gameweek} · {stats && stats.rank > 0 ? `#${stats.rank} rank` : 'unranked'}
             </div>
           </>
         ) : (
@@ -207,7 +206,7 @@ function LeaderboardCard({ onNav, stats }: { onNav: () => void; stats: UserStats
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: '-0.01em', color: HM.textFaint, marginBottom: 2 }}>#</span>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{stats ? stats.rank : '—'}</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{stats && stats.rank > 0 ? stats.rank : '—'}</span>
         </div>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.10em', color: HM.textFaint, marginTop: 4 }}>
           of {stats ? stats.total : '—'} players
@@ -277,31 +276,39 @@ function ResultsCard({ onNav, gameweek }: { onNav: () => void; gameweek: number 
 
 // ─── Tab bar ───────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'home', label: 'Home', icon: (active: boolean, c: string) => (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M3 9.5L11 3l8 6.5V19a1 1 0 0 1-1 1H14v-5H8v5H4a1 1 0 0 1-1-1V9.5Z"
-        stroke={c} strokeWidth="1.6" fill={active ? c : 'none'} strokeLinejoin="round" />
-    </svg>
-  )},
-  { id: 'squad', label: 'Squad', icon: (active: boolean, c: string) => (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <path d="M4 6L7 3h3c.7 2 4.3 2 5 0h3l3 3-2 5-2-1.5V19H6V12.5L4 14 2 9Z"
-        stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} strokeLinejoin="round" />
-    </svg>
-  )},
-  { id: 'leaderboard', label: 'Rankings', icon: (active: boolean, c: string) => (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <rect x="2" y="12" width="5" height="9" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
-      <rect x="8.5" y="7" width="5" height="14" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
-      <rect x="15" y="3" width="5" height="18" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
-    </svg>
-  )},
-  { id: 'profile', label: 'Profile', icon: (active: boolean, c: string) => (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <circle cx="11" cy="7" r="4" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
-      <path d="M3 19c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )},
+  {
+    id: 'home', label: 'Home', icon: (active: boolean, c: string) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M3 9.5L11 3l8 6.5V19a1 1 0 0 1-1 1H14v-5H8v5H4a1 1 0 0 1-1-1V9.5Z"
+          stroke={c} strokeWidth="1.6" fill={active ? c : 'none'} strokeLinejoin="round" />
+      </svg>
+    )
+  },
+  {
+    id: 'squad', label: 'Squad', icon: (active: boolean, c: string) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M4 6L7 3h3c.7 2 4.3 2 5 0h3l3 3-2 5-2-1.5V19H6V12.5L4 14 2 9Z"
+          stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} strokeLinejoin="round" />
+      </svg>
+    )
+  },
+  {
+    id: 'leaderboard', label: 'Rankings', icon: (active: boolean, c: string) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="2" y="12" width="5" height="9" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
+        <rect x="8.5" y="7" width="5" height="14" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
+        <rect x="15" y="3" width="5" height="18" rx="1" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
+      </svg>
+    )
+  },
+  {
+    id: 'profile', label: 'Profile', icon: (active: boolean, c: string) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="7" r="4" stroke={c} strokeWidth="1.5" fill={active ? c : 'none'} />
+        <path d="M3 19c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    )
+  },
 ];
 
 function TabBar({ active, onChange }: { active: string; onChange: (id: string) => void }) {
@@ -347,8 +354,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch(`${API_BASE_URL}/gameweeks/current`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
+    apiFetch<{ gameweek: number; deadline: string }>('/gameweeks/current', { signal: ctrl.signal })
       .then((data: { gameweek: number; deadline: string }) => {
         setGameweek(data.gameweek);
         setDeadline(new Date(data.deadline));
@@ -356,31 +362,62 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
           window.localStorage.setItem(GW_KEY, String(data.gameweek));
         }
       })
-      .catch(() => {/* keep fallbacks */});
+      .catch(() => {/* keep fallbacks */ });
     return () => ctrl.abort();
   }, []);
+
 
   // Resolve the user's own standings (season pts, GW pts, rank) from the
   // leaderboard. Same source as the Leaderboard screen, so numbers agree.
   useEffect(() => {
-    const userId = typeof window !== 'undefined' ? window.localStorage.getItem(USER_ID_KEY) : null;
-    if (!userId) return;
     const ctrl = new AbortController();
-    fetch(`${API_BASE_URL}/leaderboard?limit=100`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then((data: { total?: number; leaderboard?: Array<{ rank?: number; user_id?: string; total_points?: number; gw_points?: number }> }) => {
-        const rows = data.leaderboard ?? [];
-        const mine = rows.find(row => row.user_id === userId);
-        if (mine) {
-          setStats({
-            seasonPts: Number(mine.total_points ?? 0),
-            gwPts: Number(mine.gw_points ?? 0),
-            rank: Number(mine.rank ?? 0),
-            total: Number(data.total ?? rows.length),
-          });
+    const resolveAndLoad = async () => {
+      let userId = typeof window !== 'undefined' ? window.localStorage.getItem(USER_ID_KEY) : null;
+      if (!userId && typeof window !== 'undefined') {
+        const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
+        if (squadId) {
+          try {
+            const payload = await apiFetch<{ squad?: { UserID?: string; user_id?: string } }>(`/squads/${squadId}`, { signal: ctrl.signal });
+            const resolved = payload.squad?.UserID ?? payload.squad?.user_id ?? '';
+            if (resolved) {
+              window.localStorage.setItem(USER_ID_KEY, resolved);
+              userId = resolved;
+            }
+          } catch (err) {
+            if ((err as Error).name === 'AbortError') return;
+          }
         }
-      })
-      .catch(() => {/* keep null → cards show placeholders */});
+      }
+      if (!userId) return;
+      const data = await apiFetch<{ total?: number; leaderboard?: Array<{ rank?: number; user_id?: string; total_points?: number; gw_points?: number }> }>('/leaderboard?limit=100', { signal: ctrl.signal });
+      const rows = data.leaderboard ?? [];
+      const mine = rows.find(row => row.user_id === userId);
+      if (mine) {
+        setStats({
+          seasonPts: Number(mine.total_points ?? 0),
+          gwPts: Number(mine.gw_points ?? 0),
+          rank: Number(mine.rank ?? 0),
+          total: Number(data.total ?? rows.length),
+        });
+        return;
+      }
+
+      // Fallback: if row not yet visible in leaderboard but squad exists,
+      // derive non-rank stats from squad points so Home cards don't show dashes.
+      if (typeof window !== 'undefined') {
+        const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
+        if (!squadId) return;
+        const squadData = await apiFetch<{ total_points?: number }>(`/squads/${squadId}/points`, { signal: ctrl.signal });
+        const totalPoints = Number(squadData.total_points ?? 0);
+        setStats({
+          seasonPts: totalPoints,
+          gwPts: totalPoints,
+          rank: 0,
+          total: Number(data.total ?? rows.length),
+        });
+      }
+    };
+    resolveAndLoad().catch(() => {/* keep null → cards show placeholders */ });
     return () => ctrl.abort();
   }, []);
 

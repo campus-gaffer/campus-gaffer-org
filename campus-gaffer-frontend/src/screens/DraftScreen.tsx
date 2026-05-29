@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import './screen-shared.css';
-import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY, SQUAD_ID_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
 import { apiFetch } from '../lib/api';
 import { type Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
 import { ScreenShell } from '../layouts/ScreenShell';
@@ -11,27 +11,6 @@ import ConfirmModal from '../components/draft/ConfirmModal';
 import DraftFooterActions from '../components/draft/DraftFooterActions';
 
 const FALLBACK_GAMEWEEK = 7;
-
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  // Fallback for non-secure contexts (local IP access, HTTP dev)
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-}
-
-function getOrCreateUserId(): string {
-  if (typeof window === 'undefined') return 'anonymous';
-  let id = window.localStorage.getItem(USER_ID_KEY);
-  if (!id) {
-    id = generateUUID();
-    window.localStorage.setItem(USER_ID_KEY, id);
-  }
-  return id;
-}
 
 const PAL = {
   bg2: 'oklch(0.10 0.02 248)',
@@ -59,6 +38,7 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [currentGameweek, setCurrentGameweek] = useState(FALLBACK_GAMEWEEK);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Fetch current gameweek independently — don't rely on HomeScreen having stored GW_KEY
   useEffect(() => {
@@ -111,6 +91,7 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
 
   async function handleConfirm() {
     if (confirming) return;
+    setSubmitError(null);
     const spent = [...starters, ...bench].reduce((s, id) => {
       const p = pool.find((x) => x.id === id);
       return s + (p?.price || 0);
@@ -118,30 +99,29 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
     const remaining = BUDGET - spent;
     if (starters.length !== MAX_S || bench.length !== MAX_B || remaining < 0) return;
     
+    if (typeof window !== 'undefined' && !window.localStorage.getItem(SQUAD_ID_KEY)) {
+      setConfirming(true);
+      try {
+        const gameweek = currentGameweek;
+        const data = await apiFetch<{ squad: { Id: string } }>('/squads', {
+          method: 'POST',
+          body: JSON.stringify({ gameweek, starters, bench }),
+        });
+        window.localStorage.setItem(SQUAD_ID_KEY, data.squad.Id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown error';
+        setSubmitError(`Could not save squad to server (${message}).`);
+        return;
+      } finally {
+        setConfirming(false);
+      }
+    }
+
     const selectedStarters = starters.map((id) => pool.find((p) => p.id === id));
     const selectedBench = bench.map((id) => pool.find((p) => p.id === id));
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(SQUAD_DATA_KEY, JSON.stringify({ starters: selectedStarters, bench: selectedBench }));
       window.localStorage.setItem(SQUAD_LOCK_KEY, '1');
-    }
-    
-    if (typeof window !== 'undefined' && !window.localStorage.getItem(SQUAD_ID_KEY)) {
-      console.log('Confirming squad', { starters, bench });
-      setConfirming(true);
-      try {
-        const gameweek = currentGameweek;
-        const userId = getOrCreateUserId();
-        const data = await apiFetch<{ squad: { Id: string } }>('/squads', {
-          method: 'POST',
-          body: JSON.stringify({ user_id: userId, gameweek, starters, bench }),
-        });
-        window.localStorage.setItem(SQUAD_ID_KEY, data.squad.Id);
-      } catch (err) {
-        console.warn('Squad registration failed:', err);
-      } finally {
-        setConfirming(false);
-        console.log('SQUAD ID KEY:', localStorage.getItem(SQUAD_ID_KEY));
-      }
     }
 
     setShowModal(false);
@@ -239,6 +219,11 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
           {error && (
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#f87171', padding: '24px 6px', textAlign: 'center' }}>
               {error}
+            </div>
+          )}
+          {submitError && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#f87171', padding: '4px 6px 8px', textAlign: 'center' }}>
+              {submitError}
             </div>
           )}
           {!loading && !error && visiblePool.map((p) => (

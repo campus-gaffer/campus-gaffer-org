@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { SQUAD_DATA_KEY, SQUAD_ID_KEY, USER_ID_KEY, GW_KEY } from '../lib/mockSquad';
 import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
+import { apiFetch } from '../lib/api';
 import './screen-shared.css';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
@@ -25,8 +26,6 @@ const TEAM_COLORS: Record<string, string> = {
 };
 
 const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
 
 const APPEARANCE = 2, GOAL_PTS = 4, WIN_PTS = 2, DRAW_PTS = 1, MVP_PTS = 3;
 
@@ -218,7 +217,8 @@ function MiniStat({ label, value, suffix, faint }: { label: string; value: strin
 }
 
 function SummaryCard({ gwTotal, benchTotal, seasonTotal, gameweek, mode, setMode }: { gwTotal: number; benchTotal: number; seasonTotal: number; gameweek: number; mode: string; setMode: (m: string) => void }) {
-  const displayTarget = mode === 'season' ? seasonTotal : gwTotal + benchTotal;
+  // Bench points are shown for transparency but are not counted totals.
+  const displayTarget = mode === 'season' ? seasonTotal : gwTotal;
   const animated = useCountUp(displayTarget, 900, 300);
   const starterPts = gwTotal;
   const benchPts = benchTotal;
@@ -332,12 +332,9 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         const userId = window.localStorage.getItem(USER_ID_KEY);
         if (userId) {
           try {
-            const r = await fetch(`${API_BASE_URL}/users/${userId}/squad`, { signal: ctrl.signal });
-            if (r.ok) {
-              const d: { squad_id: string } = await r.json();
-              squadId = d.squad_id;
-              window.localStorage.setItem(SQUAD_ID_KEY, squadId);
-            }
+            const data = await apiFetch<{ squad_id: string }>(`/users/${userId}/squad`, { signal: ctrl.signal });
+            squadId = data.squad_id;
+            window.localStorage.setItem(SQUAD_ID_KEY, squadId);
           } catch (err) {
             if (err instanceof Error && err.name === 'AbortError') return;
             /* no squad yet */
@@ -366,9 +363,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
       }
 
       try {
-        const r = await fetch(`${API_BASE_URL}/squads/${squadId}/points`, { signal: ctrl.signal });
-        if (!r.ok) { setLoading(false); setNoSquad(true); return; }
-        const data: ApiSquadPoints = await r.json();
+        const data = await apiFetch<ApiSquadPoints>(`/squads/${squadId}/points`, { signal: ctrl.signal });
         writeCache(cacheKey, data);
         setSeasonTotal(data.total_points);
         setStarters(data.players.filter(p => !p.is_bench).map(toRow));

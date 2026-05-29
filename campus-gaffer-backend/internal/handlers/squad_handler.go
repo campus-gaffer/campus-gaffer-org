@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"campus-gaffer-backend/internal/middleware"
 	"campus-gaffer-backend/internal/service"
 	"errors"
 	"net/http"
@@ -18,7 +19,6 @@ func NewSquadHandler(svc service.SquadService) *SquadHandler {
 }
 
 type createSquadBody struct {
-	UserID   string   `json:"user_id" binding:"required"`
 	Gameweek int      `json:"gameweek" binding:"required,min=1"`
 	Starters []string `json:"starters" binding:"required"`
 	Bench    []string `json:"bench" binding:"required"`
@@ -31,6 +31,11 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 		return
 	}
 
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
 	starters, err := parseUUIDs(body.Starters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid starter id: " + err.Error()})
@@ -43,11 +48,12 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	}
 
 	req := service.CreateSquadRequest{
-		UserID:   body.UserID,
 		Gameweek: body.Gameweek,
 		Starters: starters,
 		Bench:    bench,
 	}
+	req.UserID = userID
+
 	squad, players, err := h.svc.CreateSquad(c.Request.Context(), req)
 	if err != nil {
 		if isSquadValidationErr(err) {

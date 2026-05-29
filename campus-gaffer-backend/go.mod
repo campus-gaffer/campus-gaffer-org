@@ -8,7 +8,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
 	github.com/aws/aws-sdk-go-v2/service/sns v1.39.17
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.68.6
+	github.com/clerk/clerk-sdk-go/v2 v2.6.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/joho/godotenv v1.5.1
 	gorm.io/datatypes v1.2.7
 	gorm.io/driver/postgres v1.6.0
@@ -29,8 +31,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.21 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.1 // indirect
 	github.com/aws/smithy-go v1.25.1 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
-	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect

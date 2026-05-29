@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './screen-shared.css';
 import { useFormation } from '../context/FormationContext';
-import { SQUAD, SQUAD_DATA_KEY } from '../lib/mockSquad';
+import { SQUAD, SQUAD_DATA_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
+import { apiFetch } from '../lib/api';
 
 const PAL = {
   bg2: 'oklch(0.10 0.02 248)',
@@ -34,10 +35,7 @@ interface Player {
 
 // SQUAD data moved to shared module `src/lib/mockSquad.ts`
 
-const GAMEWEEK = 7;
 const SEASON_TOTAL = 142;
-const GW_POINTS_STARTERS = 37;
-const SEASON_AVG = (SEASON_TOTAL / GAMEWEEK).toFixed(1);
 const RANK = 1847;
 
 function partitionByFormation(flat: Player[], pattern: number[]) {
@@ -156,26 +154,27 @@ function BenchTile({ p }: { p: Player }) {
   );
 }
 
-function ScoreCard() {
+function ScoreCard({ gameweek, seasonTotal, gwStarterPts }: { gameweek: number; seasonTotal: number; gwStarterPts: number }) {
+  const seasonAvg = (seasonTotal / Math.max(gameweek, 1)).toFixed(1);
   return (
     <div className="info-card" style={{ background: PAL.card, borderColor: PAL.lineDim, boxShadow: '0 8px 28px -16px rgba(0,0,0,0.6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ padding: '4px 10px', borderRadius: 6, background: 'oklch(0.82 0.19 142 / 0.18)', color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {GAMEWEEK}</span>
+        <span style={{ padding: '4px 10px', borderRadius: 6, background: 'oklch(0.82 0.19 142 / 0.18)', color: PAL.accent, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>Gameweek {gameweek}</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.18em', color: PAL.textDim, textTransform: 'uppercase' }}>Squad Locked</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(44px,12vw,60px)', lineHeight: 0.9, color: PAL.text }}>{SEASON_TOTAL}</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 'clamp(44px,12vw,60px)', lineHeight: 0.9, color: PAL.text }}>{seasonTotal}</span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: '0.16em', color: PAL.textDim, textTransform: 'uppercase' }}>pts</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(18px,6vw,22px)', color: PAL.accent }}>+{GW_POINTS_STARTERS}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: PAL.accent, textTransform: 'uppercase' }}>GW{GAMEWEEK}</span>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 'clamp(18px,6vw,22px)', color: PAL.accent }}>+{gwStarterPts}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: PAL.accent, textTransform: 'uppercase' }}>GW{gameweek}</span>
         </div>
       </div>
       <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${PAL.lineDim}`, display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
         <MiniStat label="Squad Value" value="£63.0" />
-        <MiniStat label="Avg / GW" value={SEASON_AVG} />
+        <MiniStat label="Avg / GW" value={seasonAvg} />
         <MiniStat label="Rank" value={`#${RANK.toLocaleString()}`} />
       </div>
     </div>
@@ -245,8 +244,54 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
     }
   }, [persisted, fallbackBench]);
 
-  const rows = useMemo(() => partitionByFormation(initialStarters, formation as number[]), [formation, initialStarters]);
-  const benchPoints = initialBench.reduce((s: number, p: Player) => s + p.pts, 0);
+  const [liveStarters, setLiveStarters] = useState<Player[]>(initialStarters);
+  const [liveBench, setLiveBench] = useState<Player[]>(initialBench);
+  const [seasonTotal, setSeasonTotal] = useState(SEASON_TOTAL);
+  const [gameweek, setGameweek] = useState(() => {
+    if (typeof window === 'undefined') return 7;
+    const stored = window.localStorage.getItem(GW_KEY);
+    return stored ? parseInt(stored, 10) : 7;
+  });
+
+  useEffect(() => {
+    setLiveStarters(initialStarters);
+    setLiveBench(initialBench);
+  }, [initialStarters, initialBench]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(GW_KEY);
+    if (stored) setGameweek(parseInt(stored, 10));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
+    if (!squadId) return;
+
+    apiFetch<{ total_points: number; players: Array<{ player_id: string; team: string; points: number; breakdown?: { mvp_pts?: number } }> }>(`/squads/${squadId}/points`)
+      .then((data) => {
+        const pointsById = new Map(data.players.map((p) => [p.player_id, p]));
+        setLiveStarters((prev) => prev.map((p) => {
+          const row = pointsById.get(p.id);
+          if (!row) return p;
+          return { ...p, team: row.team || p.team, pts: row.points, mvp: Boolean(row.breakdown?.mvp_pts && row.breakdown.mvp_pts > 0) };
+        }));
+        setLiveBench((prev) => prev.map((p) => {
+          const row = pointsById.get(p.id);
+          if (!row) return p;
+          return { ...p, team: row.team || p.team, pts: row.points, mvp: Boolean(row.breakdown?.mvp_pts && row.breakdown.mvp_pts > 0) };
+        }));
+        setSeasonTotal(data.total_points);
+      })
+      .catch(() => {
+        // Keep local fallback rendering when API is unavailable.
+      });
+  }, []);
+
+  const rows = useMemo(() => partitionByFormation(liveStarters, formation as number[]), [formation, liveStarters]);
+  const starterPoints = liveStarters.reduce((s: number, p: Player) => s + p.pts, 0);
+  const benchPoints = liveBench.reduce((s: number, p: Player) => s + p.pts, 0);
   const [showAttackGuides, setShowAttackGuides] = useState<boolean>(() => {
     const flag = (import.meta.env.VITE_SHOW_ATTACK_GUIDES as string | undefined) || 'true';
     return flag !== 'false';
@@ -265,7 +310,7 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="screen-scroll">
-        <ScoreCard />
+        <ScoreCard gameweek={gameweek} seasonTotal={seasonTotal} gwStarterPts={starterPoints} />
 
         <div style={{ margin: '0 16px', position: 'relative', borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)', aspectRatio: '358 / 420', minHeight: 320, maxHeight: '62dvh', boxShadow: '0 12px 28px -16px rgba(0,0,0,0.5)' }}>
           <PitchBackground />
@@ -297,9 +342,7 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', padding: '20px 8px 12px', zIndex: 3 }}>
             {rows.map((row, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-around', gap: 4 }}>
-                {row.map((p, i) => {
-                  console.log(`Rendering player ${p.surname} with ${p.pts} points${p.mvp ? ' (MVP)' : ''}`);
-                  console.log(`IDX ${i}`);
+                {row.map((p) => {
                   return <StarterTile key={p.id} p={p} />;
                 })}
               </div>
@@ -313,7 +356,7 @@ export default function SquadScreen({ onBack }: { onBack: () => void }) {
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 'clamp(9px,2.4vw,10px)', letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>4 Players · 0 Subs (Locked) · {benchPoints} pts</span>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${PAL.lineDim}`, borderRadius: 14, padding: '24px 10px 10px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-            {initialBench.map((p) => <BenchTile key={p.id} p={p} />)}
+            {liveBench.map((p) => <BenchTile key={p.id} p={p} />)}
           </div>
         </div>
       </div>

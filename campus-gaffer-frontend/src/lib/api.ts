@@ -1,11 +1,14 @@
+import { getAuthToken } from './auth';
+
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8081';
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await getAuthToken();
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      // TODO: inject Clerk JWT — Authorization: Bearer <token>
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });

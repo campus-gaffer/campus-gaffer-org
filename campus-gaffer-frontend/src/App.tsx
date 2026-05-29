@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RedirectToSignIn, SignedIn, SignedOut, SignOutButton, useAuth } from '@clerk/clerk-react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -8,8 +9,9 @@ import DraftScreen from './screens/DraftScreen';
 import { SQUAD_LOCK_KEY } from './lib/mockSquad';
 import GWBreakdownScreen from './screens/GWBreakdownScreen';
 import { FormationProvider } from './context/FormationContext';
+import { USER_ID_KEY } from './lib/mockSquad';
+import { registerTokenGetter } from './lib/auth';
 
-const AUTH_STORAGE_KEY = 'campus-gaffer-auth';
 const SCREEN_TRANSITION_MS = 240;
 
 function SquadRoute({ onBack }: { onBack: () => void }) {
@@ -64,91 +66,105 @@ function SquadRoute({ onBack }: { onBack: () => void }) {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(AUTH_STORAGE_KEY) === '1';
-  });
+  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
 
-  const onLogin = useCallback(() => {
-    setIsAuthenticated(true);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
+  useEffect(() => {
+    registerTokenGetter(isSignedIn ? () => getToken() : null);
+    return () => registerTokenGetter(null);
+  }, [getToken, isSignedIn]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isSignedIn && userId) {
+      window.localStorage.setItem(USER_ID_KEY, userId);
+      return;
     }
-    navigate('/home', { replace: true });
-  }, [navigate]);
+    window.localStorage.removeItem(USER_ID_KEY);
+  }, [isSignedIn, userId]);
 
   const onDebugLogout = useCallback(() => {
-    setIsAuthenticated(false);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    }
     navigate('/login', { replace: true });
   }, [navigate]);
 
-  const showDebugLogout = useMemo(() => {
-    const flag = (import.meta.env.VITE_SHOW_DEBUG_LOGOUT as string | undefined) || 'true';
-    return flag !== 'false';
-  }, []);
+  const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+  if (!clerkPublishableKey) {
+    return (
+      <div style={{ padding: 24, color: '#fff', background: '#10151f', minHeight: '100vh', fontFamily: "'JetBrains Mono', monospace" }}>
+        Missing `VITE_CLERK_PUBLISHABLE_KEY`.
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <FormationProvider>
       <div className="app-stage">
         <div className="app-screen app-screen--active">
           <Routes>
-            <Route path="/" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
+            <Route path="/" element={<Navigate to={isSignedIn ? '/home' : '/login'} replace />} />
             <Route
               path="/login"
-              element={isAuthenticated ? <Navigate to="/home" replace /> : <LoginScreen onLogin={onLogin} />}
+              element={isSignedIn ? <Navigate to="/home" replace /> : <LoginScreen />}
             />
             <Route
               path="/home"
-              element={isAuthenticated ? (
-                <HomeScreen
-                  onNavigate={(target) => {
-                    if (target === 'squad') navigate('/squad');
-                    if (target === 'leaderboard') navigate('/leaderboard');
-                    if (target === 'breakdown') navigate('/breakdown');
-                  }}
-                />
-              ) : <Navigate to="/login" replace />}
+              element={
+                <SignedIn>
+                  <HomeScreen
+                    onNavigate={(target) => {
+                      if (target === 'squad') navigate('/squad');
+                      if (target === 'leaderboard') navigate('/leaderboard');
+                      if (target === 'breakdown') navigate('/breakdown');
+                    }}
+                  />
+                </SignedIn>
+              }
             />
             <Route
               path="/squad"
-              element={isAuthenticated ? <SquadRoute onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+              element={<SignedIn><SquadRoute onBack={() => navigate('/home')} /></SignedIn>}
             />
             <Route
               path="/leaderboard"
-              element={isAuthenticated ? <LeaderboardScreen onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+              element={<SignedIn><LeaderboardScreen onBack={() => navigate('/home')} /></SignedIn>}
             />
             <Route
               path="/breakdown"
-              element={isAuthenticated ? <GWBreakdownScreen onBack={() => navigate('/home')} /> : <Navigate to="/login" replace />}
+              element={<SignedIn><GWBreakdownScreen onBack={() => navigate('/home')} /></SignedIn>}
             />
-            <Route path="*" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
+            <Route path="*" element={<Navigate to={isSignedIn ? '/home' : '/login'} replace />} />
           </Routes>
         </div>
-        {isAuthenticated && location.pathname !== '/login' && showDebugLogout && (
-          <button
-            type="button"
-            onClick={onDebugLogout}
-            style={{
-              position: 'absolute',
-              right: 10,
-              bottom: 10,
-              zIndex: 9999,
-              border: '1px solid rgba(255,255,255,0.18)',
-              background: 'rgba(6, 8, 16, 0.86)',
-              color: 'rgba(235,235,245,0.85)',
-              borderRadius: 10,
-              padding: '8px 10px',
-              fontSize: 11,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Debug Logout
-          </button>
+        <SignedOut>
+          {location.pathname !== '/login' ? <RedirectToSignIn /> : null}
+        </SignedOut>
+        {isSignedIn && location.pathname !== '/login' && (
+          <SignOutButton>
+            <button
+              type="button"
+              onClick={onDebugLogout}
+              style={{
+                position: 'absolute',
+                right: 10,
+                bottom: 10,
+                zIndex: 9999,
+                border: '1px solid rgba(255,255,255,0.18)',
+                background: 'rgba(6, 8, 16, 0.86)',
+                color: 'rgba(235,235,245,0.85)',
+                borderRadius: 10,
+                padding: '8px 10px',
+                fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Sign Out
+            </button>
+          </SignOutButton>
         )}
       </div>
     </FormationProvider>
