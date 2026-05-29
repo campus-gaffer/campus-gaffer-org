@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { SQUAD_DATA_KEY, SQUAD_ID_KEY, USER_ID_KEY, GW_KEY } from '../lib/mockSquad';
+import { useAuth } from '@clerk/clerk-react';
+import { SQUAD_DATA_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
 import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
 import { apiFetch } from '../lib/api';
@@ -283,6 +284,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
     const stored = window.localStorage.getItem(GW_KEY);
     return stored ? parseInt(stored, 10) : 7;
   });
+  const { userId } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -328,17 +330,14 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         }
       }
 
-      if (!squadId) {
-        const userId = window.localStorage.getItem(USER_ID_KEY);
-        if (userId) {
-          try {
-            const data = await apiFetch<{ squad_id: string }>(`/users/${userId}/squad`, { signal: ctrl.signal });
-            squadId = data.squad_id;
-            window.localStorage.setItem(SQUAD_ID_KEY, squadId);
-          } catch (err) {
-            if (err instanceof Error && err.name === 'AbortError') return;
-            /* no squad yet */
-          }
+      if (!squadId && userId) {
+        try {
+          const data = await apiFetch<{ squad_id: string }>(`/users/${userId}/squad`, { signal: ctrl.signal });
+          squadId = data.squad_id;
+          window.localStorage.setItem(SQUAD_ID_KEY, squadId);
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          /* no squad yet */
         }
       }
 
@@ -379,7 +378,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
     })();
 
     return () => ctrl.abort();
-  }, []);
+  }, [userId]);
 
   const toggle = useCallback((id: string) => {
     setExpanded(prev => prev === id ? null : id);
