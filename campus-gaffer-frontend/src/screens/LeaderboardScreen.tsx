@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY } from '../lib/mockSquad';
-import { readCache, writeCache } from '../lib/cache';
+import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { BrandMark } from '../components/BrandMark';
 import './screen-shared.css';
 import LBRow, { Avatar } from '../components/leaderboard/LBRow';
@@ -8,8 +7,7 @@ import StickyMeBanner from '../components/leaderboard/StickyMeBanner';
 import { AV_COLORS, PAGE_SIZE, MEDAL_COLORS } from '../lib/leaderboardTheme';
 import { THEME, withAlpha } from '../lib/theme';
 import type { LBUser } from '../lib/leaderboardTheme';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
+import { apiFetch } from '../lib/api';
 
 
 function ColStrip({ sort, setSort, gameweek, gwReady }: { sort: string; setSort: (s: string) => void; gameweek: number; gwReady: boolean }) {
@@ -80,7 +78,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   });
   // The current user's ID — set when they create a squad (POST /squads). Used to
   // flag their own row on the leaderboard. Falls back to the env placeholder.
-  const [currentUserId] = useState(() => {
+  const [currentUserId, setCurrentUserId] = useState(() => {
     if (typeof window !== 'undefined') {
       const local = window.localStorage.getItem(USER_ID_KEY);
       if (local) return local;
@@ -99,21 +97,33 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   const [isLoadMoreVisible, setIsLoadMoreVisible] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (currentUserId) return;
+    const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
+    if (!squadId) return;
+    const controller = new AbortController();
+    apiFetch<{ squad?: { UserID?: string; user_id?: string } }>(`/squads/${squadId}`, { signal: controller.signal })
+      .then((payload: { squad?: { UserID?: string; user_id?: string } }) => {
+        const resolved = payload.squad?.UserID ?? payload.squad?.user_id ?? '';
+        if (!resolved) return;
+        window.localStorage.setItem(USER_ID_KEY, resolved);
+        setCurrentUserId(resolved);
+      })
+      .catch(() => {/* no-op */});
+    return () => controller.abort();
+  }, [currentUserId]);
+
+  useEffect(() => {
     if (!hasSquad) {
       // show current user as unranked (0 points) when no squad exists
       setUsers((prev) => prev.map(u => u.isMe ? { ...u, seasonPts: 0, gwPts: 0 } : u));
     }
-    // Stale-while-revalidate: paint cached rows instantly, fetch to update silently.
-    const cached = readCache<LBUser[]>('leaderboard');
-    if (cached) setUsers(cached);
 
     const controller = new AbortController();
     const loadLeaderboard = async () => {
       try {
         setApiError(null);
-        const res = await fetch(`${API_BASE_URL}/leaderboard?limit=100&offset=0`, { signal: controller.signal });
-        if (!res.ok) throw new Error(`leaderboard ${res.status}`);
-        const data = await res.json() as { leaderboard?: Array<{ rank?: number; user_id?: string; username?: string; total_points?: number; gw_points?: number }> };
+        const data = await apiFetch<{ leaderboard?: Array<{ rank?: number; user_id?: string; username?: string; total_points?: number; gw_points?: number }> }>('/leaderboard?limit=100&offset=0', { signal: controller.signal });
         const rows = data.leaderboard ?? [];
         if (rows.length === 0) return;
         const mapped: LBUser[] = rows.map((row, i) => {
@@ -132,11 +142,10 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
             initial: display.charAt(0).toUpperCase(),
           };
         });
-        writeCache('leaderboard', mapped);
         setUsers(mapped);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        if (!cached) setApiError('Live leaderboard unavailable — check your connection to the server');
+        setApiError('Live leaderboard unavailable — check your connection to the server');
       }
     };
     loadLeaderboard();
@@ -151,7 +160,7 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   }, [sort, users]);
 
   const visible = sorted.slice(0, visibleCount);
-  const me = sorted.find(u => u.isMe) ?? sorted[0]; // undefined when list is empty
+  const me = sorted.find(u => u.isMe); // undefined when current manager row not present
   const meInVisiblePage = me ? me.rank <= visibleCount : false;
 
   useEffect(() => {

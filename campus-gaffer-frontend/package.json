@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.7",
     "@playwright/cli": "^0.1.13",
     "@tailwindcss/vite": "^4.2.1",
     "react": "^19.2.0",
