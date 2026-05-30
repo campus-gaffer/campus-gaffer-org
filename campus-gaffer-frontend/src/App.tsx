@@ -9,7 +9,6 @@ import DraftScreen from './screens/DraftScreen';
 import { SQUAD_LOCK_KEY } from './lib/mockSquad';
 import GWBreakdownScreen from './screens/GWBreakdownScreen';
 import { FormationProvider } from './context/FormationContext';
-import { USER_ID_KEY } from './lib/mockSquad';
 import { registerTokenGetter } from './lib/auth';
 
 const SCREEN_TRANSITION_MS = 240;
@@ -66,21 +65,12 @@ function SquadRoute({ onBack }: { onBack: () => void }) {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
 
   useEffect(() => {
     registerTokenGetter(isSignedIn ? () => getToken() : null);
     return () => registerTokenGetter(null);
   }, [getToken, isSignedIn]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (isSignedIn && userId) {
-      window.localStorage.setItem(USER_ID_KEY, userId);
-      return;
-    }
-    window.localStorage.removeItem(USER_ID_KEY);
-  }, [isSignedIn, userId]);
 
   const onDebugLogout = useCallback(() => {
     navigate('/login', { replace: true });

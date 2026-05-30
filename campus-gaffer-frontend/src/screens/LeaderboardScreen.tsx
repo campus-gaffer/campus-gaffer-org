@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
+import { useAuth } from '@clerk/clerk-react';
+import { SQUAD_DATA_KEY, GW_KEY } from '../lib/mockSquad';
 import { BrandMark } from '../components/BrandMark';
 import './screen-shared.css';
 import LBRow, { Avatar } from '../components/leaderboard/LBRow';
@@ -76,15 +77,9 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
     const stored = window.localStorage.getItem(GW_KEY);
     return stored ? parseInt(stored, 10) : 7;
   });
-  // The current user's ID — set when they create a squad (POST /squads). Used to
-  // flag their own row on the leaderboard. Falls back to the env placeholder.
-  const [currentUserId, setCurrentUserId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const local = window.localStorage.getItem(USER_ID_KEY);
-      if (local) return local;
-    }
-    return String(import.meta.env.VITE_CURRENT_USER_ID || '');
-  });
+  // The signed-in user's Clerk ID. Used to flag their own row on the leaderboard.
+  const { userId } = useAuth();
+  const currentUserId = userId ?? '';
   const [sort, setSort] = useState('season');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
@@ -95,23 +90,6 @@ export default function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
   const [isLoadMoreVisible, setIsLoadMoreVisible] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (currentUserId) return;
-    const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
-    if (!squadId) return;
-    const controller = new AbortController();
-    apiFetch<{ squad?: { UserID?: string; user_id?: string } }>(`/squads/${squadId}`, { signal: controller.signal })
-      .then((payload: { squad?: { UserID?: string; user_id?: string } }) => {
-        const resolved = payload.squad?.UserID ?? payload.squad?.user_id ?? '';
-        if (!resolved) return;
-        window.localStorage.setItem(USER_ID_KEY, resolved);
-        setCurrentUserId(resolved);
-      })
-      .catch(() => {/* no-op */});
-    return () => controller.abort();
-  }, [currentUserId]);
 
   useEffect(() => {
     if (!hasSquad) {

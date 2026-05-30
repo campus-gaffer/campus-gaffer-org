@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { SQUAD_DATA_KEY, GW_KEY, USER_ID_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
+import { useAuth } from '@clerk/clerk-react';
+import { SQUAD_DATA_KEY, GW_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
@@ -347,6 +348,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
   const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const { userId } = useAuth();
 
   // useCountdown returns a stable, pure-logic snapshot of time remaining
   // so we don't call `Date.now()` directly during render.
@@ -370,25 +372,9 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   // Resolve the user's own standings (season pts, GW pts, rank) from the
   // leaderboard. Same source as the Leaderboard screen, so numbers agree.
   useEffect(() => {
+    if (!userId) return;
     const ctrl = new AbortController();
     const resolveAndLoad = async () => {
-      let userId = typeof window !== 'undefined' ? window.localStorage.getItem(USER_ID_KEY) : null;
-      if (!userId && typeof window !== 'undefined') {
-        const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
-        if (squadId) {
-          try {
-            const payload = await apiFetch<{ squad?: { UserID?: string; user_id?: string } }>(`/squads/${squadId}`, { signal: ctrl.signal });
-            const resolved = payload.squad?.UserID ?? payload.squad?.user_id ?? '';
-            if (resolved) {
-              window.localStorage.setItem(USER_ID_KEY, resolved);
-              userId = resolved;
-            }
-          } catch (err) {
-            if ((err as Error).name === 'AbortError') return;
-          }
-        }
-      }
-      if (!userId) return;
       const data = await apiFetch<{ total?: number; leaderboard?: Array<{ rank?: number; user_id?: string; total_points?: number; gw_points?: number }> }>('/leaderboard?limit=100', { signal: ctrl.signal });
       const rows = data.leaderboard ?? [];
       const mine = rows.find(row => row.user_id === userId);
@@ -419,7 +405,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
     };
     resolveAndLoad().catch(() => {/* keep null → cards show placeholders */ });
     return () => ctrl.abort();
-  }, []);
+  }, [userId]);
 
   const handleTabChange = (id: string) => {
     if (id === 'squad') { onNavigate('squad'); return; }
