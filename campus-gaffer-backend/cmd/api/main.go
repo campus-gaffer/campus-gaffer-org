@@ -79,11 +79,12 @@ func main() {
 	api.POST("/users", handlers.CreateUser)
 	api.GET("/users", handlers.GetUser)
 
-	// Squad endpoints
-	api.POST("/squads", squadHandler.CreateSquad)
+	// Squad endpoints. Writes additionally require RequireSyncedUser so the
+	// caller's users row is guaranteed to exist before squad insert.
+	api.POST("/squads", authMiddleware.RequireSyncedUser(), squadHandler.CreateSquad)
 	api.GET("/squads/:id", squadHandler.GetSquad)
 	api.GET("/squads/:id/points", squadHandler.GetSquadPoints)
-	api.GET("/users/:user_id/squad", squadHandler.GetSquadByUser)
+	api.GET("/users/me/squad", squadHandler.GetMySquad)
 
 	// Game/Player/Gameweek endpoints
 	api.GET("/players", func(c *gin.Context) {

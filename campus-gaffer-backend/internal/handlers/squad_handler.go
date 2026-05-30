@@ -66,8 +66,14 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"squad": squad, "players": players})
 }
 
-func (h *SquadHandler) GetSquadByUser(c *gin.Context) {
-	userID := c.Param("user_id")
+// GetMySquad resolves the caller's own squad by JWT subject. Replaces the
+// pre-Clerk `/users/:user_id/squad` path-param flow — no more spoofable param.
+func (h *SquadHandler) GetMySquad(c *gin.Context) {
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
 	squad, err := h.svc.GetSquadByUserID(c.Request.Context(), userID)
 	if err != nil {
 		if errors.Is(err, service.ErrSquadNotFound) {
@@ -86,11 +92,19 @@ func (h *SquadHandler) GetSquad(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid squad id"})
 		return
 	}
-	squad, players, err := h.svc.GetSquad(c.Request.Context(), id)
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	squad, players, err := h.svc.GetSquad(c.Request.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrSquadNotFound) {
+		switch {
+		case errors.Is(err, service.ErrSquadNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "squad not found"})
-		} else {
+		case errors.Is(err, service.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your squad"})
+		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch squad"})
 		}
 		return
@@ -104,11 +118,19 @@ func (h *SquadHandler) GetSquadPoints(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid squad id"})
 		return
 	}
-	resp, err := h.svc.GetSquadPoints(c.Request.Context(), id)
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	resp, err := h.svc.GetSquadPoints(c.Request.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrSquadNotFound) {
+		switch {
+		case errors.Is(err, service.ErrSquadNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "squad not found"})
-		} else {
+		case errors.Is(err, service.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your squad"})
+		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch points"})
 		}
 		return

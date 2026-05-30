@@ -330,14 +330,17 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         }
       }
 
-      if (!squadId && userId) {
-        try {
-          const data = await apiFetch<{ squad_id: string }>(`/users/${userId}/squad`, { signal: ctrl.signal });
-          squadId = data.squad_id;
-          window.localStorage.setItem(SQUAD_ID_KEY, squadId);
-        } catch (err) {
-          if (err instanceof Error && err.name === 'AbortError') return;
-          /* no squad yet */
+      if (!squadId) {
+        const userId = window.localStorage.getItem(USER_ID_KEY);
+        if (userId) {
+          try {
+            const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
+            squadId = data.squad_id;
+            window.localStorage.setItem(SQUAD_ID_KEY, squadId);
+          } catch (err) {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            /* no squad yet */
+          }
         }
       }
 

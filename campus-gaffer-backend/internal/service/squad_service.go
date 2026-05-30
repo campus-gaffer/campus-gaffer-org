@@ -32,6 +32,7 @@ var (
 	ErrSquadNotFound     = errors.New("squad not found")
 	ErrDeadlinePassed    = errors.New("gameweek deadline has passed")
 	ErrGameweekNotFound  = errors.New("gameweek not found in schedule")
+	ErrForbidden         = errors.New("not the owner of this resource")
 )
 
 type CreateSquadRequest struct {
@@ -67,9 +68,13 @@ type SquadPointsResponse struct {
 
 type SquadService interface {
 	CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error)
-	GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error)
+	// GetSquad returns the squad if callerUserID matches the squad's owner.
+	// Returns ErrForbidden on owner mismatch, ErrSquadNotFound when absent.
+	GetSquad(ctx context.Context, id uuid.UUID, callerUserID string) (*models.Squad, []models.SquadPlayer, error)
 	GetSquadByUserID(ctx context.Context, userID string) (*models.Squad, error)
-	GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error)
+	// GetSquadPoints returns starter points + per-player breakdown if callerUserID
+	// owns the squad. Returns ErrForbidden on owner mismatch.
+	GetSquadPoints(ctx context.Context, squadID uuid.UUID, callerUserID string) (*SquadPointsResponse, error)
 }
 
 type squadService struct {
@@ -177,13 +182,16 @@ func (s *squadService) checkDeadline(ctx context.Context, gameweekNum int) error
 	return ErrGameweekNotFound
 }
 
-func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error) {
+func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID, callerUserID string) (*models.Squad, []models.SquadPlayer, error) {
 	squad, players, err := s.squadRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetSquad: %w", err)
 	}
 	if squad == nil {
 		return nil, nil, ErrSquadNotFound
+	}
+	if squad.UserID != callerUserID {
+		return nil, nil, ErrForbidden
 	}
 	return squad, players, nil
 }
@@ -199,13 +207,16 @@ func (s *squadService) GetSquadByUserID(ctx context.Context, userID string) (*mo
 	return squad, nil
 }
 
-func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error) {
+func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID, callerUserID string) (*SquadPointsResponse, error) {
 	squad, players, err := s.squadRepo.FindByID(ctx, squadID)
 	if err != nil {
 		return nil, fmt.Errorf("GetSquadPoints: %w", err)
 	}
 	if squad == nil {
 		return nil, ErrSquadNotFound
+	}
+	if squad.UserID != callerUserID {
+		return nil, ErrForbidden
 	}
 
 	playerIDs := make([]uuid.UUID, len(players))

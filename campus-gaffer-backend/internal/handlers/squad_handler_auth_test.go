@@ -41,7 +41,7 @@ func (s *recordingSquadService) CreateSquad(_ context.Context, req service.Creat
 	}, nil, nil
 }
 
-func (s *recordingSquadService) GetSquad(context.Context, uuid.UUID) (*models.Squad, []models.SquadPlayer, error) {
+func (s *recordingSquadService) GetSquad(context.Context, uuid.UUID, string) (*models.Squad, []models.SquadPlayer, error) {
 	return nil, nil, service.ErrSquadNotFound
 }
 
@@ -49,7 +49,7 @@ func (s *recordingSquadService) GetSquadByUserID(context.Context, string) (*mode
 	return nil, service.ErrSquadNotFound
 }
 
-func (s *recordingSquadService) GetSquadPoints(context.Context, uuid.UUID) (*service.SquadPointsResponse, error) {
+func (s *recordingSquadService) GetSquadPoints(context.Context, uuid.UUID, string) (*service.SquadPointsResponse, error) {
 	return nil, service.ErrSquadNotFound
 }
 
