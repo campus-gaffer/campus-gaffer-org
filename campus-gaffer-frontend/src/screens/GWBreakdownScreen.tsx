@@ -332,7 +332,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         const userId = window.localStorage.getItem(USER_ID_KEY);
         if (userId) {
           try {
-            const data = await apiFetch<{ squad_id: string }>(`/users/${userId}/squad`, { signal: ctrl.signal });
+            const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
             squadId = data.squad_id;
             window.localStorage.setItem(SQUAD_ID_KEY, squadId);
           } catch (err) {

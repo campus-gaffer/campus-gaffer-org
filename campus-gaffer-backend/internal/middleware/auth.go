@@ -16,7 +16,10 @@ import (
 
 type authContextKey string
 
-const claimsContextKey authContextKey = "auth_claims"
+const (
+	claimsContextKey  authContextKey = "auth_claims"
+	syncErrContextKey authContextKey = "auth_sync_err"
+)
 
 type TokenVerifier interface {
 	VerifyBearerToken(ctx context.Context, authz string) (*auth.Claims, error)
@@ -48,20 +51,36 @@ func (m *AuthMiddleware) RequireUser() gin.HandlerFunc {
 			return
 		}
 
-		// Best-effort user sync. squads.user_id is set from the verified token
-		// subject and has no FK to users, so a sync hiccup must not block an
-		// otherwise-authenticated write. Log and continue.
+		// Best-effort user sync. Read endpoints tolerate failure; writes chain
+		// RequireSyncedUser below to enforce success.
 		user := &models.User{
 			ID:       claims.Subject,
 			Username: deriveUsername(claims),
 			Email:    deriveEmail(claims),
 		}
-		if err := m.users.UpsertAuthUser(c.Request.Context(), user); err != nil {
-			log.Printf("auth: user sync failed for %s: %v", claims.Subject, err)
+		syncErr := m.users.UpsertAuthUser(c.Request.Context(), user)
+		if syncErr != nil {
+			log.Printf("auth: user sync failed for %s: %v", claims.Subject, syncErr)
 		}
 
 		ctx := context.WithValue(c.Request.Context(), claimsContextKey, claims)
+		if syncErr != nil {
+			ctx = context.WithValue(ctx, syncErrContextKey, syncErr)
+		}
 		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
+}
+
+// RequireSyncedUser aborts with 503 when the upstream RequireUser middleware
+// failed to upsert the users row. Apply on write paths whose business logic
+// assumes the user record exists (e.g. POST /squads).
+func (m *AuthMiddleware) RequireSyncedUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err, ok := c.Request.Context().Value(syncErrContextKey).(error); ok && err != nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "user sync failed; retry"})
+			return
+		}
 		c.Next()
 	}
 }

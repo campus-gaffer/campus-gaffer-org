@@ -324,7 +324,7 @@ func TestCreateSquad_BudgetSpent_RecordedCorrectly(t *testing.T) {
 
 func TestGetSquad_NotFound_ReturnsError(t *testing.T) {
 	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
-	_, _, err := svc.GetSquad(context.Background(), uuid.New())
+	_, _, err := svc.GetSquad(context.Background(), uuid.New(), "user_test1")
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
 	}
@@ -350,7 +350,7 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 	}
 	sr.totalPointsOverride = overrides
 
-	resp, err := svc.GetSquadPoints(context.Background(), squad.Id)
+	resp, err := svc.GetSquadPoints(context.Background(), squad.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("get points: %v", err)
 	}
@@ -363,9 +363,39 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 	}
 }
 
+func TestGetSquad_WrongOwner_ReturnsForbidden(t *testing.T) {
+	starters := makeIDs(OnFieldCount)
+	bench := makeIDs(BenchCount)
+	sr := newFakeSquadRepo()
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
+	created, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
+	if err != nil {
+		t.Fatalf("create squad: %v", err)
+	}
+	_, _, err = svc.GetSquad(context.Background(), created.Id, "someone_else")
+	if err != ErrForbidden {
+		t.Errorf("got %v, want ErrForbidden", err)
+	}
+}
+
+func TestGetSquadPoints_WrongOwner_ReturnsForbidden(t *testing.T) {
+	starters := makeIDs(OnFieldCount)
+	bench := makeIDs(BenchCount)
+	sr := newFakeSquadRepo()
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
+	created, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
+	if err != nil {
+		t.Fatalf("create squad: %v", err)
+	}
+	_, err = svc.GetSquadPoints(context.Background(), created.Id, "someone_else")
+	if err != ErrForbidden {
+		t.Errorf("got %v, want ErrForbidden", err)
+	}
+}
+
 func TestGetSquadPoints_NotFound_ReturnsError(t *testing.T) {
 	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
-	_, err := svc.GetSquadPoints(context.Background(), uuid.New())
+	_, err := svc.GetSquadPoints(context.Background(), uuid.New(), "user_test1")
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
 	}
@@ -389,7 +419,7 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 	}
 
 	// Fetch
-	fetched, fetchedPlayers, err := svc.GetSquad(context.Background(), created.Id)
+	fetched, fetchedPlayers, err := svc.GetSquad(context.Background(), created.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("GetSquad: %v", err)
 	}
@@ -401,7 +431,7 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 	}
 
 	// Points (no games scored yet → all zeros, total = 0)
-	resp, err := svc.GetSquadPoints(context.Background(), created.Id)
+	resp, err := svc.GetSquadPoints(context.Background(), created.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("GetSquadPoints: %v", err)
 	}
