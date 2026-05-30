@@ -1,5 +1,5 @@
--- Drop legacy pre-Clerk placeholder rows from `users` and enforce
--- referential integrity from `squads.user_id` → `users.id` going forward.
+-- Drop legacy pre-Clerk placeholder rows from `users` AND orphan squads,
+-- then enforce referential integrity from `squads.user_id` → `users.id`.
 --
 -- Background: before Clerk auth landed, the frontend generated a random
 -- UUID per device and POSTed it as `user_id`. Squad creation upserted a
@@ -7,30 +7,36 @@
 -- IDs of the form `user_<base62>` (Clerk session subject). Seed users
 -- (cmd/seed) have IDs of the form `seed_user_NNNN`.
 --
--- Anything else in `users.id` is a legacy ghost with no path back to a
--- real authenticated session — safe to drop.
+-- Anything else in `users.id` is a legacy ghost. Some squads also point
+-- at user_ids that have no matching users row at all (orphans — likely
+-- their user row was deleted manually during earlier debugging). Both
+-- categories must go before the FK in step 4 can validate against the
+-- live data.
 
 BEGIN;
 
--- 1. Drop squad_players for squads owned by ghost users.
+-- Real users = Clerk subjects + cmd/seed fixtures. The "NOT IN (real)"
+-- predicate catches BOTH ghost-owned squads (user_id is a UUID that does
+-- exist in users) AND orphan squads (user_id has no matching users row).
+
+-- 1. squad_players for squads NOT owned by a real user.
 DELETE FROM squad_players
  WHERE squad_id IN (
-   SELECT s.id
-   FROM squads s
-   JOIN users u ON u.id = s.user_id
-   WHERE u.id NOT LIKE 'user_%'
-     AND u.id NOT LIKE 'seed_user_%'
+   SELECT id FROM squads
+   WHERE user_id NOT IN (
+     SELECT id FROM users
+     WHERE id LIKE 'user_%' OR id LIKE 'seed_user_%'
+   )
  );
 
--- 2. Drop squads owned by ghost users.
+-- 2. Squads NOT owned by a real user.
 DELETE FROM squads
- WHERE user_id IN (
+ WHERE user_id NOT IN (
    SELECT id FROM users
-   WHERE id NOT LIKE 'user_%'
-     AND id NOT LIKE 'seed_user_%'
+   WHERE id LIKE 'user_%' OR id LIKE 'seed_user_%'
  );
 
--- 3. Drop the ghost users themselves.
+-- 3. Ghost users themselves.
 DELETE FROM users
  WHERE id NOT LIKE 'user_%'
    AND id NOT LIKE 'seed_user_%';
