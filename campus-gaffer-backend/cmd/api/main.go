@@ -12,8 +12,10 @@ import (
 	"campus-gaffer-backend/internal/service"
 	"log"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -58,19 +60,30 @@ func main() {
 		log.Printf("warning: failed to pre-fetch players cache: %v", err)
 	}
 
-	router := gin.Default()
-
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
+	// Parse CORS allowlist from env. Fail loud if unset/empty — no permissive default.
+	rawOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	parsedOrigins := make([]string, 0)
+	for _, o := range strings.Split(rawOrigins, ",") {
+		if trimmed := strings.TrimSpace(o); trimmed != "" {
+			parsedOrigins = append(parsedOrigins, trimmed)
 		}
-		c.Next()
-	})
+	}
+	if len(parsedOrigins) == 0 {
+		log.Fatalf("CORS_ALLOWED_ORIGINS not set — refusing to start with no origins")
+	}
+
+	// CORS must be registered before any other middleware so preflight
+	// short-circuits never hit auth or logging side effects.
+	router := gin.New()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     parsedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Retry-After"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
+	router.Use(gin.Logger(), gin.Recovery())
 
 	api := router.Group("/")
 	api.Use(authMiddleware.RequireUser())
