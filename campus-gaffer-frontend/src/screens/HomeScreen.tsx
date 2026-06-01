@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { SQUAD_DATA_KEY, GW_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
 import { THEME, withAlpha } from '../lib/theme';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getMe, type Me } from '../lib/api';
+import NotificationsSheet, { type NotificationItem } from '../components/NotificationsSheet';
 
-type NavTarget = 'squad' | 'leaderboard' | 'breakdown';
+type NavTarget = 'squad' | 'leaderboard' | 'breakdown' | 'profile';
 
 const HM = THEME;
 const FALLBACK_DEADLINE = new Date('2026-05-23T14:00:00');
@@ -348,11 +349,25 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
   const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { userId } = useAuth();
 
   // useCountdown returns a stable, pure-logic snapshot of time remaining
   // so we don't call `Date.now()` directly during render.
   const { d: daysAway } = useCountdown(deadline.getTime());
+
+  // Fetch the authoritative user row so we can decide whether to show the
+  // "set your display name" nudge (bell badge + sheet entry). Failures are
+  // silent — the bell simply stays badge-less.
+  useEffect(() => {
+    if (!userId) return;
+    const ctrl = new AbortController();
+    getMe(ctrl.signal)
+      .then(setMe)
+      .catch(() => { /* keep me=null → no badge */ });
+    return () => ctrl.abort();
+  }, [userId]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -410,8 +425,24 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const handleTabChange = (id: string) => {
     if (id === 'squad') { onNavigate('squad'); return; }
     if (id === 'leaderboard') { onNavigate('leaderboard'); return; }
+    if (id === 'profile') { onNavigate('profile'); return; }
     setActiveTab(id);
   };
+
+  // Single-entry notifications list. The only nudge today is "set your
+  // display name" — surfaced when the backend says the user has not yet
+  // customised their auto-derived username.
+  const notifications = useMemo<NotificationItem[]>(() => {
+    if (!me || me.username_customized) return [];
+    return [{
+      icon: <span aria-hidden="true">👕</span>,
+      title: 'Set your display name',
+      subtitle: 'Pick how you appear on the leaderboard',
+      onTap: () => { setNotificationsOpen(false); onNavigate('profile'); },
+    }];
+  }, [me, onNavigate]);
+
+  const showBellBadge = notifications.length > 0;
 
   const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
 
@@ -428,12 +459,19 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: '0.22em', color: HM.accent, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Intramural · Fantasy</div>
             </div>
           </div>
-          <button type="button" aria-label="Notifications" style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid ${HM.line}`, background: 'rgba(255,255,255,0.03)', color: HM.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, position: 'relative' }}>
+          <button
+            type="button"
+            aria-label="Notifications"
+            onClick={() => setNotificationsOpen(true)}
+            style={{ width: 36, height: 36, borderRadius: '50%', border: `1px solid ${HM.line}`, background: 'rgba(255,255,255,0.03)', color: HM.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, position: 'relative' }}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 2a5 5 0 0 0-5 5v3l-1 2h12l-1-2V7a5 5 0 0 0-5-5Z" stroke="currentColor" strokeWidth="1.4" fill="none" />
               <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
-            <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: HM.accent, border: `2px solid ${HM.bg2}` }} />
+            {showBellBadge && (
+              <div style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: HM.accent, border: `2px solid ${HM.bg2}` }} />
+            )}
           </button>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(130,200,130,0.18)', border: `1.5px solid rgba(130,200,130,0.45)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, color: HM.accent, cursor: 'pointer' }}>Y</div>
         </div>
@@ -489,6 +527,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
           <ProfileView />
         )}
       </div>
+      <NotificationsSheet
+        notifications={notifications}
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+      />
     </ScreenShell>
   );
 }
