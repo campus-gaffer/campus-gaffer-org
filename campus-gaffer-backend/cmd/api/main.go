@@ -34,6 +34,7 @@ func main() {
 	gameRepo := repository.NewGameRepo(db)
 	playerRepo := repository.NewPlayerRepo(db)
 	perfRepo := repository.NewPlayerPerfRepo(db)
+	pointRepo := repository.NewPlayerGamePointRepo(db)
 
 	// Auth verifier
 	verifier, err := auth.NewVerifier(auth.Config{
@@ -55,6 +56,13 @@ func main() {
 	// Initialize services
 	squadSvc := service.NewSquadService(squadRepo, priceRepo, gameRepo, playerRepo, perfRepo, loc)
 	squadHandler := handlers.NewSquadHandler(squadSvc)
+
+	// Read-only "GW results" surface — featured match + global top scorer.
+	// Wrapped in a 5-minute in-process cache; payload is fully derivable
+	// from already-persisted tables, no per-user state.
+	gwResultsSvc := service.NewCachedGameweekResultsService(
+		service.NewGameweekResultsService(gameRepo, perfRepo, pointRepo, loc),
+	)
 
 	// Pre-fetch priced player payload on startup; refreshed only when needed.
 	playerCache, err := handlers.NewPlayerCache(playerRepo, priceRepo, gameRepo, loc)
@@ -144,6 +152,12 @@ func main() {
 	})
 	api.GET("/gameweeks/current", func(c *gin.Context) {
 		handlers.GetCurrentGameweek(c, gameRepo, loc)
+	})
+	api.GET("/gameweeks/last/results", func(c *gin.Context) {
+		handlers.GetLastGWResults(c, gwResultsSvc)
+	})
+	api.GET("/gameweeks/:n/results", func(c *gin.Context) {
+		handlers.GetGWResults(c, gwResultsSvc)
 	})
 	api.GET("/leaderboard", func(c *gin.Context) {
 		handlers.GetLeaderboard(c, squadRepo, gameRepo, loc)
