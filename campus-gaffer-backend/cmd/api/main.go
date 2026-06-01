@@ -44,6 +44,7 @@ func main() {
 		log.Fatalf("auth config: %v", err)
 	}
 	authMiddleware := middleware.NewAuthMiddleware(verifier, userRepo)
+	clerkAdmin := auth.NewClerkAdmin(cfg.ClerkSecretKey)
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
@@ -123,6 +124,11 @@ func main() {
 	// User endpoints
 	api.POST("/users", handlers.CreateUser)
 	api.GET("/users", handlers.GetUser)
+	api.GET("/users/me", func(c *gin.Context) { handlers.GetMe(c, userRepo) })
+	// TODO(#62): wire per-user rate limiter (10 req/min) once middleware/ratelimit lands
+	api.PATCH("/users/me", authMiddleware.RequireSyncedUser(), func(c *gin.Context) {
+		handlers.PatchMe(c, userRepo, clerkAdmin)
+	})
 
 	// Squad endpoints. Writes additionally require RequireSyncedUser so the
 	// caller's users row is guaranteed to exist before squad insert.

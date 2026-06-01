@@ -29,6 +29,14 @@ func (r *authRouteUserRepo) UpsertAuthUser(_ context.Context, _ *models.User) er
 	return nil
 }
 
+func (r *authRouteUserRepo) UpdateUsername(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
+func (r *authRouteUserRepo) FindByID(_ context.Context, _ string) (*models.User, error) {
+	return nil, nil
+}
+
 type recordingSquadService struct {
 	req service.CreateSquadRequest
 }
