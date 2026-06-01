@@ -6,6 +6,7 @@ import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
 import { THEME, withAlpha } from '../lib/theme';
 import { apiFetch } from '../lib/api';
+import { readCache, writeCache } from '../lib/cache';
 
 type NavTarget = 'squad' | 'leaderboard' | 'breakdown';
 
@@ -17,9 +18,14 @@ const FALLBACK_GAMEWEEK = 7;
 // (or when the user has no squad / the API is unreachable).
 type UserStats = { seasonPts: number; gwPts: number; rank: number; total: number };
 
-// GW match results have no backing API yet — left static until a results
-// endpoint exists. See ResultsCard.
-const LAST_GW = { gw: 7, home: "King's", away: 'Trinity', score: '3 - 1', topScorer: 'Doyle', topPts: 11 };
+// Payload from GET /gameweeks/last/results.
+//  - gameweek === null ⇒ pre-GW1: render "Awaiting results from GW1" copy.
+//  - match    === null ⇒ GW exists but window is empty: render placeholders.
+type GWResultsPayload = {
+  gameweek: number | null;
+  match: { home: string; away: string; home_score: number; away_score: number } | null;
+  top_scorer: { name: string; team: string; points: number } | null;
+};
 
 function formatDeadlineLabel(d: Date): string {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -253,21 +259,48 @@ function DeadlineCard({ gameweek, deadline }: { gameweek: number; deadline: Date
   );
 }
 
-function ResultsCard({ onNav, gameweek }: { onNav: () => void; gameweek: number }) {
+function ResultsCard({ onNav, results }: { onNav: () => void; results: GWResultsPayload | null }) {
+  // Pre-GW1: render placeholder copy and skip the score row.
+  if (results && results.gameweek === null) {
+    return (
+      <Card onClick={onNav}>
+        <CardLabel text="GW Results" />
+        <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em', marginBottom: 6 }}>
+          Awaiting results
+        </div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase' }}>
+          From GW1
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <span style={{ color: HM.textFaint, flexShrink: 0 }}><Arrow /></span>
+        </div>
+      </Card>
+    );
+  }
+
+  const label = results?.gameweek != null ? `GW${results.gameweek} Results` : 'GW Results';
+  const home = results?.match?.home || '—';
+  const away = results?.match?.away || '—';
+  const score = results?.match
+    ? `${results.match.home_score} - ${results.match.away_score}`
+    : '—';
+  const topName = results?.top_scorer?.name || '—';
+  const topPts = results?.top_scorer?.points;
+
   return (
     <Card onClick={onNav}>
-      <CardLabel text={`GW${gameweek} Results`} />
+      <CardLabel text={label} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LAST_GW.home}</span>
-        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: HM.text, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{LAST_GW.score}</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', flex: 1, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LAST_GW.away}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{home}</span>
+        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: HM.text, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{score}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', flex: 1, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{away}</span>
       </div>
       <div style={{ height: 1, background: HM.lineDim, marginBottom: 8 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 13, color: HM.gold, flexShrink: 0 }}>★</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13.5, color: HM.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LAST_GW.topScorer}</div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.08em', color: HM.textFaint }}>{LAST_GW.topPts} pts this GW</div>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13.5, color: HM.text, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{topName}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.08em', color: HM.textFaint }}>{topPts != null ? `${topPts} pts this GW` : '— pts this GW'}</div>
         </div>
         <span style={{ color: HM.textFaint, flexShrink: 0 }}><Arrow /></span>
       </div>
@@ -348,6 +381,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [gameweek, setGameweek] = useState(FALLBACK_GAMEWEEK);
   const [deadline, setDeadline] = useState<Date>(FALLBACK_DEADLINE);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [results, setResults] = useState<GWResultsPayload | null>(null);
   const { userId } = useAuth();
 
   // useCountdown returns a stable, pure-logic snapshot of time remaining
@@ -367,6 +401,26 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
       .catch(() => {/* keep fallbacks */ });
     return () => ctrl.abort();
   }, []);
+
+  // Pull last-completed GW results for the ResultsCard. Cached locally keyed
+  // by the current GW number so the entry auto-stales when GW advances.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const cacheKey = `gw_results_last:${gameweek}`;
+    const cached = readCache<GWResultsPayload>(cacheKey);
+    if (cached) setResults(cached);
+
+    apiFetch<GWResultsPayload>('/gameweeks/last/results', { signal: ctrl.signal })
+      .then((data: GWResultsPayload) => {
+        setResults(data);
+        writeCache(cacheKey, data);
+      })
+      .catch(() => {
+        // Leave whatever's already in state (cached or null) — ResultsCard
+        // renders em-dashes for missing fields.
+      });
+    return () => ctrl.abort();
+  }, [gameweek]);
 
 
   // Resolve the user's own standings (season pts, GW pts, rank) from the
@@ -471,7 +525,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
               <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} stats={stats} />
               <LeaderboardCard onNav={() => onNavigate('leaderboard')} stats={stats} />
               <DeadlineCard gameweek={gameweek} deadline={deadline} />
-              <ResultsCard onNav={() => onNavigate('breakdown')} gameweek={gameweek} />
+              <ResultsCard onNav={() => onNavigate('breakdown')} results={results} />
             </div>
 
             {/* Quick action */}
