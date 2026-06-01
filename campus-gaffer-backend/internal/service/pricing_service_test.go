@@ -33,6 +33,9 @@ func (f *fakeGamePointRepo) AvgPointsByPlayer(_ context.Context, weightVer strin
 	f.lastCut = cutoff
 	return f.rows, f.err
 }
+func (f *fakeGamePointRepo) TopScorerInGames(_ context.Context, _ []uuid.UUID, _ string) (*repository.TopScorerRow, error) {
+	return nil, nil
+}
 
 type fakePriceRepo struct {
 	batches  [][]models.PlayerPrice
