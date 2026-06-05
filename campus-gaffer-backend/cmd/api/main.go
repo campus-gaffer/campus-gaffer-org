@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -60,6 +61,12 @@ func main() {
 		log.Printf("warning: failed to pre-fetch players cache: %v", err)
 	}
 
+	// Parse CORS allowlist from env. Fail loud if unset/empty — no permissive default.
+	rawOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	parsedOrigins := make([]string, 0)
+	for _, o := range strings.Split(rawOrigins, ",") {
+		if trimmed := strings.TrimSpace(o); trimmed != "" {
+			parsedOrigins = append(parsedOrigins, trimmed)
 	router := gin.Default()
 
 	// Trust only the proxies named in TRUSTED_PROXIES (comma-separated CIDRs
@@ -83,8 +90,23 @@ func main() {
 			c.AbortWithStatus(204)
 			return
 		}
-		c.Next()
-	})
+	}
+	if len(parsedOrigins) == 0 {
+		log.Fatalf("CORS_ALLOWED_ORIGINS not set — refusing to start with no origins")
+	}
+
+	// CORS must be registered before any other middleware so preflight
+	// short-circuits never hit auth or logging side effects.
+	router := gin.New()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     parsedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Retry-After"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
+	router.Use(gin.Logger(), gin.Recovery())
 
 	// Global per-IP limiter: 60 req/min, burst 60. Applied before auth so
 	// unauthenticated floods get rejected cheaply.
