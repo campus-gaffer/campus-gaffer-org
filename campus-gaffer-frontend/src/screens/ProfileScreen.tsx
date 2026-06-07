@@ -164,7 +164,7 @@ export default function ProfileScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <Avatar imageUrl={imageUrl} fallbackInitial={fallbackInitial} />
           <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 20, color: HM.text, letterSpacing: '-0.01em' }}>
-            {me?.username ?? (isLoaded ? '—' : '…')}
+            {me?.username ?? (isLoaded ? '-' : '…')}
           </div>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: '0.10em', color: HM.textFaint }}>{email}</div>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.16em', color: HM.textFaint, textTransform: 'uppercase' }}>{joined}</div>
@@ -199,7 +199,7 @@ export default function ProfileScreen() {
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 16 }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: validationError ? HM.warn : HM.textFaint }}>
-              {validationError ?? "5–20 chars · letters, numbers, _ ' - ."}
+              {validationError ?? "5-20 chars · letters, numbers, _ ' - ."}
             </span>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: HM.textFaint, fontVariantNumeric: 'tabular-nums' }}>
               {Array.from(displayName).length}/{DISPLAY_NAME_MAX}
@@ -273,9 +273,9 @@ export default function ProfileScreen() {
 
 function mapSaveError(e: unknown): string {
   if (e instanceof ApiError) {
-    if (e.status === 422) return "Use 5–20 letters, numbers, or _ ' - .";
+    if (e.status === 422) return "Use 5-20 letters, numbers, or _ ' - .";
     if (e.status === 409) return "That name's already taken";
     if (e.status === 401) return 'Please sign in again';
   }
-  return "Couldn't save — try again";
+  return "Couldn't save, try again";
 }
