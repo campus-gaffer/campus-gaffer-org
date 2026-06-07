@@ -11,16 +11,71 @@ import GWBreakdownScreen from './screens/GWBreakdownScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { FormationProvider } from './context/FormationContext';
 import { registerTokenGetter } from './lib/auth';
+import { apiFetch, ApiError } from './lib/api';
 
 const SCREEN_TRANSITION_MS = 240;
+
+// Server-truth squad status. `unknown` is the initial pre-fetch state and
+// preserves existing localStorage-driven behaviour (no flash of empty state).
+// `has` and `none` are set by `/users/me/squad` 2xx / 404 respectively.
+type ServerSquadStatus = 'unknown' | 'has' | 'none';
+
+function NoSquadCTA({ onCreate, onBack }: { onCreate: () => void; onBack: () => void }) {
+  // Intentional in-place CTA — plan #61 forbids auto-redirect because users
+  // who tap "Squad" expect to land on the squad surface, not have the URL
+  // silently swapped.
+  return (
+    <div className="screen-shell" style={{ background: 'oklch(0.10 0.02 248)', color: '#fff', minHeight: '100vh' }}>
+      <div className="screen-topbar" style={{ background: 'oklch(0.10 0.02 248)' }}>
+        <button type="button" aria-label="Back" onClick={onBack} className="icon-btn" style={{ borderColor: 'oklch(0.28 0.04 248)', color: '#fff' }}>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 80px)', padding: '0 24px' }}>
+        <div style={{ width: '100%', maxWidth: 380, padding: 24, borderRadius: 16, background: 'oklch(0.17 0.03 248)', border: '1px solid oklch(0.28 0.04 248)' }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 22, color: '#fff', letterSpacing: '-0.02em', marginBottom: 8 }}>You haven't drafted yet</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'rgba(235,235,245,0.65)', lineHeight: 1.6, marginBottom: 20 }}>Build your squad to see it here.</div>
+          <button
+            type="button"
+            onClick={onCreate}
+            style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid oklch(0.82 0.19 142)', background: 'oklch(0.82 0.19 142 / 0.12)', color: 'oklch(0.82 0.19 142)', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+          >
+            Create squad
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SquadRoute({ onBack }: { onBack: () => void }) {
   const [squadMode, setSquadMode] = useState<'draft' | 'locked'>(() => {
     if (typeof window === 'undefined') return 'draft';
     return window.localStorage.getItem(SQUAD_LOCK_KEY) === '1' ? 'locked' : 'draft';
   });
+  const [serverStatus, setServerStatus] = useState<ServerSquadStatus>('unknown');
   const [squadTransitioning, setSquadTransitioning] = useState(false);
   const squadTransitionTimerRef = useRef<number | null>(null);
+
+  // Hit the server to learn whether this user actually has a squad. 404 is
+  // the canonical "fresh signed-in user" signal — fall back to the CTA card
+  // rather than the mock-data fallback path inside SquadScreen.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal })
+      .then(() => setServerStatus('has'))
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (err instanceof ApiError && err.status === 404) {
+          setServerStatus('none');
+          return;
+        }
+        // Non-404 (network, 5xx): leave at 'unknown' so we render the existing
+        // localStorage-driven flow rather than wrongly accusing the user of
+        // having no squad.
+      });
+    return () => ctrl.abort();
+  }, []);
 
   useEffect(() => () => {
     if (typeof window !== 'undefined' && squadTransitionTimerRef.current !== null) {
@@ -56,6 +111,13 @@ function SquadRoute({ onBack }: { onBack: () => void }) {
         </div>
       </>
     );
+  }
+
+  // Server says no squad → CTA card (button flips into draft mode in-place).
+  // `squadMode === 'locked'` from a stale localStorage flag is overridden by
+  // the server truth — the local mock data isn't yours.
+  if (serverStatus === 'none') {
+    return <NoSquadCTA onCreate={() => setSquadMode('draft')} onBack={onBack} />;
   }
 
   return squadMode === 'locked'
