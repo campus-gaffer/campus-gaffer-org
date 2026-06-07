@@ -44,6 +44,7 @@ func main() {
 		log.Fatalf("auth config: %v", err)
 	}
 	authMiddleware := middleware.NewAuthMiddleware(verifier, userRepo)
+	clerkAdmin := auth.NewClerkAdmin(cfg.ClerkSecretKey)
 
 	// Load timezone for services
 	loc, err := time.LoadLocation(cfg.LeagueTz)
@@ -67,37 +68,16 @@ func main() {
 	for _, o := range strings.Split(rawOrigins, ",") {
 		if trimmed := strings.TrimSpace(o); trimmed != "" {
 			parsedOrigins = append(parsedOrigins, trimmed)
-	router := gin.Default()
-
-	// Trust only the proxies named in TRUSTED_PROXIES (comma-separated CIDRs
-	// or IPs). When unset we pass nil → gin trusts no proxy and ClientIP()
-	// returns the direct peer. Safer default than the gin built-in (which
-	// trusts all private ranges).
-	if err := router.SetTrustedProxies(parseTrustedProxies(os.Getenv("TRUSTED_PROXIES"))); err != nil {
-		log.Fatalf("api: set trusted proxies: %v", err)
-	}
-
-	// Liveness probe — mounted before any auth or rate-limit middleware so
-	// load balancers / ECS health checks can reach it unconditionally.
-	router.GET("/healthz", handlers.Healthz)
-
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Allows React to talk to Go
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
 		}
 	}
+
 	if len(parsedOrigins) == 0 {
 		log.Fatalf("CORS_ALLOWED_ORIGINS not set — refusing to start with no origins")
 	}
+	router := gin.New()
 
 	// CORS must be registered before any other middleware so preflight
 	// short-circuits never hit auth or logging side effects.
-	router := gin.New()
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     parsedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -107,7 +87,22 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 	router.Use(gin.Logger(), gin.Recovery())
+	
 
+	// Trust only the proxies named in TRUSTED_PROXIES (comma-separated CIDRs
+	// or IPs). When unset we pass nil → gin trusts no proxy and ClientIP()
+	// returns the direct peer. Safer default than the gin built-in (which
+	// trusts all private ranges).
+	if err := router.SetTrustedProxies(parseTrustedProxies(os.Getenv("TRUSTED_PROXIES"))); err != nil {
+		log.Fatalf("api: set trusted proxies: %v", err)
+	}
+
+
+	// Liveness probe — mounted before any auth or rate-limit middleware so
+	// load balancers / ECS health checks can reach it unconditionally.
+	router.GET("/healthz", handlers.Healthz)
+
+	
 	// Global per-IP limiter: 60 req/min, burst 60. Applied before auth so
 	// unauthenticated floods get rejected cheaply.
 	ipLimiter := middleware.NewRateLimiter(rate.Every(time.Second), 60)
@@ -116,6 +111,8 @@ func main() {
 	// (one token every 12s).
 	squadLimiter := middleware.NewRateLimiter(rate.Every(12*time.Second), 5)
 
+	patchMeLimiter := middleware.NewRateLimiter(rate.Every(6 * time.Second), 10)
+
 	api := router.Group("/")
 	api.Use(ipLimiter.Middleware(middleware.ByClientIP))
 	api.Use(authMiddleware.RequireUser())
@@ -123,6 +120,12 @@ func main() {
 	// User endpoints
 	api.POST("/users", handlers.CreateUser)
 	api.GET("/users", handlers.GetUser)
+	api.GET("/users/me", func(c *gin.Context) { handlers.GetMe(c, userRepo) })
+
+	api.PATCH("/users/me", authMiddleware.RequireSyncedUser(), patchMeLimiter.Middleware(middleware.ByUserSub),
+		func(c *gin.Context) {
+			handlers.PatchMe(c, userRepo, clerkAdmin)
+	})
 
 	// Squad endpoints. Writes additionally require RequireSyncedUser so the
 	// caller's users row is guaranteed to exist before squad insert.

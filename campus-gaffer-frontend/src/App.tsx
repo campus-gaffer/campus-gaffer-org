@@ -8,6 +8,7 @@ import SquadScreen from './screens/SquadScreen';
 import DraftScreen from './screens/DraftScreen';
 import { SQUAD_LOCK_KEY } from './lib/mockSquad';
 import GWBreakdownScreen from './screens/GWBreakdownScreen';
+import ProfileScreen from './screens/ProfileScreen';
 import { FormationProvider } from './context/FormationContext';
 import { registerTokenGetter } from './lib/auth';
 
@@ -108,6 +109,7 @@ function App() {
                       if (target === 'squad') navigate('/squad');
                       if (target === 'leaderboard') navigate('/leaderboard');
                       if (target === 'breakdown') navigate('/breakdown');
+                      if (target === 'profile') navigate('/profile');
                     }}
                   />
                 </SignedIn>
@@ -124,6 +126,10 @@ function App() {
             <Route
               path="/breakdown"
               element={<SignedIn><GWBreakdownScreen onBack={() => navigate('/home')} /></SignedIn>}
+            />
+            <Route
+              path="/profile"
+              element={<SignedIn><ProfileScreen /></SignedIn>}
             />
             <Route path="*" element={<Navigate to={isSignedIn ? '/home' : '/login'} replace />} />
           </Routes>

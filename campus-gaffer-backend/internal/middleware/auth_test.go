@@ -22,6 +22,14 @@ func (s *stubUserRepo) UpsertAuthUser(_ context.Context, user *models.User) erro
 	return nil
 }
 
+func (s *stubUserRepo) UpdateUsername(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
+func (s *stubUserRepo) FindByID(_ context.Context, _ string) (*models.User, error) {
+	return nil, nil
+}
+
 type stubVerifier struct {
 	claims *auth.Claims
 	err    error
