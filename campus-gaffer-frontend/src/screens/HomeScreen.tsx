@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { SQUAD_DATA_KEY, GW_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
+import { GW_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
 import { useFormation } from '../context/FormationContext';
 import { BrandMark } from '../components/BrandMark';
 import { ScreenShell } from '../layouts/ScreenShell';
 import { THEME, withAlpha } from '../lib/theme';
-import { apiFetch, getMe, type Me } from '../lib/api';
+import { apiFetch, ApiError, getMe, type Me } from '../lib/api';
 import NotificationsSheet, { type NotificationItem } from '../components/NotificationsSheet';
+
+// hasSquad source-of-truth: `GET /users/me/squad` (404 = no squad).
+// localStorage SQUAD_DATA_KEY is no longer authoritative — a fresh
+// signed-in user has nothing in localStorage but may or may not have
+// a squad on the server.
+type SquadStatus = 'loading' | 'has-squad' | 'no-squad' | 'error';
 
 type NavTarget = 'squad' | 'leaderboard' | 'breakdown' | 'profile';
 
@@ -163,14 +169,30 @@ function CardLabel({ text, hero }: { text: string; hero?: boolean }) {
 }
 
 // ─── Dashboard cards ───────────────────────────────────────────────────────
-function MySquadCard({ onNav, gameweek, stats }: { onNav: () => void; gameweek: number; stats: UserStats | null }) {
+function MySquadCardSkeleton() {
+  // Loading placeholder — distinct from the "no squad" CTA so a slow
+  // network never flashes the empty state to a user who has a squad.
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ width: 80, height: 38, borderRadius: 6, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ width: 120, height: 10, borderRadius: 4, background: 'rgba(255,255,255,0.05)', marginTop: 4 }} />
+    </div>
+  );
+}
+
+function MySquadCard({ onNav, gameweek, stats, squadStatus }: { onNav: () => void; gameweek: number; stats: UserStats | null; squadStatus: SquadStatus }) {
   const { formation } = useFormation();
-  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
+  // `loading` and `error` render the same neutral placeholder so a transient
+  // backend hiccup never tells the user "you have no squad" by accident.
+  const showSquad = squadStatus === 'has-squad' || squadStatus === 'error';
+  const showSkeleton = squadStatus === 'loading';
+  const showEmpty = squadStatus === 'no-squad';
   return (
     <Card hero onClick={onNav}>
       <CardLabel text="My Squad" hero />
       <div style={{ flex: 1 }}>
-        {hasSquad ? (
+        {showSkeleton && <MySquadCardSkeleton />}
+        {showSquad && (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums', color: HM.text }}>{stats ? stats.seasonPts : '—'}</span>
@@ -180,7 +202,8 @@ function MySquadCard({ onNav, gameweek, stats }: { onNav: () => void; gameweek: 
               GW{gameweek} · {stats && stats.rank > 0 ? `#${stats.rank} rank` : 'unranked'}
             </div>
           </>
-        ) : (
+        )}
+        {showEmpty && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 20, color: HM.text }}>No squad yet</div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: HM.textFaint }}>Create your squad to start earning points and appear on the leaderboard.</div>
@@ -189,9 +212,6 @@ function MySquadCard({ onNav, gameweek, stats }: { onNav: () => void; gameweek: 
             </div>
           </div>
         )}
-        {/* <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.16em', color: HM.accentDim, textTransform: 'uppercase', marginTop: 6 }}>
-          {formationLabel}
-        </div> */}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 10 }}>
         <MiniPitch formation={formation} />
@@ -351,6 +371,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [squadStatus, setSquadStatus] = useState<SquadStatus>('loading');
   const { userId } = useAuth();
 
   // useCountdown returns a stable, pure-logic snapshot of time remaining
@@ -366,6 +387,32 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
     getMe(ctrl.signal)
       .then(setMe)
       .catch(() => { /* keep me=null → no badge */ });
+    return () => ctrl.abort();
+  }, [userId]);
+
+  // Source-of-truth for `hasSquad`: hit `/users/me/squad` and branch on 404.
+  // 2xx → has squad (cache the id for downstream screens). 404 → empty
+  // state. Any other failure → 'error', which renders like 'has-squad'
+  // (neutral) so transient blips never tell the user they have no squad.
+  useEffect(() => {
+    if (!userId) return;
+    const ctrl = new AbortController();
+    setSquadStatus('loading');
+    apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal })
+      .then((data) => {
+        setSquadStatus('has-squad');
+        if (typeof window !== 'undefined' && data.squad_id) {
+          window.localStorage.setItem(SQUAD_ID_KEY, data.squad_id);
+        }
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (err instanceof ApiError && err.status === 404) {
+          setSquadStatus('no-squad');
+          return;
+        }
+        setSquadStatus('error');
+      });
     return () => ctrl.abort();
   }, [userId]);
 
@@ -444,7 +491,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
 
   const showBellBadge = notifications.length > 0;
 
-  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_DATA_KEY) !== null;
+  // `error` is treated as "has squad" everywhere except inside the squad
+  // card itself — we'd rather over-route the quick action to /breakdown
+  // (which will then show its own offline copy) than send a user with a
+  // real squad to /draft on a transient blip.
+  const hasSquad = squadStatus === 'has-squad' || squadStatus === 'error';
 
   return (
     <ScreenShell
@@ -506,20 +557,22 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: NavTarget) 
 
             {/* 2×2 grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 16px' }}>
-              <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} stats={stats} />
+              <MySquadCard onNav={() => onNavigate('squad')} gameweek={gameweek} stats={stats} squadStatus={squadStatus} />
               <LeaderboardCard onNav={() => onNavigate('leaderboard')} stats={stats} />
               <DeadlineCard gameweek={gameweek} deadline={deadline} />
               <ResultsCard onNav={() => onNavigate('breakdown')} gameweek={gameweek} />
             </div>
 
-            {/* Quick action */}
+            {/* Quick action — routes to /draft (the SquadRoute renders
+                DraftScreen when no squad is locked) for a fresh user, and
+                to the points breakdown otherwise. */}
             <div style={{ margin: '16px 16px 0', padding: '12px 16px', background: HM.card, border: `1px solid ${HM.lineDim}`, borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>View points breakdown</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? (stats ? `GW${gameweek} · ${stats.gwPts} pts scored` : `GW${gameweek}`) : 'No squad yet'}</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 14, color: HM.text, letterSpacing: '-0.01em' }}>{hasSquad ? 'View points breakdown' : 'Build your squad'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: '0.10em', color: HM.textFaint, textTransform: 'uppercase', marginTop: 2 }}>{hasSquad ? (stats ? `GW${gameweek} · ${stats.gwPts} pts scored` : `GW${gameweek}`) : 'Draft 6 starters + 4 bench'}</div>
               </div>
-              <button type="button" onClick={() => onNavigate('breakdown')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                See breakdown
+              <button type="button" onClick={() => onNavigate(hasSquad ? 'breakdown' : 'squad')} style={{ height: 34, padding: '0 14px', borderRadius: 10, border: `1px solid ${HM.accent}`, background: withAlpha(HM.accent, 0.12), color: HM.accent, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {hasSquad ? 'See breakdown' : 'Create squad'}
               </button>
             </div>
           </>

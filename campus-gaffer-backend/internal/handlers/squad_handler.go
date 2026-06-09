@@ -77,7 +77,9 @@ func (h *SquadHandler) GetMySquad(c *gin.Context) {
 	squad, err := h.svc.GetSquadByUserID(c.Request.Context(), userID)
 	if err != nil {
 		if errors.Is(err, service.ErrSquadNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "no squad for user"})
+			// Sentinel-style error code so the frontend can distinguish
+			// "fresh signed-in user, no squad yet" from a generic 4xx.
+			c.JSON(http.StatusNotFound, gin.H{"error": "ErrSquadNotFound"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch squad"})
 		}

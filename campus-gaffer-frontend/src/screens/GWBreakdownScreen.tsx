@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { SQUAD_DATA_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
 import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
-import { apiFetch } from '../lib/api';
+import { apiFetch, ApiError } from '../lib/api';
 import './screen-shared.css';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
@@ -330,6 +330,9 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
         }
       }
 
+      // Track whether the user-squad lookup itself failed in a non-404 way,
+      // so we don't collapse generic network errors into the "no squad" UI.
+      let lookupErrored = false;
       if (!squadId) {
         const userId = window.localStorage.getItem(USER_ID_KEY);
         if (userId) {
@@ -339,14 +342,21 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
             window.localStorage.setItem(SQUAD_ID_KEY, squadId);
           } catch (err) {
             if (err instanceof Error && err.name === 'AbortError') return;
-            /* no squad yet */
+            // 404 = canonical "no squad yet". Anything else (network, 5xx)
+            // is a real error and must not be misrepresented as empty.
+            if (!(err instanceof ApiError && err.status === 404)) {
+              lookupErrored = true;
+            }
           }
         }
       }
 
       if (!squadId) {
         setLoading(false);
-        setNoSquad(true);
+        // Only enter the noSquad branch when we're confident the user has
+        // no squad. On a non-404 lookup failure, leave noSquad false so the
+        // screen renders its existing empty-data fallback instead.
+        setNoSquad(!lookupErrored);
         return;
       }
 
@@ -376,7 +386,11 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         setLoading(false);
-        setNoSquad(true);
+        // 404 from the points endpoint means the squad we believed we had
+        // was deleted server-side (e.g. by a cleanup migration). Treat as
+        // noSquad. Generic errors leave noSquad false so the existing
+        // fallback rendering takes over instead of a misleading empty UI.
+        setNoSquad(err instanceof ApiError && err.status === 404);
       }
     })();
 
