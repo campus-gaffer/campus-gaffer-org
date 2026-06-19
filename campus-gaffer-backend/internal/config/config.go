@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	DBUri          string
-	Cookies        string
-	LeagueTz       string
-	ClerkIssuer    string
-	ClerkSecretKey string
+	DBUri               string
+	Cookies             string
+	LeagueTz            string
+	ClerkIssuer         string
+	ClerkSecretKey      string
+	ClerkWebhookSecret  string
 }
 
 // Shared/Core settings needed by almost everything
@@ -73,11 +74,12 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		DBUri:          dbUri,
-		Cookies:        cookies,
-		LeagueTz:       leagueTz,
-		ClerkIssuer:    clerkIssuer,
-		ClerkSecretKey: clerkSecretKey,
+		DBUri:              dbUri,
+		Cookies:            cookies,
+		LeagueTz:           leagueTz,
+		ClerkIssuer:        clerkIssuer,
+		ClerkSecretKey:     clerkSecretKey,
+		ClerkWebhookSecret: os.Getenv("CLERK_WEBHOOK_SECRET"),
 	}, nil
 }
 
