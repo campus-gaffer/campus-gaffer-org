@@ -1,0 +1,1 @@
+ALTER TABLE squad_players DROP CONSTRAINT IF EXISTS squad_players_squad_id_fkey;
