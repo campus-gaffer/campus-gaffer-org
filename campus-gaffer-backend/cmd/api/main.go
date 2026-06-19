@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	db := database.Connect(cfg.DBUri)
-
+	
 	// Initialize repositories
 	userRepo := repository.NewUserRepo(db)
 	squadRepo := repository.NewSquadRepo(db)
@@ -44,6 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("auth config: %v", err)
 	}
+
 	authMiddleware := middleware.NewAuthMiddleware(verifier, userRepo)
 	clerkAdmin := auth.NewClerkAdmin(cfg.ClerkSecretKey)
 
@@ -109,6 +110,7 @@ func main() {
 	// Liveness probe — mounted before any auth or rate-limit middleware so
 	// load balancers / ECS health checks can reach it unconditionally.
 	router.GET("/healthz", handlers.Healthz)
+	// router.POST("/webhooks/clerk", webhook.ClerkWebhookHandler(userRepo, cfg.WebhookSecret))
 
 	
 	// Global per-IP limiter: 60 req/min, burst 60. Applied before auth so
@@ -129,7 +131,7 @@ func main() {
 	api.POST("/users", handlers.CreateUser)
 	api.GET("/users", handlers.GetUser)
 	api.GET("/users/me", func(c *gin.Context) { handlers.GetMe(c, userRepo) })
-
+	api.DELETE("/users/me", func(c *gin.Context) { handlers.DeleteMe(c, userRepo) })
 	api.PATCH("/users/me", authMiddleware.RequireSyncedUser(), patchMeLimiter.Middleware(middleware.ByUserSub),
 		func(c *gin.Context) {
 			handlers.PatchMe(c, userRepo, clerkAdmin)
