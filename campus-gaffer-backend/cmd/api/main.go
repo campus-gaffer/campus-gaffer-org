@@ -6,6 +6,7 @@ import (
 	"campus-gaffer-backend/internal/database"
 	"campus-gaffer-backend/internal/handlers"
 	"campus-gaffer-backend/internal/middleware"
+	webhook "campus-gaffer-backend/internal/webhooks"
 
 	// "campus-gaffer-backend/internal/models"
 	"campus-gaffer-backend/internal/repository"
@@ -110,7 +111,7 @@ func main() {
 	// Liveness probe — mounted before any auth or rate-limit middleware so
 	// load balancers / ECS health checks can reach it unconditionally.
 	router.GET("/healthz", handlers.Healthz)
-	// router.POST("/webhooks/clerk", webhook.ClerkWebhookHandler(userRepo, cfg.WebhookSecret))
+	router.POST("/webhooks/clerk", webhook.ClerkWebhookHandler(userRepo, cfg.ClerkWebhookSecret))
 
 	
 	// Global per-IP limiter: 60 req/min, burst 60. Applied before auth so
