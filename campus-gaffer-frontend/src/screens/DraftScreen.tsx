@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import './screen-shared.css';
-import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY } from '../lib/mockSquad';
+import { SQUAD_DATA_KEY, SQUAD_LOCK_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
+import { apiFetch } from '../lib/api';
 import { type Player, BUDGET, MAX_S, MAX_B } from '../lib/players';
 import { ScreenShell } from '../layouts/ScreenShell';
 import PlayerRow from '../components/draft/PlayerRow';
@@ -9,7 +10,7 @@ import DeadlineChip from '../components/draft/DeadlineChip';
 import ConfirmModal from '../components/draft/ConfirmModal';
 import DraftFooterActions from '../components/draft/DraftFooterActions';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
+const FALLBACK_GAMEWEEK = 7;
 
 const PAL = {
   bg2: 'oklch(0.10 0.02 248)',
@@ -35,12 +36,27 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
   const [bench, setBench] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [currentGameweek, setCurrentGameweek] = useState(FALLBACK_GAMEWEEK);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Fetch current gameweek independently — don't rely on HomeScreen having stored GW_KEY
+  useEffect(() => {
+    const ctrl = new AbortController();
+    apiFetch<{ gameweek: number; deadline: string }>('/gameweeks/current', { signal: ctrl.signal })
+      .then(data => setCurrentGameweek(data.gameweek))
+      .catch(() => {
+        // Fall back to localStorage value if the API call fails
+        const stored = typeof window !== 'undefined' ? window.localStorage.getItem(GW_KEY) : null;
+        if (stored) setCurrentGameweek(parseInt(stored, 10));
+      });
+    return () => ctrl.abort();
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch(`${API_BASE_URL}/players`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then((data: ApiPlayer[]) => {
+    apiFetch<ApiPlayer[]>('/players', { signal: ctrl.signal })
+      .then(data => {
         setPool(data.map(p => ({ id: p.id, name: p.name, team: p.team || '', price: p.price })));
         setLoading(false);
       })
@@ -73,19 +89,41 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
     setStarters((s) => s.filter((x) => x !== id));
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (confirming) return;
+    setSubmitError(null);
     const spent = [...starters, ...bench].reduce((s, id) => {
       const p = pool.find((x) => x.id === id);
       return s + (p?.price || 0);
     }, 0);
     const remaining = BUDGET - spent;
     if (starters.length !== MAX_S || bench.length !== MAX_B || remaining < 0) return;
+    
+    if (typeof window !== 'undefined' && !window.localStorage.getItem(SQUAD_ID_KEY)) {
+      setConfirming(true);
+      try {
+        const gameweek = currentGameweek;
+        const data = await apiFetch<{ squad: { Id: string } }>('/squads', {
+          method: 'POST',
+          body: JSON.stringify({ gameweek, starters, bench }),
+        });
+        window.localStorage.setItem(SQUAD_ID_KEY, data.squad.Id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown error';
+        setSubmitError(`Could not save squad to server (${message}).`);
+        return;
+      } finally {
+        setConfirming(false);
+      }
+    }
+
     const selectedStarters = starters.map((id) => pool.find((p) => p.id === id));
     const selectedBench = bench.map((id) => pool.find((p) => p.id === id));
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(SQUAD_DATA_KEY, JSON.stringify({ starters: selectedStarters, bench: selectedBench }));
       window.localStorage.setItem(SQUAD_LOCK_KEY, '1');
     }
+
     setShowModal(false);
     onConfirm();
   }
@@ -183,6 +221,11 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
               {error}
             </div>
           )}
+          {submitError && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#f87171', padding: '4px 6px 8px', textAlign: 'center' }}>
+              {submitError}
+            </div>
+          )}
           {!loading && !error && visiblePool.map((p) => (
             <PlayerRow
               key={p.id}
@@ -200,7 +243,7 @@ export default function DraftScreen({ onBack, onConfirm }: { onBack: () => void;
           ))}
         </div>
       </div>
-      {showModal && <ConfirmModal spent={spent} onBack={() => setShowModal(false)} onConfirm={handleConfirm} />}
+      {showModal && <ConfirmModal spent={spent} confirming={confirming} onBack={() => setShowModal(false)} onConfirm={handleConfirm} />}
     </ScreenShell>
   );
 }

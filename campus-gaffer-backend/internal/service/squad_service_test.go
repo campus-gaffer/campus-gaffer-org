@@ -84,7 +84,7 @@ func (f *fakeSquadRepo) TotalPointsByPlayerIDs(_ context.Context, _ []uuid.UUID,
 	return map[uuid.UUID]int{}, nil
 }
 
-func (f *fakeSquadRepo) Leaderboard(_ context.Context, limit, offset int) ([]repository.LeaderboardRow, int, error) {
+func (f *fakeSquadRepo) Leaderboard(_ context.Context, limit, offset int, _, _ time.Time) ([]repository.LeaderboardRow, int, error) {
 	if f.leaderboardErr != nil {
 		return nil, 0, f.leaderboardErr
 	}
@@ -180,6 +180,7 @@ func makeIDs(n int) []uuid.UUID {
 func newSquadSvc(sr *fakeSquadRepo, pr *fakeSquadPriceRepo, gr repository.GameRepository) SquadService {
 	return &squadService{squadRepo: sr, priceRepo: pr, gameRepo: gr, loc: time.UTC}
 }
+
 
 func validReq(starters, bench []uuid.UUID) CreateSquadRequest {
 	return CreateSquadRequest{UserID: "user_test1", Gameweek: 1, Starters: starters, Bench: bench}
@@ -323,7 +324,7 @@ func TestCreateSquad_BudgetSpent_RecordedCorrectly(t *testing.T) {
 
 func TestGetSquad_NotFound_ReturnsError(t *testing.T) {
 	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
-	_, _, err := svc.GetSquad(context.Background(), uuid.New())
+	_, _, err := svc.GetSquad(context.Background(), uuid.New(), "user_test1")
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
 	}
@@ -349,7 +350,7 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 	}
 	sr.totalPointsOverride = overrides
 
-	resp, err := svc.GetSquadPoints(context.Background(), squad.Id)
+	resp, err := svc.GetSquadPoints(context.Background(), squad.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("get points: %v", err)
 	}
@@ -362,9 +363,39 @@ func TestGetSquadPoints_StartersOnlyCountToTotal(t *testing.T) {
 	}
 }
 
+func TestGetSquad_WrongOwner_ReturnsForbidden(t *testing.T) {
+	starters := makeIDs(OnFieldCount)
+	bench := makeIDs(BenchCount)
+	sr := newFakeSquadRepo()
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
+	created, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
+	if err != nil {
+		t.Fatalf("create squad: %v", err)
+	}
+	_, _, err = svc.GetSquad(context.Background(), created.Id, "someone_else")
+	if err != ErrForbidden {
+		t.Errorf("got %v, want ErrForbidden", err)
+	}
+}
+
+func TestGetSquadPoints_WrongOwner_ReturnsForbidden(t *testing.T) {
+	starters := makeIDs(OnFieldCount)
+	bench := makeIDs(BenchCount)
+	sr := newFakeSquadRepo()
+	svc := newSquadSvc(sr, &fakeSquadPriceRepo{}, futureGameRepo())
+	created, _, err := svc.CreateSquad(context.Background(), validReq(starters, bench))
+	if err != nil {
+		t.Fatalf("create squad: %v", err)
+	}
+	_, err = svc.GetSquadPoints(context.Background(), created.Id, "someone_else")
+	if err != ErrForbidden {
+		t.Errorf("got %v, want ErrForbidden", err)
+	}
+}
+
 func TestGetSquadPoints_NotFound_ReturnsError(t *testing.T) {
 	svc := newSquadSvc(newFakeSquadRepo(), &fakeSquadPriceRepo{}, futureGameRepo())
-	_, err := svc.GetSquadPoints(context.Background(), uuid.New())
+	_, err := svc.GetSquadPoints(context.Background(), uuid.New(), "user_test1")
 	if err != ErrSquadNotFound {
 		t.Errorf("got %v, want ErrSquadNotFound", err)
 	}
@@ -388,7 +419,7 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 	}
 
 	// Fetch
-	fetched, fetchedPlayers, err := svc.GetSquad(context.Background(), created.Id)
+	fetched, fetchedPlayers, err := svc.GetSquad(context.Background(), created.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("GetSquad: %v", err)
 	}
@@ -400,7 +431,7 @@ func TestHotPath_CreateGetPoints(t *testing.T) {
 	}
 
 	// Points (no games scored yet → all zeros, total = 0)
-	resp, err := svc.GetSquadPoints(context.Background(), created.Id)
+	resp, err := svc.GetSquadPoints(context.Background(), created.Id, "user_test1")
 	if err != nil {
 		t.Fatalf("GetSquadPoints: %v", err)
 	}
@@ -424,7 +455,7 @@ func TestLeaderboard_PreSeason_ZeroPointsAppear(t *testing.T) {
     }
     sr.leaderboardTotal = 1
 
-    rows, total, err := sr.Leaderboard(context.Background(), 50, 0)
+    rows, total, err := sr.Leaderboard(context.Background(), 50, 0, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -448,7 +479,7 @@ func TestLeaderboard_WithPoints_RankedDescending(t *testing.T) {
     }
     sr.leaderboardTotal = 3
 
-    rows, _, err := sr.Leaderboard(context.Background(), 50, 0)
+    rows, _, err := sr.Leaderboard(context.Background(), 50, 0, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }
@@ -470,7 +501,7 @@ func TestLeaderboard_Pagination_HonorsLimitOffset(t *testing.T) {
     }
     sr.leaderboardTotal = num_squads
 
-    rows, total, err := sr.Leaderboard(context.Background(), 2, 1)
+    rows, total, err := sr.Leaderboard(context.Background(), 2, 1, time.Time{}, time.Time{})
     if err != nil {
         t.Fatalf("unexpected error: %v", err)
     }

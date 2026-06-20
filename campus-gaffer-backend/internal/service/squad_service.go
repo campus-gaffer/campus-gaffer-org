@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,6 +32,7 @@ var (
 	ErrSquadNotFound     = errors.New("squad not found")
 	ErrDeadlinePassed    = errors.New("gameweek deadline has passed")
 	ErrGameweekNotFound  = errors.New("gameweek not found in schedule")
+	ErrForbidden         = errors.New("not the owner of this resource")
 )
 
 type CreateSquadRequest struct {
@@ -40,10 +42,22 @@ type CreateSquadRequest struct {
 	Bench    []uuid.UUID `json:"bench"`
 }
 
+type PointBreakdown struct {
+	AppearancePts int `json:"appearance_pts"`
+	Goals         int `json:"goals"`
+	GoalPts       int `json:"goal_pts"`
+	WinPts        int `json:"win_pts"`
+	DrawPts       int `json:"draw_pts"`
+	MvpPts        int `json:"mvp_pts"`
+}
+
 type PlayerPointEntry struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	IsBench  bool      `json:"is_bench"`
-	Points   int       `json:"points"`
+	PlayerID  uuid.UUID       `json:"player_id"`
+	Name      string          `json:"name"`
+	Team      string          `json:"team"`
+	IsBench   bool            `json:"is_bench"`
+	Points    int             `json:"points"`
+	Breakdown *PointBreakdown `json:"breakdown,omitempty"`
 }
 
 type SquadPointsResponse struct {
@@ -54,27 +68,36 @@ type SquadPointsResponse struct {
 
 type SquadService interface {
 	CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error)
-	GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error)
-	GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error)
+	// GetSquad returns the squad if callerUserID matches the squad's owner.
+	// Returns ErrForbidden on owner mismatch, ErrSquadNotFound when absent.
+	GetSquad(ctx context.Context, id uuid.UUID, callerUserID string) (*models.Squad, []models.SquadPlayer, error)
+	GetSquadByUserID(ctx context.Context, userID string) (*models.Squad, error)
+	// GetSquadPoints returns starter points + per-player breakdown if callerUserID
+	// owns the squad. Returns ErrForbidden on owner mismatch.
+	GetSquadPoints(ctx context.Context, squadID uuid.UUID, callerUserID string) (*SquadPointsResponse, error)
 }
 
 type squadService struct {
-	squadRepo repository.SquadRepository
-	priceRepo repository.PlayerPriceRepository
-	gameRepo  repository.GameRepository
-	loc       *time.Location
+	squadRepo  repository.SquadRepository
+	priceRepo  repository.PlayerPriceRepository
+	gameRepo   repository.GameRepository
+	playerRepo repository.PlayerRepository
+	perfRepo   repository.PerformanceRepository
+	loc        *time.Location
 }
 
 func NewSquadService(
 	squadRepo repository.SquadRepository,
 	priceRepo repository.PlayerPriceRepository,
 	gameRepo repository.GameRepository,
+	playerRepo repository.PlayerRepository,
+	perfRepo repository.PerformanceRepository,
 	loc *time.Location,
 ) SquadService {
 	if loc == nil {
 		loc = time.UTC
 	}
-	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, loc: loc}
+	return &squadService{squadRepo: squadRepo, priceRepo: priceRepo, gameRepo: gameRepo, playerRepo: playerRepo, perfRepo: perfRepo, loc: loc}
 }
 
 func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) (*models.Squad, []models.SquadPlayer, error) {
@@ -94,9 +117,9 @@ func (s *squadService) CreateSquad(ctx context.Context, req CreateSquadRequest) 
 		seen[id] = struct{}{}
 	}
 
-	if err := s.checkDeadline(ctx, req.Gameweek); err != nil {
-		return nil, nil, err
-	}
+	// if err := s.checkDeadline(ctx, req.Gameweek); err != nil {
+	// 	return nil, nil, err
+	// }
 
 	existing, err := s.squadRepo.FindByUserID(ctx, req.UserID)
 	if err != nil {
@@ -159,7 +182,7 @@ func (s *squadService) checkDeadline(ctx context.Context, gameweekNum int) error
 	return ErrGameweekNotFound
 }
 
-func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID) (*models.Squad, []models.SquadPlayer, error) {
+func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID, callerUserID string) (*models.Squad, []models.SquadPlayer, error) {
 	squad, players, err := s.squadRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetSquad: %w", err)
@@ -167,16 +190,33 @@ func (s *squadService) GetSquad(ctx context.Context, id uuid.UUID) (*models.Squa
 	if squad == nil {
 		return nil, nil, ErrSquadNotFound
 	}
+	if squad.UserID != callerUserID {
+		return nil, nil, ErrForbidden
+	}
 	return squad, players, nil
 }
 
-func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*SquadPointsResponse, error) {
+func (s *squadService) GetSquadByUserID(ctx context.Context, userID string) (*models.Squad, error) {
+	squad, err := s.squadRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("GetSquadByUserID: %w", err)
+	}
+	if squad == nil {
+		return nil, ErrSquadNotFound
+	}
+	return squad, nil
+}
+
+func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID, callerUserID string) (*SquadPointsResponse, error) {
 	squad, players, err := s.squadRepo.FindByID(ctx, squadID)
 	if err != nil {
 		return nil, fmt.Errorf("GetSquadPoints: %w", err)
 	}
 	if squad == nil {
 		return nil, ErrSquadNotFound
+	}
+	if squad.UserID != callerUserID {
+		return nil, ErrForbidden
 	}
 
 	playerIDs := make([]uuid.UUID, len(players))
@@ -189,14 +229,89 @@ func (s *squadService) GetSquadPoints(ctx context.Context, squadID uuid.UUID) (*
 		return nil, fmt.Errorf("GetSquadPoints: fetch points: %w", err)
 	}
 
+	// Resolve display name and primary team per player. Both are non-fatal:
+	// on error the entry just carries an empty name/team rather than failing
+	// the whole points request.
+	nameByID := map[uuid.UUID]string{}
+	if s.playerRepo != nil {
+		if all, perr := s.playerRepo.FindAll(ctx); perr == nil {
+			for _, pl := range all {
+				nameByID[pl.Id] = pl.Name
+			}
+		} else {
+			log.Printf("GetSquadPoints: resolve names: %v", perr)
+		}
+	}
+	teamByID := map[uuid.UUID]string{}
+	if s.playerRepo != nil {
+		if t, terr := s.playerRepo.PrimaryTeams(ctx); terr == nil {
+			teamByID = t
+		} else {
+			log.Printf("GetSquadPoints: resolve teams: %v", terr)
+		}
+	}
+
+	breakdownByPlayer := map[uuid.UUID]*PointBreakdown{}
+	if s.perfRepo != nil {
+		perfs, perr := s.perfRepo.FindByPlayerIDs(ctx, playerIDs)
+		if perr != nil {
+			log.Printf("GetSquadPoints: fetch performances: %v", perr)
+		} else {
+			// Collect unique game IDs so we can resolve outcomes per game.
+			gameIDSet := map[uuid.UUID]struct{}{}
+			for _, pf := range perfs {
+				gameIDSet[pf.GameId] = struct{}{}
+			}
+			// outcomes[gameId][teamId] = Outcome
+			outcomes := map[uuid.UUID]map[uuid.UUID]Outcome{}
+			for gid := range gameIDSet {
+				full, ferr := s.perfRepo.FindByGameId(ctx, gid)
+				if ferr != nil {
+					log.Printf("GetSquadPoints: fetch game perfs %s: %v", gid, ferr)
+					continue
+				}
+				outcomes[gid] = outcomesByTeam(full)
+			}
+			for _, pf := range perfs {
+				bd := breakdownByPlayer[pf.PlayerId]
+				if bd == nil {
+					bd = &PointBreakdown{}
+					breakdownByPlayer[pf.PlayerId] = bd
+				}
+				if !pf.GamePlayed {
+					continue
+				}
+				bd.AppearancePts += WeightsV1.Appearance
+				bd.Goals += pf.Goals
+				bd.GoalPts += pf.Goals * WeightsV1.Goal
+				if pf.IsMVP {
+					bd.MvpPts += WeightsV1.MVP
+				}
+				if pf.TeamId != nil {
+					if gameOutcomes, ok := outcomes[pf.GameId]; ok {
+						switch gameOutcomes[*pf.TeamId] {
+						case OutcomeWin:
+							bd.WinPts += WeightsV1.Win
+						case OutcomeDraw:
+							bd.DrawPts += WeightsV1.Draw
+						}
+					}
+				}
+			}
+		}
+	}
+
 	entries := make([]PlayerPointEntry, len(players))
 	starterTotal := 0
 	for i, p := range players {
 		pts := totals[p.PlayerId]
 		entries[i] = PlayerPointEntry{
-			PlayerID: p.PlayerId,
-			IsBench:  p.IsBench,
-			Points:   pts,
+			PlayerID:  p.PlayerId,
+			Name:      nameByID[p.PlayerId],
+			Team:      teamByID[p.PlayerId],
+			IsBench:   p.IsBench,
+			Points:    pts,
+			Breakdown: breakdownByPlayer[p.PlayerId],
 		}
 		if !p.IsBench {
 			starterTotal += pts

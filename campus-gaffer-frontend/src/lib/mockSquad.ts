@@ -28,3 +28,4 @@ export const SQUAD = {
 export const SQUAD_LOCK_KEY = 'campus-gaffer-squad-locked';
 export const SQUAD_DATA_KEY = 'campus-gaffer-squad';
 export const SQUAD_ID_KEY = 'campus-gaffer-squad-id';
+export const GW_KEY = 'campus-gaffer-gameweek';

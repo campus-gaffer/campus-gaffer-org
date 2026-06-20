@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"campus-gaffer-backend/internal/middleware"
 	"campus-gaffer-backend/internal/service"
 	"errors"
 	"net/http"
@@ -18,7 +19,6 @@ func NewSquadHandler(svc service.SquadService) *SquadHandler {
 }
 
 type createSquadBody struct {
-	UserID   string   `json:"user_id" binding:"required"`
 	Gameweek int      `json:"gameweek" binding:"required,min=1"`
 	Starters []string `json:"starters" binding:"required"`
 	Bench    []string `json:"bench" binding:"required"`
@@ -31,6 +31,11 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 		return
 	}
 
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
 	starters, err := parseUUIDs(body.Starters)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid starter id: " + err.Error()})
@@ -43,11 +48,12 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	}
 
 	req := service.CreateSquadRequest{
-		UserID:   body.UserID,
 		Gameweek: body.Gameweek,
 		Starters: starters,
 		Bench:    bench,
 	}
+	req.UserID = userID
+
 	squad, players, err := h.svc.CreateSquad(c.Request.Context(), req)
 	if err != nil {
 		if isSquadValidationErr(err) {
@@ -60,17 +66,47 @@ func (h *SquadHandler) CreateSquad(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"squad": squad, "players": players})
 }
 
+// GetMySquad resolves the caller's own squad by JWT subject. Replaces the
+// pre-Clerk `/users/:user_id/squad` path-param flow — no more spoofable param.
+func (h *SquadHandler) GetMySquad(c *gin.Context) {
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	squad, err := h.svc.GetSquadByUserID(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrSquadNotFound) {
+			// Sentinel-style error code so the frontend can distinguish
+			// "fresh signed-in user, no squad yet" from a generic 4xx.
+			c.JSON(http.StatusNotFound, gin.H{"error": "ErrSquadNotFound"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch squad"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"squad_id": squad.Id})
+}
+
 func (h *SquadHandler) GetSquad(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid squad id"})
 		return
 	}
-	squad, players, err := h.svc.GetSquad(c.Request.Context(), id)
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	squad, players, err := h.svc.GetSquad(c.Request.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrSquadNotFound) {
+		switch {
+		case errors.Is(err, service.ErrSquadNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "squad not found"})
-		} else {
+		case errors.Is(err, service.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your squad"})
+		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch squad"})
 		}
 		return
@@ -84,11 +120,19 @@ func (h *SquadHandler) GetSquadPoints(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid squad id"})
 		return
 	}
-	resp, err := h.svc.GetSquadPoints(c.Request.Context(), id)
+	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	resp, err := h.svc.GetSquadPoints(c.Request.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, service.ErrSquadNotFound) {
+		switch {
+		case errors.Is(err, service.ErrSquadNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "squad not found"})
-		} else {
+		case errors.Is(err, service.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your squad"})
+		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch points"})
 		}
 		return
@@ -102,7 +146,7 @@ func isSquadValidationErr(err error) bool {
 		errors.Is(err, service.ErrDuplicatePlayer) ||
 		errors.Is(err, service.ErrBudgetExceeded) ||
 		errors.Is(err, service.ErrSquadExists) ||
-		errors.Is(err, service.ErrDeadlinePassed) ||
+		// errors.Is(err, service.ErrDeadlinePassed) ||
 		errors.Is(err, service.ErrGameweekNotFound)
 }
 

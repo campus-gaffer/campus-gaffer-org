@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom';
 import { BUDGET } from '../../lib/players';
 
-export default function ConfirmModal({ spent, onBack, onConfirm }: any) {
+export default function ConfirmModal({ spent, onBack, onConfirm, confirming = false }: any) {
   const modal = (
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(6,8,16,0.80)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'flex-end' }}>
       <div style={{ width: '100%', background: 'oklch(0.165 0.032 248)', borderRadius: '22px 22px 0 0', border: '1px solid oklch(0.28 0.04 248)', padding: '28px 24px calc(28px + env(safe-area-inset-bottom))' }}>
@@ -24,7 +24,7 @@ export default function ConfirmModal({ spent, onBack, onConfirm }: any) {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onBack} style={{ flex: 1, height: 52, borderRadius: 14, border: '1.5px solid oklch(0.28 0.04 248)', background: 'transparent', color: '#f6f6f8', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15 }}>Go back</button>
-          <button onClick={onConfirm} style={{ flex: 1, height: 52, borderRadius: 14, border: 'none', background: '#6bc07a', color: '#08120a', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, boxShadow: '0 8px 24px -10px #6bc07a' }}>Confirm & Lock</button>
+          <button onClick={onConfirm} disabled={confirming} style={{ flex: 1, height: 52, borderRadius: 14, border: 'none', background: confirming ? '#3d7a4a' : '#6bc07a', color: '#08120a', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 15, boxShadow: confirming ? 'none' : '0 8px 24px -10px #6bc07a', cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.7 : 1 }}>{confirming ? 'Saving…' : 'Confirm & Lock'}</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { SQUAD_DATA_KEY, SQUAD_ID_KEY } from '../lib/mockSquad';
+import { useAuth } from '@clerk/clerk-react';
+import { SQUAD_DATA_KEY, SQUAD_ID_KEY, GW_KEY } from '../lib/mockSquad';
+import { readCache, writeCache } from '../lib/cache';
 import { BrandMark } from '../components/BrandMark';
+import { apiFetch, ApiError } from '../lib/api';
 import './screen-shared.css';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
@@ -25,19 +28,27 @@ const TEAM_COLORS: Record<string, string> = {
 
 const withAlpha = (color: string, alpha: number) => color.replace(')', ` / ${alpha})`);
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8081';
-
 const APPEARANCE = 2, GOAL_PTS = 4, WIN_PTS = 2, DRAW_PTS = 1, MVP_PTS = 3;
+
+interface PointBreakdown {
+  appearance_pts: number;
+  goals: number;
+  goal_pts: number;
+  win_pts: number;
+  draw_pts: number;
+  mvp_pts: number;
+}
 
 interface PlayerData {
   id: string; name: string; team: string; played: boolean;
   goals: number; result: string; mvp: boolean;
   livePoints?: number;
+  breakdown?: PointBreakdown;
 }
 
 interface StoredPlayer { id: string; name: string; team: string; price: number; }
 interface StoredSquad { starters: StoredPlayer[]; bench: StoredPlayer[]; }
-interface ApiPointsEntry { player_id: string; name: string; team: string; is_bench: boolean; points: number; }
+interface ApiPointsEntry { player_id: string; name: string; team: string; is_bench: boolean; points: number; breakdown?: PointBreakdown; }
 interface ApiSquadPoints { squad_id: string; total_points: number; players: ApiPointsEntry[]; }
 
 function calcPts(p: PlayerData) {
@@ -47,23 +58,6 @@ function calcPts(p: PlayerData) {
     + (p.mvp ? MVP_PTS : 0);
 }
 
-const GW_DATA = {
-  gameweek: 7, seasonTotal: 142,
-  starters: [
-    { id: '1', name: 'Doyle',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: true  },
-    { id: '2', name: 'Mbeki',   team: 'WAD', played: true,  goals: 1, result: 'D', mvp: false },
-    { id: '3', name: 'Cohen',   team: 'KCS', played: true,  goals: 1, result: 'W', mvp: false },
-    { id: '4', name: 'Diaz',    team: 'TRN', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: '5', name: 'Bennett', team: 'KCS', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: '6', name: 'Hartley', team: 'KCS', played: true,  goals: 0, result: 'D', mvp: false },
-  ] as PlayerData[],
-  bench: [
-    { id: '7',  name: 'Khan',     team: 'STJ', played: true,  goals: 1, result: 'W', mvp: false },
-    { id: '8',  name: 'Schmidt',  team: 'STJ', played: true,  goals: 0, result: 'L', mvp: false },
-    { id: '9',  name: 'Hall',     team: 'HIL', played: true,  goals: 0, result: 'W', mvp: false },
-    { id: '10', name: 'Andersen', team: 'PMB', played: false, goals: 0, result: 'L', mvp: false },
-  ] as PlayerData[],
-};
 
 // ─── Count-up hook ─────────────────────────────────────────────────────────
 function useCountUp(target: number, duration = 900, delay = 200) {
@@ -109,21 +103,34 @@ function CheckCross({ yes, bench, isGold }: { yes: boolean; bench: boolean; isGo
 }
 
 function ScoreDrawer({ player, bench, visible }: { player: PlayerData; bench: boolean; visible: boolean }) {
-  const pts = calcPts(player);
   const items: { label: string; val: number | null; note: string; star?: boolean }[] = [];
-  if (!player.played) {
-    items.push({ label: 'Did not play', val: 0, note: '' });
-  } else {
-    items.push({ label: 'Appearance', val: APPEARANCE, note: '' });
-    if (player.goals > 0) items.push({ label: `Goal${player.goals > 1 ? 's' : ''}`, val: player.goals * GOAL_PTS, note: `${player.goals} × ${GOAL_PTS}` });
-    if (player.result === 'W') items.push({ label: 'Win bonus', val: WIN_PTS, note: '' });
-    if (player.result === 'D') items.push({ label: 'Draw bonus', val: DRAW_PTS, note: '' });
-    if (player.mvp) items.push({ label: 'Match MVP', val: MVP_PTS, note: '', star: true });
+
+  if (player.breakdown) {
+    const bd = player.breakdown;
+    if (bd.appearance_pts === 0) {
+      items.push({ label: 'Did not play', val: 0, note: '' });
+    } else {
+      items.push({ label: 'Appearance', val: bd.appearance_pts, note: '' });
+      if (bd.goal_pts > 0) items.push({ label: `Goal${bd.goals > 1 ? 's' : ''}`, val: bd.goal_pts, note: `${bd.goals} × ${GOAL_PTS}` });
+      if (bd.win_pts > 0) items.push({ label: 'Win bonus', val: bd.win_pts, note: bd.win_pts > WIN_PTS ? `${bd.win_pts / WIN_PTS} × ${WIN_PTS}` : '' });
+      if (bd.draw_pts > 0) items.push({ label: 'Draw bonus', val: bd.draw_pts, note: bd.draw_pts > DRAW_PTS ? `${bd.draw_pts / DRAW_PTS} × ${DRAW_PTS}` : '' });
+      if (bd.mvp_pts > 0) items.push({ label: 'Match MVP', val: bd.mvp_pts, note: '', star: true });
+    }
     if (bench) items.push({ label: 'On bench (not counted)', val: null, note: '' });
+  } else {
+    if (!player.played) {
+      items.push({ label: 'Did not play', val: 0, note: '' });
+    } else {
+      items.push({ label: 'Appearance', val: APPEARANCE, note: '' });
+      if (player.goals > 0) items.push({ label: `Goal${player.goals > 1 ? 's' : ''}`, val: player.goals * GOAL_PTS, note: `${player.goals} × ${GOAL_PTS}` });
+      if (player.result === 'W') items.push({ label: 'Win bonus', val: WIN_PTS, note: '' });
+      if (player.result === 'D') items.push({ label: 'Draw bonus', val: DRAW_PTS, note: '' });
+      if (player.mvp) items.push({ label: 'Match MVP', val: MVP_PTS, note: '', star: true });
+      if (bench) items.push({ label: 'On bench (not counted)', val: null, note: '' });
+    }
   }
+
   const textCol = bench ? PAL.benchText : PAL.textDim;
-  // suppress unused pts warning - it's used by the parent caller context
-  void pts;
   return (
     <div style={{ overflow: 'hidden', maxHeight: visible ? `${items.length * 34 + 20}px` : 0, transition: 'max-height 260ms cubic-bezier(.4,0,.2,1)', willChange: 'max-height' }}>
       <div style={{ padding: '6px 16px 10px', display: 'flex', flexDirection: 'column', gap: 0, borderTop: `1px dashed ${PAL.lineDim}` }}>
@@ -211,7 +218,8 @@ function MiniStat({ label, value, suffix, faint }: { label: string; value: strin
 }
 
 function SummaryCard({ gwTotal, benchTotal, seasonTotal, gameweek, mode, setMode }: { gwTotal: number; benchTotal: number; seasonTotal: number; gameweek: number; mode: string; setMode: (m: string) => void }) {
-  const displayTarget = mode === 'season' ? seasonTotal : gwTotal + benchTotal;
+  // Bench points are shown for transparency but are not counted totals.
+  const displayTarget = mode === 'season' ? seasonTotal : gwTotal;
   const animated = useCountUp(displayTarget, 900, 300);
   const starterPts = gwTotal;
   const benchPts = benchTotal;
@@ -263,51 +271,136 @@ function SectionHeader({ label, count, pts, isBench }: { label: string; count: s
 export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [mode, setMode] = useState('gw');
-  const [starters, setStarters] = useState<PlayerData[]>(GW_DATA.starters);
-  const [bench, setBench] = useState<PlayerData[]>(GW_DATA.bench);
+  const [starters, setStarters] = useState<PlayerData[]>([]);
+  const [bench, setBench] = useState<PlayerData[]>([]);
+  const [hasSquad, setHasSquad] = useState(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_ID_KEY) !== null
+  );
+  const [loading, setLoading] = useState(true);
+  const [noSquad, setNoSquad] = useState(false);
+  const [seasonTotal, setSeasonTotal] = useState(0);
+  const [gameweek] = useState(() => {
+    if (typeof window === 'undefined') return 7;
+    const stored = window.localStorage.getItem(GW_KEY);
+    return stored ? parseInt(stored, 10) : 7;
+  });
+  const { userId } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const squadId = window.localStorage.getItem(SQUAD_ID_KEY);
-    if (!squadId) return;
+    const ctrl = new AbortController();
 
-    // Optional fallback: the draft flow may have cached names in localStorage.
-    // The API now returns name/team directly, so this is only used if a field
-    // comes back empty.
     const nameMap = new Map<string, { name: string; team: string }>();
     const rawSquad = window.localStorage.getItem(SQUAD_DATA_KEY);
     if (rawSquad) {
       try {
-        const storedSquad: StoredSquad = JSON.parse(rawSquad);
-        [...(storedSquad.starters || []), ...(storedSquad.bench || [])].forEach(p => {
+        const stored: StoredSquad = JSON.parse(rawSquad);
+        [...(stored.starters || []), ...(stored.bench || [])].forEach(p => {
           nameMap.set(p.id, { name: p.name, team: p.team || '' });
         });
-      } catch { /* ignore malformed cache */ }
+      } catch { /* ignore */ }
     }
 
-    const ctrl = new AbortController();
-    fetch(`${API_BASE_URL}/squads/${squadId}/points`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then((data: ApiSquadPoints) => {
-        const toRow = (entry: ApiPointsEntry): PlayerData => ({
-          id: entry.player_id,
-          name: entry.name || nameMap.get(entry.player_id)?.name || entry.player_id.slice(0, 8),
-          team: entry.team || nameMap.get(entry.player_id)?.team || '',
-          played: true, goals: 0, result: '', mvp: false,
-          livePoints: entry.points,
-        });
+    const toRow = (entry: ApiPointsEntry): PlayerData => {
+      const bd = entry.breakdown;
+      return {
+        id: entry.player_id,
+        name: entry.name || nameMap.get(entry.player_id)?.name || entry.player_id.slice(0, 8),
+        team: entry.team || nameMap.get(entry.player_id)?.team || '',
+        played: bd ? bd.appearance_pts > 0 : true,
+        goals: bd?.goals ?? 0,
+        result: bd
+          ? bd.win_pts > 0 ? 'W' : bd.draw_pts > 0 ? 'D' : bd.appearance_pts > 0 ? 'L' : ''
+          : '',
+        mvp: bd ? bd.mvp_pts > 0 : false,
+        livePoints: entry.points,
+        breakdown: bd,
+      };
+    };
+
+    (async () => {
+      // Resolve squad ID: localStorage → VITE_DEFAULT_SQUAD_ID env var → user lookup
+      let squadId: string | null = window.localStorage.getItem(SQUAD_ID_KEY);
+
+      if (!squadId) {
+        const envId = (import.meta.env.VITE_DEFAULT_SQUAD_ID as string | undefined) || '';
+        if (envId) {
+          squadId = envId;
+          window.localStorage.setItem(SQUAD_ID_KEY, envId);
+        }
+      }
+
+      // Track whether the user-squad lookup itself failed in a non-404 way,
+      // so we don't collapse generic network errors into the "no squad" UI.
+      let lookupErrored = false;
+      if (!squadId) {
+        const userId = window.localStorage.getItem(USER_ID_KEY);
+        if (userId) {
+          try {
+            const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
+            squadId = data.squad_id;
+            window.localStorage.setItem(SQUAD_ID_KEY, squadId);
+          } catch (err) {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            // 404 = canonical "no squad yet". Anything else (network, 5xx)
+            // is a real error and must not be misrepresented as empty.
+            if (!(err instanceof ApiError && err.status === 404)) {
+              lookupErrored = true;
+            }
+          }
+        }
+      }
+
+      if (!squadId) {
+        setLoading(false);
+        // Only enter the noSquad branch when we're confident the user has
+        // no squad. On a non-404 lookup failure, leave noSquad false so the
+        // screen renders its existing empty-data fallback instead.
+        setNoSquad(!lookupErrored);
+        return;
+      }
+
+      // Cache hit: squad-points data is immutable within a gameweek.
+      // Render instantly and skip the network round-trip entirely.
+      const cacheKey = `squad-pts:${squadId}`;
+      const cached = readCache<ApiSquadPoints>(cacheKey);
+      if (cached) {
+        setSeasonTotal(cached.total_points);
+        setStarters(cached.players.filter(p => !p.is_bench).map(toRow));
+        setBench(cached.players.filter(p => p.is_bench).map(toRow));
+        setHasSquad(true);
+        setNoSquad(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await apiFetch<ApiSquadPoints>(`/squads/${squadId}/points`, { signal: ctrl.signal });
+        writeCache(cacheKey, data);
+        setSeasonTotal(data.total_points);
         setStarters(data.players.filter(p => !p.is_bench).map(toRow));
         setBench(data.players.filter(p => p.is_bench).map(toRow));
-      })
-      .catch(() => {/* keep GW_DATA fallback */});
+        setHasSquad(true);
+        setNoSquad(false);
+        setLoading(false);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setLoading(false);
+        // 404 from the points endpoint means the squad we believed we had
+        // was deleted server-side (e.g. by a cleanup migration). Treat as
+        // noSquad. Generic errors leave noSquad false so the existing
+        // fallback rendering takes over instead of a misleading empty UI.
+        setNoSquad(err instanceof ApiError && err.status === 404);
+      }
+    })();
+
     return () => ctrl.abort();
-  }, []);
+  }, [userId]);
 
   const toggle = useCallback((id: string) => {
     setExpanded(prev => prev === id ? null : id);
   }, []);
 
-  const hasSquad = typeof window !== 'undefined' && window.localStorage.getItem(SQUAD_ID_KEY) !== null;
   const starterPts = (hasSquad ? starters : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
   const benchPts = (hasSquad ? bench : []).reduce((s, p) => s + (p.livePoints ?? calcPts(p)), 0);
 
@@ -334,9 +427,21 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
 
       {/* Scrollable body */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 40 }}>
-        <SummaryCard gwTotal={starterPts} benchTotal={benchPts} seasonTotal={GW_DATA.seasonTotal} gameweek={GW_DATA.gameweek} mode={mode} setMode={setMode} />
+        <SummaryCard gwTotal={starterPts} benchTotal={benchPts} seasonTotal={seasonTotal} gameweek={gameweek} mode={mode} setMode={setMode} />
 
         <div style={{ padding: '0 16px' }}>
+          {loading && (
+            <div style={{ padding: '32px 0', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.14em', color: PAL.textFaint, textTransform: 'uppercase' }}>
+              Loading…
+            </div>
+          )}
+          {!loading && noSquad && (
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 17, color: PAL.text, marginBottom: 8 }}>No squad yet</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: '0.10em', color: PAL.textFaint, lineHeight: 1.6 }}>Draft your squad to start tracking live points.</div>
+            </div>
+          )}
+          {!loading && !noSquad && (<>
           <SectionHeader label="Starting" count={`${starters.length}`} pts={starterPts} isBench={false} />
           <ColHeaders />
           <div style={{ paddingTop: 4 }}>
@@ -362,6 +467,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
           <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 10, background: withAlpha(PAL.accent, 0.06), border: `1px solid ${withAlpha(PAL.accent, 0.12)}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: '0.08em', color: PAL.textFaint, lineHeight: 1.5 }}>
             Tap any player to see their full scoring breakdown.
           </div>
+          </>)}
         </div>
       </div>
     </div>

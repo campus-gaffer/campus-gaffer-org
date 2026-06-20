@@ -80,6 +80,14 @@ func (m *MockPerformanceRepository) FindByGameId(ctx context.Context, gameId uui
 	return m.byGameId[gameId], nil
 }
 
+func (m *MockPerformanceRepository) FindByPlayerIDs(_ context.Context, _ []uuid.UUID) ([]models.PlayerPerformance, error) {
+	return nil, nil
+}
+
+func (m *MockPerformanceRepository) GoalsByGameAndTeam(_ context.Context, _ []uuid.UUID) ([]repository.GameTeamGoals, error) {
+	return nil, nil
+}
+
 // MockPlayerGamePointRepo mocks the PlayerGamePointRepo for testing.
 type MockPlayerGamePointRepo struct {
 	upsertCalls []models.PlayerGamePoint
@@ -99,6 +107,10 @@ func (m *MockPlayerGamePointRepo) FindById(ctx context.Context, id uuid.UUID) (*
 }
 
 func (m *MockPlayerGamePointRepo) AvgPointsByPlayer(ctx context.Context, weightVer string, cutoff time.Time) ([]repository.PlayerAvgPoints, error) {
+	return nil, nil
+}
+
+func (m *MockPlayerGamePointRepo) TopScorerInGames(_ context.Context, _ []uuid.UUID, _ string) (*repository.TopScorerRow, error) {
 	return nil, nil
 }
 
