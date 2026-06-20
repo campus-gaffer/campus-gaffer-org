@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	SSMParamDBUri     = "/campus-gaffer/db-uri"
-	SSMParamCookies   = "/campus-gaffer/imleagues-cookie"
-	SSMLeagueTZ       = "/campus-gaffer/league-tz"
-	SSMClerkIssuer    = "/campus-gaffer/clerk-issuer"
-	SSMClerkSecretKey = "/campus-gaffer/clerk-secret-key"
+	SSMParamDBUri         = "/campus-gaffer/db-uri"
+	SSMParamCookies       = "/campus-gaffer/imleagues-cookie"
+	SSMLeagueTZ           = "/campus-gaffer/league-tz"
+	SSMClerkIssuer        = "/campus-gaffer/clerk-issuer"
+	SSMClerkSecretKey     = "/campus-gaffer/clerk-secret-key"
+	SSMClerkWebhookSecret = "/campus-gaffer/clerk-webhook-secret"
 )
 
 // LoadFromSSM fetches secrets from AWS Systems Manager Parameter Store and
@@ -28,7 +29,7 @@ func LoadFromSSM(ctx context.Context) (Config, error) {
 
 	client := ssm.NewFromConfig(awsCfg)
 	out, err := client.GetParameters(ctx, &ssm.GetParametersInput{
-		Names:          []string{SSMParamDBUri, SSMParamCookies, SSMLeagueTZ, SSMClerkIssuer, SSMClerkSecretKey},
+		Names:          []string{SSMParamDBUri, SSMParamCookies, SSMLeagueTZ, SSMClerkIssuer, SSMClerkSecretKey, SSMClerkWebhookSecret},
 		WithDecryption: aws.Bool(true),
 	})
 	if err != nil {
@@ -78,10 +79,11 @@ func LoadFromSSM(ctx context.Context) (Config, error) {
 	}
 
 	return Config{
-		DBUri:          dbUri,
-		Cookies:        cookies,
-		LeagueTz:       leagueTz,
-		ClerkIssuer:    clerkIssuer,
-		ClerkSecretKey: clerkSecretKey,
+		DBUri:              dbUri,
+		Cookies:            cookies,
+		LeagueTz:           leagueTz,
+		ClerkIssuer:        clerkIssuer,
+		ClerkSecretKey:     clerkSecretKey,
+		ClerkWebhookSecret: values[SSMClerkWebhookSecret],
 	}, nil
 }

@@ -19,6 +19,7 @@ type UserRepository interface {
 	UpsertAuthUser(ctx context.Context, user *models.User) error
 	UpdateUsername(ctx context.Context, id, username string) error
 	FindByID(ctx context.Context, id string) (*models.User, error)
+	DeleteUser(ctx context.Context, id string) (*models.User, error)
 }
 
 type userRepo struct {
@@ -76,6 +77,18 @@ func (r *userRepo) UpdateUsername(ctx context.Context, id, username string) erro
 func (r *userRepo) FindByID(ctx context.Context, id string) (*models.User, error) {
 	var u models.User
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&u).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *userRepo) DeleteUser(ctx context.Context, id string) (*models.User, error) {
+	var u models.User
+	err := r.db.WithContext(ctx).
+			Clauses(clause.Returning{}).
+			Where("id = ?", id).
+			Delete(&u).Error
+	if err != nil {
 		return nil, err
 	}
 	return &u, nil
