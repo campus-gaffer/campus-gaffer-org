@@ -30,7 +30,7 @@ variable "container_port" {
 
 variable "health_check_path" {
   type    = string
-  default = "/players"
+  default = "/healthz"
 }
 
 variable "task_cpu" {
@@ -86,6 +86,11 @@ variable "ssm_cookie_parameter" {
 variable "ssm_league_tz_parameter" {
   type    = string
   default = "/campus-gaffer/league-tz"
+}
+
+variable "ssm_clerk_webhook_secret_parameter" {
+  type    = string
+  default = "/campus-gaffer/clerk-webhook-secret"
 }
 
 variable "alert_email" {

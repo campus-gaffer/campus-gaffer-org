@@ -203,7 +203,8 @@ resource "aws_iam_role_policy" "ecs_exec_ssm" {
       Resource = [
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_uri_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_cookie_parameter}",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}"
       ]
     }]
   })
@@ -236,7 +237,8 @@ resource "aws_iam_role_policy" "ecs_task_ssm" {
       Resource = [
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_uri_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_cookie_parameter}",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}"
       ]
     }]
   })
@@ -335,6 +337,7 @@ resource "aws_appautoscaling_policy" "cpu_target" {
   }
 }
 
+# SNS topic in ca-central-1 — used by the ECS CPU alarm only.
 resource "aws_sns_topic" "alerts" {
   count = var.alert_email == "" ? 0 : 1
   name  = "${local.name_prefix}-alerts"
@@ -366,6 +369,22 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   }
 }
 
+# Billing alarm must live in us-east-1 (AWS/Billing metrics only exist there).
+# Its SNS topic must also be in us-east-1 — a ca-central-1 topic is rejected.
+resource "aws_sns_topic" "billing_alerts" {
+  count    = var.alert_email == "" ? 0 : 1
+  provider = aws.billing
+  name     = "${local.name_prefix}-billing-alerts"
+}
+
+resource "aws_sns_topic_subscription" "billing_email" {
+  count     = var.alert_email == "" ? 0 : 1
+  provider  = aws.billing
+  topic_arn = aws_sns_topic.billing_alerts[0].arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
 resource "aws_cloudwatch_metric_alarm" "billing" {
   count               = var.alert_email == "" ? 0 : 1
   provider            = aws.billing
@@ -378,7 +397,7 @@ resource "aws_cloudwatch_metric_alarm" "billing" {
   period              = 21600
   statistic           = "Maximum"
   threshold           = var.billing_threshold_usd
-  alarm_actions       = [aws_sns_topic.alerts[0].arn]
+  alarm_actions       = [aws_sns_topic.billing_alerts[0].arn]
 
   dimensions = {
     Currency = "USD"
