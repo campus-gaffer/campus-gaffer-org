@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -46,6 +47,10 @@ type PricingConfig struct {
 }
 
 func Load() (Config, error) {
+	if os.Getenv("USE_SSM_CONFIG") == "true" {
+		return LoadFromSSM(context.Background())
+	}
+
 	_ = loadDotEnvFromCommonPaths()
 
 	cookies, err := buildCookieString()
