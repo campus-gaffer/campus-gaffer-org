@@ -403,3 +403,68 @@ resource "aws_cloudwatch_metric_alarm" "billing" {
     Currency = "USD"
   }
 }
+
+resource "aws_cloudfront_distribution" "api" {
+  origin {
+    domain_name = aws_lb.api.dns_name
+    origin_id   = "alb-api"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  enabled         = true
+  is_ipv6_enabled = true
+  comment         = "${local.name_prefix} — HTTPS termination for ALB"
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "alb-api"
+
+    forwarded_values {
+      query_string = true
+
+      # Pass auth, CORS, content, and Clerk webhook signature headers through.
+      headers = [
+        "Authorization",
+        "Content-Type",
+        "Origin",
+        "Access-Control-Request-Headers",
+        "Access-Control-Request-Method",
+        "svix-id",
+        "svix-timestamp",
+        "svix-signature",
+      ]
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+
+    # TTL=0 — this is an API, never cache responses.
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # North America + Europe edge locations — cheapest tier, covers Canada well.
+  price_class = "PriceClass_100"
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  # Free *.cloudfront.net certificate — no custom domain required.
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}

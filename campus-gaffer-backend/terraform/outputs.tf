@@ -21,3 +21,7 @@ output "api_base_url" {
 output "task_definition_family" {
   value = aws_ecs_task_definition.api.family
 }
+
+output "api_https_url" {
+  value = "https://${aws_cloudfront_distribution.api.domain_name}"
+}
