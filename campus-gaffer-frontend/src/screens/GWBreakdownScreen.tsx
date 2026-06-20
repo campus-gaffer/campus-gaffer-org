@@ -334,9 +334,7 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
       // so we don't collapse generic network errors into the "no squad" UI.
       let lookupErrored = false;
       if (!squadId) {
-        const userId = window.localStorage.getItem(USER_ID_KEY);
-        if (userId) {
-          try {
+        try {
             const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
             squadId = data.squad_id;
             window.localStorage.setItem(SQUAD_ID_KEY, squadId);
@@ -348,7 +346,6 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
               lookupErrored = true;
             }
           }
-        }
       }
 
       if (!squadId) {
