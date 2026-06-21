@@ -66,10 +66,18 @@ func GetPlayers(c *gin.Context, gameRepo repository.GameRepository, playerRepo r
 		teams = map[uuid.UUID]string{}
 	}
 
+	// Batch the carry-forward price lookup into one query. Non-fatal: on
+	// error, players fall back to PriceFloor (same as the per-player path).
+	prices, err := priceRepo.GetEffectivePrices(ctx, currentGW)
+	if err != nil {
+		log.Printf("GetPlayers: effective prices: %v", err)
+		prices = map[uuid.UUID]float64{}
+	}
+
 	result := make([]playerResponse, len(players))
 	for i, p := range players {
-		price, err := priceRepo.GetEffectivePrice(ctx, p.Id, currentGW)
-		if err != nil {
+		price, ok := prices[p.Id]
+		if !ok {
 			price = repository.PriceFloor
 		}
 
@@ -172,7 +180,11 @@ func currentGameweek(ctx context.Context, gameRepo repository.GameRepository, lo
 // Returns an error if pre-fetch fails; the API can continue with a warning.
 func NewPlayerCache(playerRepo repository.PlayerRepository, priceRepo repository.PlayerPriceRepository, gameRepo repository.GameRepository, loc *time.Location) (*PlayerCache, error) {
 	cache := &PlayerCache{
-		checkInterval: 2 * time.Minute,
+		// Safety-poll cap. The player pool + prices only change when the
+		// scraper/pricing Lambda runs (once per gameweek), so refresh is
+		// scheduled to the gameweek cutoff (see nextCheck); this just bounds
+		// staleness if a cutoff is far off or prices land mid-gameweek.
+		checkInterval: 6 * time.Hour,
 		playerRepo:    playerRepo,
 		priceRepo:     priceRepo,
 		gameRepo:      gameRepo,
@@ -200,6 +212,21 @@ func GetPlayersFromCache(c *gin.Context, cache *PlayerCache) {
 	}
 
 	c.JSON(http.StatusOK, cache.players)
+}
+
+// nextCheck schedules the next refresh for just after the current gameweek's
+// cutoff — the point at which the GW rolls over and the scraper/pricing Lambda
+// will have produced new data — capped at checkInterval so a far-off cutoff
+// (or a price update mid-gameweek) still gets a periodic re-check. A past or
+// zero cutoff (season over, or no schedule) falls back to the interval poll.
+func (cache *PlayerCache) nextCheck(now, cutoff time.Time) time.Time {
+	fallback := now.Add(cache.checkInterval)
+	if cutoff.After(now) {
+		if past := cutoff.Add(time.Minute); past.Before(fallback) {
+			return past
+		}
+	}
+	return fallback
 }
 
 func (cache *PlayerCache) refreshIfNeeded(force bool) error {
@@ -235,7 +262,7 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 	}
 
 	if !force && len(cache.players) > 0 && cache.cachedGameweek == currentGW {
-		cache.nextCheckAt = now.Add(cache.checkInterval)
+		cache.nextCheckAt = cache.nextCheck(now, gwInfo.Cutoff)
 		return nil
 	}
 
@@ -251,10 +278,18 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 		teams = map[uuid.UUID]string{}
 	}
 
+	// One batched query for all carry-forward prices (was an N+1 over the
+	// pool, re-run on every cache refresh).
+	prices, err := cache.priceRepo.GetEffectivePrices(ctx, currentGW)
+	if err != nil {
+		log.Printf("PlayerCache: effective prices: %v", err)
+		prices = map[uuid.UUID]float64{}
+	}
+
 	result := make([]playerResponse, len(players))
 	for i, p := range players {
-		price, err := cache.priceRepo.GetEffectivePrice(ctx, p.Id, currentGW)
-		if err != nil {
+		price, ok := prices[p.Id]
+		if !ok {
 			price = repository.PriceFloor
 		}
 		result[i] = playerResponse{
@@ -269,7 +304,7 @@ func (cache *PlayerCache) refreshIfNeeded(force bool) error {
 
 	cache.players = result
 	cache.cachedGameweek = currentGW
-	cache.nextCheckAt = now.Add(cache.checkInterval)
+	cache.nextCheckAt = cache.nextCheck(now, gwInfo.Cutoff)
 	log.Printf("PlayerCache: refreshed %d players for gameweek %d", len(result), currentGW)
 	return nil
 }

@@ -55,6 +55,9 @@ func (f *fakePriceRepo) InsertBatch(_ context.Context, records []models.PlayerPr
 func (f *fakePriceRepo) GetEffectivePrice(context.Context, uuid.UUID, int) (float64, error) {
 	return 0, nil
 }
+func (f *fakePriceRepo) GetEffectivePrices(context.Context, int) (map[uuid.UUID]float64, error) {
+	return nil, nil
+}
 func (f *fakePriceRepo) MaxPricedGameweek(context.Context) (int, error) {
 	return 0, nil
 }

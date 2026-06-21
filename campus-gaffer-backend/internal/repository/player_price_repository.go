@@ -35,12 +35,18 @@ type PlayerPriceRepository interface {
 	// if the player has never been priced. Centralises the carry-forward
 	// policy so the sparse player_prices table presents as dense to readers.
 	GetEffectivePrice(ctx context.Context, playerID uuid.UUID, asOfGameweek int) (float64, error)
+	// GetEffectivePrices is the batch form of GetEffectivePrice: it returns
+	// the carry-forward price for every priced player in a single query,
+	// keyed by player ID. Callers rendering the whole pool (the /players
+	// endpoint and the player cache) must use this instead of looping
+	// GetEffectivePrice per player, which is an N+1. Players absent from the
+	// map have never been priced — apply PriceFloor at the call site.
+	GetEffectivePrices(ctx context.Context, asOfGameweek int) (map[uuid.UUID]float64, error)
 }
 
 type playerPriceRepo struct {
 	db *gorm.DB
 }
-
 
 func NewPlayerPriceRepo(db *gorm.DB) PlayerPriceRepository {
 	return &playerPriceRepo{
@@ -90,6 +96,31 @@ func (pvr *playerPriceRepo) GetEffectivePrice(ctx context.Context, playerID uuid
 		return 0, err
 	}
 	return row.Price, nil
+}
+
+func (pvr *playerPriceRepo) GetEffectivePrices(ctx context.Context, asOfGameweek int) (map[uuid.UUID]float64, error) {
+	// DISTINCT ON (player_id) with a matching ORDER BY collapses the carry-
+	// forward lookup to one row per player — the highest gameweek <= asOf —
+	// in a single round trip, replacing the per-player N+1.
+	var rows []struct {
+		PlayerID uuid.UUID
+		Price    float64
+	}
+	err := pvr.db.
+		WithContext(ctx).
+		Model(&models.PlayerPrice{}).
+		Select("DISTINCT ON (player_id) player_id, price").
+		Where("gameweek <= ?", asOfGameweek).
+		Order("player_id, gameweek DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	prices := make(map[uuid.UUID]float64, len(rows))
+	for _, r := range rows {
+		prices[r.PlayerID] = r.Price
+	}
+	return prices, nil
 }
 
 func (pvr *playerPriceRepo) Upsert(ctx context.Context, record *models.PlayerPrice) (*models.PlayerPrice, error) {
