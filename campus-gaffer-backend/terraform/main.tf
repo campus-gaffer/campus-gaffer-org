@@ -204,7 +204,9 @@ resource "aws_iam_role_policy" "ecs_exec_ssm" {
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_uri_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_cookie_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_issuer_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_secret_key_parameter}"
       ]
     }]
   })
@@ -238,7 +240,9 @@ resource "aws_iam_role_policy" "ecs_task_ssm" {
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_uri_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_cookie_parameter}",
         "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_league_tz_parameter}",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_webhook_secret_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_issuer_parameter}",
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_clerk_secret_key_parameter}"
       ]
     }]
   })
@@ -272,7 +276,10 @@ resource "aws_ecs_task_definition" "api" {
       environment = [
         { name = "PORT", value = tostring(var.container_port) },
         { name = "USE_SSM_CONFIG", value = "true" },
-        { name = "AWS_REGION", value = var.aws_region }
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "CORS_ALLOWED_ORIGINS", value = join(",", var.cors_allowed_origins) },
+        { name = "TRUSTED_PROXIES", value = var.trusted_proxies },
+        { name = "GIN_MODE", value = "release" }
       ]
       logConfiguration = {
         logDriver = "awslogs"
