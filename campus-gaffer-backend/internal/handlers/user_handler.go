@@ -153,7 +153,6 @@ func GetMe(c *gin.Context, userRepo repository.UserRepository) {
 	c.JSON(http.StatusOK, u)
 }
 
-
 func DeleteMe(c *gin.Context, userRepo repository.UserRepository) {
 	userID, ok := middleware.AuthenticatedUserID(c.Request.Context())
 
@@ -167,6 +166,7 @@ func DeleteMe(c *gin.Context, userRepo repository.UserRepository) {
 	if err != nil {
 		log.Printf("ERROR user_delete failed: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
+		return
 	}
 	c.JSON(http.StatusOK, u)
 }

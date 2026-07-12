@@ -8,6 +8,7 @@ import (
 	"campus-gaffer-backend/internal/repository"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,13 +58,16 @@ func TestValidDisplayName(t *testing.T) {
 // fakeUserRepo records writes and lets tests script collisions / errors
 // without needing a live DB.
 type fakeUserRepo struct {
-	updateErr     error
-	updatedID     string
-	updatedName   string
-	findResult    *models.User
-	findErr       error
-	upsertCalls   int
-	updateCalls   int
+	updateErr   error
+	updatedID   string
+	updatedName string
+	findResult  *models.User
+	findErr     error
+	deleteErr   error
+	deletedID   string
+	upsertCalls int
+	updateCalls int
+	deleteCalls int
 }
 
 func (r *fakeUserRepo) UpsertAuthUser(_ context.Context, _ *models.User) error {
@@ -86,6 +90,15 @@ func (r *fakeUserRepo) FindByID(_ context.Context, id string) (*models.User, err
 		return r.findResult, nil
 	}
 	return &models.User{ID: id, Username: r.updatedName, UsernameCustomized: true}, nil
+}
+
+func (r *fakeUserRepo) DeleteUser(_ context.Context, id string) (*models.User, error) {
+	r.deleteCalls++
+	r.deletedID = id
+	if r.deleteErr != nil {
+		return nil, r.deleteErr
+	}
+	return &models.User{ID: id}, nil
 }
 
 type stubVerifier struct {
@@ -193,5 +206,74 @@ func TestPatchMe_HappyPath_Returns200WithUser(t *testing.T) {
 	}
 	if u.ID != "user_happy" || u.Username != "valid_name" || !u.UsernameCustomized {
 		t.Fatalf("user payload mismatch: %+v", u)
+	}
+}
+
+// DELETE /users/me sits behind RequireUser (group-level in main.go), so the
+// router mirrors that — RequireUser only, no RequireSyncedUser.
+func newDeleteRouter(t *testing.T, repo repository.UserRepository, subject string) http.Handler {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	mw := middleware.NewAuthMiddleware(&stubVerifier{claims: &auth.Claims{Subject: subject}}, repo)
+	r := gin.New()
+	r.DELETE("/users/me", mw.RequireUser(), func(c *gin.Context) {
+		DeleteMe(c, repo)
+	})
+	return r
+}
+
+func doDelete(handler http.Handler) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodDelete, "/users/me", nil)
+	req.Header.Set("Authorization", "Bearer test")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	return w
+}
+
+// The security invariant, mirrored from PatchMe: the deleted id is the JWT
+// subject, never anything the caller could influence. Asserting deletedID —
+// not just the status — is what makes this a real test rather than a shell.
+func TestDeleteMe_HappyPath_DeletesAuthenticatedSubject(t *testing.T) {
+	repo := &fakeUserRepo{}
+	r := newDeleteRouter(t, repo, "user_clerk_owner")
+
+	w := doDelete(r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if repo.deleteCalls != 1 {
+		t.Fatalf("DeleteUser called %d times, want 1", repo.deleteCalls)
+	}
+	if repo.deletedID != "user_clerk_owner" {
+		t.Fatalf("deleted id = %q, want authenticated subject", repo.deletedID)
+	}
+	var u models.User
+	if err := json.Unmarshal(w.Body.Bytes(), &u); err != nil {
+		t.Fatalf("response body is not a single clean User object: %v (body=%q)", err, w.Body.String())
+	}
+	if u.ID != "user_clerk_owner" {
+		t.Fatalf("returned user id = %q, want deleted subject", u.ID)
+	}
+}
+
+// Repo failure must surface as one clean 500 — no fall-through second write.
+// This is the case that catches the missing `return` in DeleteMe: with the
+// bug, the body is `{"error":...}null` and the json.Unmarshal below fails.
+func TestDeleteMe_RepoError_Returns500(t *testing.T) {
+	repo := &fakeUserRepo{deleteErr: errors.New("db down")}
+	r := newDeleteRouter(t, repo, "user_abc")
+
+	w := doDelete(r)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("want 500, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("error response is not clean JSON (double-write?): %v (body=%q)", err, w.Body.String())
+	}
+	if body["error"] != "failed to delete user" {
+		t.Fatalf("error = %q, want \"failed to delete user\"", body["error"])
 	}
 }

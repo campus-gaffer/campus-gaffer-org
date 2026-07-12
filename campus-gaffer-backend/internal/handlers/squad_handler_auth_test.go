@@ -37,6 +37,12 @@ func (r *authRouteUserRepo) FindByID(_ context.Context, _ string) (*models.User,
 	return nil, nil
 }
 
+// DeleteUser is unused by the squad-auth test; a no-op keeps this fake
+// satisfying UserRepository without faking behaviour nothing here asserts.
+func (r *authRouteUserRepo) DeleteUser(_ context.Context, _ string) (*models.User, error) {
+	return nil, nil
+}
+
 type recordingSquadService struct {
 	req service.CreateSquadRequest
 }
