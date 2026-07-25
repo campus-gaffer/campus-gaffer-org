@@ -333,20 +333,15 @@ export default function GWBreakdownScreen({ onBack }: { onBack: () => void }) {
       // Track whether the user-squad lookup itself failed in a non-404 way,
       // so we don't collapse generic network errors into the "no squad" UI.
       let lookupErrored = false;
-      if (!squadId) {
-        const userId = window.localStorage.getItem(USER_ID_KEY);
-        if (userId) {
-          try {
-            const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
-            squadId = data.squad_id;
-            window.localStorage.setItem(SQUAD_ID_KEY, squadId);
-          } catch (err) {
-            if (err instanceof Error && err.name === 'AbortError') return;
-            // 404 = canonical "no squad yet". Anything else (network, 5xx)
-            // is a real error and must not be misrepresented as empty.
-            if (!(err instanceof ApiError && err.status === 404)) {
-              lookupErrored = true;
-            }
+      if (!squadId && userId) {
+        try {
+          const data = await apiFetch<{ squad_id: string }>('/users/me/squad', { signal: ctrl.signal });
+          squadId = data.squad_id;
+          window.localStorage.setItem(SQUAD_ID_KEY, squadId);
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          if (!(err instanceof ApiError && err.status === 404)) {
+            lookupErrored = true;
           }
         }
       }
