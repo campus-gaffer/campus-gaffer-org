@@ -29,3 +29,7 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Re-include vercel.json: the repo-root .gitignore ignores all *.json, which
+# would otherwise silently drop our Vercel SPA-rewrite config from the deploy.
+!vercel.json
