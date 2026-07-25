@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RedirectToSignIn, SignedIn, SignedOut, SignOutButton, useAuth } from '@clerk/clerk-react';
+import { AuthenticateWithRedirectCallback, RedirectToSignIn, SignedIn, SignedOut, SignOutButton, useAuth } from '@clerk/clerk-react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -193,11 +193,29 @@ function App() {
               path="/profile"
               element={<SignedIn><ProfileScreen /></SignedIn>}
             />
+            {/* OAuth landing route. Clerk's authenticateWithRedirect sends the
+                user here after the provider (Google/Apple) redirects back;
+                AuthenticateWithRedirectCallback completes the handshake (calls
+                setActive under the hood) and then navigates to /home. */}
+            <Route
+              path="/sso-callback"
+              element={
+                <AuthenticateWithRedirectCallback
+                  signInFallbackRedirectUrl="/home"
+                  signUpFallbackRedirectUrl="/home"
+                />
+              }
+            />
             <Route path="*" element={<Navigate to={isSignedIn ? '/home' : '/login'} replace />} />
           </Routes>
         </div>
         <SignedOut>
-          {location.pathname !== '/login' ? <RedirectToSignIn /> : null}
+          {/* Don't yank the user off /login (the custom auth page) or
+              /sso-callback (mid-OAuth handshake, still signed-out until
+              setActive resolves). */}
+          {location.pathname !== '/login' && location.pathname !== '/sso-callback'
+            ? <RedirectToSignIn />
+            : null}
         </SignedOut>
         {isSignedIn && location.pathname !== '/login' && (
           <SignOutButton>
